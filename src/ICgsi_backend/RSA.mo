@@ -45,7 +45,7 @@ module {
     );
   };
 
-  public func decryptSig(signature : Text, pubKey : PubKey) : Result.Result<[Nat8], Text> {
+  func decryptSig(signature : Text, pubKey : PubKey) : Result.Result<[Nat8], Text> {
     let sigArr = switch (Base64.URLEncoding.decodeText(signature)) {
       case (#ok val) val;
       case (#err err) Debug.trap("couldn't decode signature: " # err);
