@@ -29,7 +29,13 @@ module {
     name : Text;
   };
 
-  public func decode(token : Text, pubKeys : [RSA.PubKey]) : Result.Result<Text, Text> {
+  public type JWT = {
+    header : Header;
+    payload : Payload;
+    signature : Text;
+  };
+
+  public func decode(token : Text, pubKeys : [RSA.PubKey]) : Result.Result<JWT, Text> {
     assert (pubKeys.size() > 0);
     let iter = Text.split(token, #char('.'));
 
@@ -69,8 +75,11 @@ module {
 
     // check signature
     let hash : Blob = Sha256.fromBlob(#sha256, Text.encodeUtf8(header64 # "." # payload64));
-    let check = RSA.verifySig(hash, signature64, pubKey);
+    switch (RSA.verifySig(hash, signature64, pubKey)) {
+      case (#ok) {};
+      case (#err err) return #err(err);
+    };
 
-    return #ok(debug_show (header) # debug_show (payload) # debug_show (check));
+    return #ok({ header; payload; signature = signature64 });
   };
 };

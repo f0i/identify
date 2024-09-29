@@ -1,5 +1,4 @@
 import Result "mo:base/Result";
-import Debug "mo:base/Debug";
 import Nat8 "mo:base/Nat8";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
@@ -7,6 +6,7 @@ import Buffer "mo:base/Buffer";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
 import Base64 "Base64";
+import { JSON } "mo:serde";
 module {
 
   public type PubKey = {
@@ -48,7 +48,7 @@ module {
   func decryptSig(signature : Text, pubKey : PubKey) : Result.Result<[Nat8], Text> {
     let sigArr = switch (Base64.URLEncoding.decodeText(signature)) {
       case (#ok val) val;
-      case (#err err) Debug.trap("couldn't decode signature: " # err);
+      case (#err err) return #err("couldn't decode signature: " # err);
     };
 
     let sig = bytesToNat(sigArr);
@@ -88,4 +88,50 @@ module {
     };
   };
 
+  /// Extract public keys from JSON data formated `{"keys": [{"kid": ...}, ...]}`
+  /// This is also the format returned by https://www.googleapis.com/oauth2/v3/certs
+  public func pubKeysFromJSON(keysJSON : Text) : Result.Result<[PubKey], Text> {
+    // Intermediate type with base64 encoded key data
+    type Key64 = {
+      e : Text;
+      n : Text;
+      kid : Text;
+      use : Text;
+      alg : Text;
+      kty : Text;
+    };
+    type KeyData = {
+      keys : [Key64];
+    };
+    let dataBlob = switch (JSON.fromText(keysJSON, null)) {
+      case (#ok data) data;
+      case (#err err) return #err("could not parse keys: " # err);
+    };
+    let ?keyData : ?KeyData = from_candid (dataBlob) else return #err("missing fields in " # keysJSON);
+
+    let keys = Buffer.Buffer<PubKey>(keyData.keys.size());
+    for (key in keyData.keys.vals()) {
+      let eBytes = switch (Base64.URLEncoding.decodeText(key.e)) {
+        case (#ok val) val;
+        case (#err err) return #err("couldn't decode n of public key" # err);
+      };
+      let e = bytesToNat(eBytes);
+      let nBytes = switch (Base64.URLEncoding.decodeText(key.n)) {
+        case (#ok val) val;
+        case (#err err) return #err("couldn't decode e of public key: " # err);
+      };
+      let n = bytesToNat(nBytes);
+
+      keys.add({
+        e;
+        n;
+        kid = key.kid;
+        use = key.use;
+        alg = key.alg;
+        kty = key.kty;
+      });
+    };
+
+    return #ok(Buffer.toArray(keys));
+  };
 };
