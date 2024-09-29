@@ -1,4 +1,5 @@
 import Debug "mo:base/Debug";
+import Time "mo:base/Time";
 import Base64 "../src/ICgsi_backend/Base64";
 import Jwt "../src/ICgsi_backend/JWT";
 import RSA "../src/ICgsi_backend/RSA";
@@ -42,10 +43,24 @@ let googleKeys = "{
 
 let #ok(keys) = RSA.pubKeysFromJSON(googleKeys) else Debug.trap("failed to parse keys");
 
-let #ok(data1) = Jwt.decode(testJWT1, keys) else Debug.trap("failed to decode jwt 1");
+let nowNanos1 = 1727177187123456789;
+//   iat token1 1727173668
+//   exp token1 1727177268
+
+let nowNanos2 = 1727527187123456789;
+//   iat token2 1727525312
+//   iat token2 1727528912
+
+let data1 = switch (Jwt.decode(testJWT1, keys, nowNanos1)) {
+  case (#err err) Debug.trap("failed to decode jwt 1: " # err);
+  case (#ok data) data;
+};
 assert data1.payload.name == "Martin S.";
 
-let #ok(data2) = Jwt.decode(testJWT2, keys) else Debug.trap("failed to decode jwt 2");
+let data2 = switch (Jwt.decode(testJWT2, keys, nowNanos2)) {
+  case (#err err) Debug.trap("failed to decode jwt 2: " # err);
+  case (#ok data) data;
+};
 assert data2.payload.name == "Martin S.";
 
 assert data1 != data2;
