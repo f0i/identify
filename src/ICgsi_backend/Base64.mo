@@ -8,19 +8,10 @@ import Nat32 "mo:base/Nat32";
 import Nat8 "mo:base/Nat8";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
-import Debug "mo:base/Debug";
 
 module Base64 {
 
-  public func decodeText(data : Text) : Result.Result<[Nat8], Text> {
-    let decoded : [Nat8] = switch (decode(data)) {
-      case (#ok val) val;
-      case (#err err) return #err(err);
-    };
-    return #ok(decoded);
-  };
-
-  public func decodeTextToText(data : Text) : Result.Result<Text, Text> {
+  public func decodeText(data : Text) : Result.Result<Text, Text> {
     let decoded : [Nat8] = switch (decode(data)) {
       case (#ok val) val;
       case (#err err) return #err(err);

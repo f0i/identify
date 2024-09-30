@@ -48,7 +48,7 @@ module {
     let null = iter.next() else return #err("excess data in token");
 
     // decode header
-    let headerJSON = switch (Base64.decodeTextToText(header64)) {
+    let headerJSON = switch (Base64.decodeText(header64)) {
       case (#ok data) data;
       case (#err err) return #err("could not decode header: " # err);
     };
@@ -66,7 +66,7 @@ module {
     if (pubKey.use != "sig") return #err("invalid key: use must be sig");
 
     // decode payload
-    let payloadJSON = switch (Base64.decodeTextToText(payload64)) {
+    let payloadJSON = switch (Base64.decodeText(payload64)) {
       case (#ok data) data;
       case (#err err) return #err("could not decode payload: " # err);
     };
