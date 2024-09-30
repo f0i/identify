@@ -48,13 +48,13 @@ module {
     let null = iter.next() else return #err("excess data in token");
 
     // decode header
-    let headerJSON = switch (Base64.URLEncoding.decodeTextToText(header64)) {
+    let headerJSON = switch (Base64.decodeTextToText(header64)) {
       case (#ok data) data;
       case (#err err) return #err("could not decode header: " # err);
     };
     let headerBlob = switch (JSON.fromText(headerJSON, null)) {
       case (#ok data) data;
-      case (#err err) return #err("could not decode header: " # err);
+      case (#err err) return #err("could not decode header: " # err # " " # headerJSON);
     };
     let ?header : ?Header = from_candid (headerBlob) else return #err("missing fields in header " # headerJSON);
     if (header.typ != "JWT") return #err("invalid JWT header: typ must be JWT");
@@ -66,13 +66,13 @@ module {
     if (pubKey.use != "sig") return #err("invalid key: use must be sig");
 
     // decode payload
-    let payloadJSON = switch (Base64.URLEncoding.decodeTextToText(payload64)) {
+    let payloadJSON = switch (Base64.decodeTextToText(payload64)) {
       case (#ok data) data;
-      case (#err err) return #err("could not decode header: " # err);
+      case (#err err) return #err("could not decode payload: " # err);
     };
     let payloadBlob = switch (JSON.fromText(payloadJSON, null)) {
       case (#ok data) data;
-      case (#err err) return #err("could not decode header: " # err);
+      case (#err err) return #err("could not decode payload: " # err # " >" # payloadJSON # "<");
     };
     let ?payload : ?Payload = from_candid (payloadBlob) else return #err("missing fields in payload " # payloadJSON);
 

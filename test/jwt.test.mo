@@ -1,11 +1,6 @@
 import Debug "mo:base/Debug";
-import Time "mo:base/Time";
-import Base64 "../src/ICgsi_backend/Base64";
 import Jwt "../src/ICgsi_backend/JWT";
 import RSA "../src/ICgsi_backend/RSA";
-
-let res = Base64.StdEncoding.decodeTextToText("dGVzdA");
-assert res == #ok("test");
 
 let testJWT1 = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjVhYWZmNDdjMjFkMDZlMjY2Y2NlMzk1YjIxNDVjN2M2ZDQ3MzBlYTUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiIzNzY2NTA1NzExMjctdnBvdGtyNGt0N2Q3Nm84bWtpMDlmN2Eydm9wYXRkcDYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiIzNzY2NTA1NzExMjctdnBvdGtyNGt0N2Q3Nm84bWtpMDlmN2Eydm9wYXRkcDYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTQ4MDgxMjIyNDk0OTIxNTI3ODQiLCJlbWFpbCI6ImYwaWRlc2lyZUBnb29nbGVtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYmYiOjE3MjcxNzMzNjgsIm5hbWUiOiJNYXJ0aW4gUy4iLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jSmRXWU1SRGFuU0NxdlpmdDlpQ0lhNHYydEdlX241SmFGNm03WU9vRDZZdV9wS1N3UlBzZz1zOTYtYyIsImdpdmVuX25hbWUiOiJNYXJ0aW4iLCJmYW1pbHlfbmFtZSI6IlMuIiwiaWF0IjoxNzI3MTczNjY4LCJleHAiOjE3MjcxNzcyNjgsImp0aSI6IjBhZGU5YWZlOGFlMTk5ZTMyYzQxZGJiMTBlODU5NDllZDUxN2Y1YmIifQ.Gq3-E3VuSCBMWrUEpAwWSuL7rx7b-mjHIy31TJLpyKqcPr5_NLXd-Z5Vp7OVW4Dq-XzlTfid6RVoHcx2Rbko0S1qqlWKy3D6o7xL_XJs2GXDFWnFdQSGwRO20drFzEX3C44UKAv6SaSrcKZuCiHJkNYfS90FBrbBImwM3DS3X7nOMQf-IKMvZ6GemW9huciECApbDhqB7N1C1He9R8NNK7BIUIqV0EBnGhvCouRvrjyLRjuclSnUSOQw7Bchp_Iwp6Ld0YWTwoUmiD9aji4sdn_BHRtITyz_e27BPbECcD6DXR1WMRDJPGmzkjCoFB5w7rRYKcQiXavksl-FpkCAaA";
 
@@ -41,7 +36,10 @@ let googleKeys = "{
   ]
 }";
 
-let #ok(keys) = RSA.pubKeysFromJSON(googleKeys) else Debug.trap("failed to parse keys");
+let keys = switch (RSA.pubKeysFromJSON(googleKeys)) {
+  case (#err err) Debug.trap("failed to parse keys: " # err);
+  case (#ok data) data;
+};
 
 let nowNanos1 = 1727177187123456789;
 //   iat token1 1727173668
@@ -49,7 +47,7 @@ let nowNanos1 = 1727177187123456789;
 
 let nowNanos2 = 1727527187123456789;
 //   iat token2 1727525312
-//   iat token2 1727528912
+//   exp token2 1727528912
 
 let data1 = switch (Jwt.decode(testJWT1, keys, nowNanos1)) {
   case (#err err) Debug.trap("failed to decode jwt 1: " # err);

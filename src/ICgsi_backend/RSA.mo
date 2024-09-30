@@ -46,7 +46,7 @@ module {
   };
 
   func decryptSig(signature : Text, pubKey : PubKey) : Result.Result<[Nat8], Text> {
-    let sigArr = switch (Base64.URLEncoding.decodeText(signature)) {
+    let sigArr = switch (Base64.decodeText(signature)) {
       case (#ok val) val;
       case (#err err) return #err("couldn't decode signature: " # err);
     };
@@ -111,12 +111,12 @@ module {
 
     let keys = Buffer.Buffer<PubKey>(keyData.keys.size());
     for (key in keyData.keys.vals()) {
-      let eBytes = switch (Base64.URLEncoding.decodeText(key.e)) {
+      let eBytes = switch (Base64.decodeText(key.e)) {
         case (#ok val) val;
         case (#err err) return #err("couldn't decode n of public key" # err);
       };
       let e = bytesToNat(eBytes);
-      let nBytes = switch (Base64.URLEncoding.decodeText(key.n)) {
+      let nBytes = switch (Base64.decodeText(key.n)) {
         case (#ok val) val;
         case (#err err) return #err("couldn't decode e of public key: " # err);
       };
