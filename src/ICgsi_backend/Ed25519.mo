@@ -32,12 +32,8 @@ module {
     getKeyPair(map, k).publicKey;
   };
 
-  public func sign<T>(map : DB<T>, k : T, data : Text) : Text {
-    var keyPair = getKeyPair(map, k);
-    let { publicKey : [Nat8]; secretKey : [Nat8] } = keyPair;
-
-    let rs = NACL.SIGN.sign(convert(data), secretKey);
-    Hex.toText(rs) # "  " # Hex.toText(publicKey);
+  public func sign<T>(data : [Nat8], secretKey : [Nat8]) : [Nat8] {
+    NACL.SIGN.sign(data, secretKey);
   };
 
   public shared func signVerify(msg : Text, publicKey : Text) : async (Text, Text) {
