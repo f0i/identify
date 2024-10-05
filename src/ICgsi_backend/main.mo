@@ -1,10 +1,22 @@
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
+import Map "mo:map/Map";
+import { thash } "mo:map/Map";
 import Jwt "JWT";
 import RSA "RSA";
+import Delegation "Delegation";
+import Ed25519 "Ed25519";
 
 actor Main {
+  let MAX_EXPIRATION_TIME = 31 * 24 * 60 * 60 * 1_000_000_000;
+  type KeyPair = Ed25519.KeyPair;
+  stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
+  let db = {
+    set = func(k : Text, v : Ed25519.KeyPair) = Map.set(keyPairs, thash, k, v);
+    get = func(k : Text) : ?Ed25519.KeyPair = Map.get(keyPairs, thash, k);
+  };
+
   let googleKeys = "{
     \"keys\": [
       {
@@ -34,24 +46,23 @@ actor Main {
     ]
   }";
 
-  public shared ({ caller }) func login(token : Text) : async Result.Result<Jwt.JWT, Text> {
-    if (Principal.isAnonymous(caller)) {
-      return #err("Caller must not be anonymous");
-    };
-
+  public shared query func getDelegations(token : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<Delegation.AuthResponse, Text> {
     // verify token
     let #ok(keys) = RSA.pubKeysFromJSON(googleKeys) else return #err("failed to parse keys");
+    if (expireIn > MAX_EXPIRATION_TIME) return #err("exporation time to long");
 
-    let _jwt = switch (Jwt.decode(token, keys, Time.now())) {
+    let jwt = switch (Jwt.decode(token, keys, Time.now())) {
       case (#err err) return #err("failed to decode token: " # err);
       case (#ok data) data;
     };
 
+    let keyPair = Ed25519.getKeyPair(db, jwt.payload.sub);
+
     // sign delegation
+    let authResponse = Delegation.getDelegation(sessionKey, keyPair, Time.now() + expireIn);
     //TODO: implement
 
-    return #err("not implemented")
-
+    return #ok(authResponse);
   };
 
 };

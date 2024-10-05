@@ -7,7 +7,7 @@ import Array "mo:base/Array";
 import Hex "./Hex";
 
 module {
-  let convert = func(x : Text) : [Nat8] = Blob.toArray(Text.encodeUtf8(x));
+  //let convert = func(x : Text) : [Nat8] = Blob.toArray(Text.encodeUtf8(x));
   let revert = func(r : [Nat8]) : Text = Option.get(Text.decodeUtf8(Blob.fromArray(r)), "");
 
   public type KeyPair = { publicKey : [Nat8]; secretKey : [Nat8] };
@@ -16,7 +16,7 @@ module {
     get : (k : T) -> ?KeyPair;
   };
 
-  func getKeyPair<T>(map : DB<T>, k : T) : KeyPair {
+  public func getKeyPair<T>(map : DB<T>, k : T) : KeyPair {
     switch (map.get(k)) {
       case (?keys) return keys;
       case (null) {
@@ -36,7 +36,7 @@ module {
     NACL.SIGN.sign(data, secretKey);
   };
 
-  public shared func signVerify(msg : Text, publicKey : Text) : async (Text, Text) {
+  public func signVerify(msg : Text, publicKey : Text) : async (Text, Text) {
     let rs = NACL.SIGN.open(Hex.toArrayUnsafe(msg), Hex.toArrayUnsafe(publicKey));
     switch (rs) {
       case null ("", "");

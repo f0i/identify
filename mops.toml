@@ -3,6 +3,7 @@ base = "0.13.0"
 serde = "3.2.1"
 sha2 = "0.1.0"
 tweetnacl = "1.0.3"
+map = "9.0.1"
 
 [toolchain]
 wasmtime = "25.0.1"
