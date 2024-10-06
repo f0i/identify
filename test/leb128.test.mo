@@ -1,5 +1,5 @@
 import { print; trap } "mo:base/Debug";
-import ULEB128 "../src/ICgsi_backend/ULEB128";
+import ULEB128 "../src/backend/ULEB128";
 
 print("# ULEB 128");
 

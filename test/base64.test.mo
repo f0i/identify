@@ -1,5 +1,5 @@
 import { print; trap } "mo:base/Debug";
-import Base64 "../src/ICgsi_backend/Base64";
+import Base64 "../src/backend/Base64";
 
 print("# base64");
 
