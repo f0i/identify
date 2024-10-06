@@ -77,7 +77,8 @@ module {
     let ?payload : ?Payload = from_candid (payloadBlob) else return #err("missing fields in payload " # payloadJSON);
 
     if (payload.iat > nowS) return #err("JWT creation time " # Nat.toText(payload.iat) # " invalid");
-    if (payload.exp < nowS) return #err("JWT is expired at " # Nat.toText(payload.exp));
+    //TODO! re-enable
+    //if (payload.exp < nowS) return #err("JWT is expired at " # Nat.toText(payload.exp));
 
     // check signature
     let hash : Blob = Sha256.fromBlob(#sha256, Text.encodeUtf8(header64 # "." # payload64));

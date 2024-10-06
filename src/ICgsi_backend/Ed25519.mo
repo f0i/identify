@@ -4,6 +4,7 @@ import Blob "mo:base/Blob";
 import Text "mo:base/Text";
 import Nat8 "mo:base/Nat8";
 import Array "mo:base/Array";
+import Debug "mo:base/Debug";
 import Hex "./Hex";
 
 module {
@@ -16,10 +17,11 @@ module {
     get : (k : T) -> ?KeyPair;
   };
 
-  public func getKeyPair<T>(map : DB<T>, k : T) : KeyPair {
+  public func getKeyPair<T>(map : DB<T>, k : T, createIfNotFound : Bool) : KeyPair {
     switch (map.get(k)) {
       case (?keys) return keys;
       case (null) {
+        if (not createIfNotFound) Debug.trap("Key not found");
         // TODO!: keyPair is using insecure seed for key generation
         var keys = NACL.SIGN.keyPair(null);
         map.set(k, keys);
@@ -28,8 +30,8 @@ module {
     };
   };
 
-  public func getPubKey<T>(map : DB<T>, k : T) : [Nat8] {
-    getKeyPair(map, k).publicKey;
+  public func getPubKey<T>(map : DB<T>, k : T, createIfNotFound : Bool) : [Nat8] {
+    getKeyPair(map, k, createIfNotFound).publicKey;
   };
 
   public func sign<T>(data : [Nat8], secretKey : [Nat8]) : [Nat8] {

@@ -1,12 +1,17 @@
-import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
 import Map "mo:map/Map";
-import { thash } "mo:map/Map";
+import Set "mo:map/Set";
+import { thash; n32hash } "mo:map/Map";
 import Jwt "JWT";
 import RSA "RSA";
 import Delegation "Delegation";
 import Ed25519 "Ed25519";
+import IC "mo:base/ExperimentalInternetComputer";
+import Float "mo:base/Float";
+import Nat64 "mo:base/Nat64";
+import Nat32 "mo:base/Nat32";
+import Prng "mo:prng";
 
 actor Main {
   let MAX_EXPIRATION_TIME = 31 * 24 * 60 * 60 * 1_000_000_000;
@@ -15,6 +20,14 @@ actor Main {
   let db = {
     set = func(k : Text, v : Ed25519.KeyPair) = Map.set(keyPairs, thash, k, v);
     get = func(k : Text) : ?Ed25519.KeyPair = Map.get(keyPairs, thash, k);
+  };
+
+  stable var tokens : Set.Set<Nat32> = Set.new();
+
+  let rng = Prng.SFC32a();
+  rng.init(Nat32.fromIntWrap(Time.now()));
+  while (Set.size(tokens) < 10) {
+    Set.add(tokens, n32hash, rng.next());
   };
 
   let googleKeys = "{
@@ -46,7 +59,15 @@ actor Main {
     ]
   }";
 
-  public shared query func getDelegations(token : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<Delegation.AuthResponse, Text> {
+  public shared func prepareDelegation(sub : Text, token : Nat32) : async Result.Result<[Nat8], Text> {
+    if (Set.has(tokens, n32hash, token)) return #err("invalid token");
+    let pubKey : [Nat8] = Ed25519.getPubKey(db, sub, true);
+    return #ok(pubKey);
+  };
+
+  public shared query func getDelegations(token : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; cost : Float; perf0 : Nat64; perf1 : Nat64 }, Text> {
+    let c1 = IC.performanceCounter(1);
+
     // verify token
     let #ok(keys) = RSA.pubKeysFromJSON(googleKeys) else return #err("failed to parse keys");
     if (expireIn > MAX_EXPIRATION_TIME) return #err("exporation time to long");
@@ -56,13 +77,19 @@ actor Main {
       case (#ok data) data;
     };
 
-    let keyPair = Ed25519.getKeyPair(db, jwt.payload.sub);
+    let keyPair = Ed25519.getKeyPair(db, jwt.payload.sub, false);
 
     // sign delegation
     let authResponse = Delegation.getDelegation(sessionKey, keyPair, Time.now() + expireIn);
-    //TODO: implement
 
-    return #ok(authResponse);
+    let diff : Nat64 = IC.performanceCounter(1) - c1;
+    let cost = Float.fromInt(Nat64.toNat(diff)) * 0.000000000000536; // $ per instruction https://link.medium.com/zjNeJd73sNb
+
+    return #ok({
+      auth = authResponse;
+      cost;
+      perf0 = IC.performanceCounter(0);
+      perf1 = IC.performanceCounter(1);
+    });
   };
-
 };
