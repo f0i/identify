@@ -19,6 +19,8 @@ target/
 # frontend code
 node_modules/
 dist/
+out/
+tsconfig.tsbuildinfo
 .svelte-kit/
 
 # environment variables

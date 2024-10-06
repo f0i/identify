@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "es6",
+    "rootDir": "./src",
+    "outDir": "./out",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+  },
+  "include": [
+    "./src/frontend/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",            // Exclude node_modules
+    "out",                    // Exclude the build directory
+    "**/*.test.ts"             // Optionally exclude test files
+  ]
+}
