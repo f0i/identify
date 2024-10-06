@@ -15,6 +15,8 @@ import Prng "mo:prng";
 
 actor Main {
   let MAX_EXPIRATION_TIME = 31 * 24 * 60 * 60 * 1_000_000_000;
+  let MAX_INSTRUCTIONS : Float = 20_000_000_000;
+
   type KeyPair = Ed25519.KeyPair;
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
   let db = {
@@ -59,15 +61,21 @@ actor Main {
     ]
   }";
 
-  public shared func prepareDelegation(sub : Text, token : Nat32) : async Result.Result<[Nat8], Text> {
-    if (Set.has(tokens, n32hash, token)) return #err("invalid token");
-    let pubKey : [Nat8] = Ed25519.getPubKey(db, sub, true);
-    return #ok(pubKey);
+  public shared func prepareDelegation(sub : Text, token : Nat32) : async Result.Result<{ pubKey : [Nat8]; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
+    //if (not Set.has(tokens, n32hash, token)) return #err("invalid token");
+    let pubKey : [Nat8] = Ed25519.getPubKey(db, sub);
+
+    let perf1 = Float.fromInt(Nat64.toNat(IC.performanceCounter(1)));
+    return #ok({
+      pubKey;
+      perf0 = IC.performanceCounter(0);
+      perf1 = IC.performanceCounter(1);
+      usage = perf1 / MAX_INSTRUCTIONS; // percentage of maximum instruction per request
+      cost = perf1 * 0.000000000000536; // $ per instruction https://link.medium.com/zjNeJd73sNb
+    });
   };
 
-  public shared query func getDelegations(token : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; cost : Float; perf0 : Nat64; perf1 : Nat64 }, Text> {
-    let c1 = IC.performanceCounter(1);
-
+  public shared query func getDelegations(token : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
     // verify token
     let #ok(keys) = RSA.pubKeysFromJSON(googleKeys) else return #err("failed to parse keys");
     if (expireIn > MAX_EXPIRATION_TIME) return #err("exporation time to long");
@@ -77,19 +85,21 @@ actor Main {
       case (#ok data) data;
     };
 
-    let keyPair = Ed25519.getKeyPair(db, jwt.payload.sub, false);
+    let keyPair = switch (Ed25519.getKeyPair(db, jwt.payload.sub, false)) {
+      case (#ok keys) keys;
+      case (#err _err) return #err("Couldn't get key for subject " # jwt.payload.sub # ". Call prepareDelegation(" # jwt.payload.sub # ") to generate one.");
+    };
 
     // sign delegation
     let authResponse = Delegation.getDelegation(sessionKey, keyPair, Time.now() + expireIn);
 
-    let diff : Nat64 = IC.performanceCounter(1) - c1;
-    let cost = Float.fromInt(Nat64.toNat(diff)) * 0.000000000000536; // $ per instruction https://link.medium.com/zjNeJd73sNb
-
+    let perf1 = Float.fromInt(Nat64.toNat(IC.performanceCounter(1)));
     return #ok({
       auth = authResponse;
-      cost;
       perf0 = IC.performanceCounter(0);
       perf1 = IC.performanceCounter(1);
+      usage = perf1 / MAX_INSTRUCTIONS; // percentage of maximum instruction per request
+      cost = perf1 * 0.000000000000536; // $ per instruction https://link.medium.com/zjNeJd73sNb
     });
   };
 };
