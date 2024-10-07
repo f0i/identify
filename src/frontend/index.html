@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Google Login</title>
+  <title>IC Google Sign In</title>
   
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -22,9 +22,13 @@
   </style>
 </head>
 <body>
-  <h1>Google Login Integration</h1>
+  <h1>Google Login</h1>
   <div id="g_id_signin"></div>
   <p id="login-status"></p>
+
+    <div id="demo" style="display: none;">
+      <button id="demo-login">Login</button>
+    </div>
 
     <script src="./app.js" type="module"></script>
 </body>

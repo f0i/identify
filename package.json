@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "mkdir -p ./out/frontend && cp src/frontend/index.html out/frontend && tsc --build",
+    "build": "mkdir -p ./out/frontend && cp src/frontend/index.html out/frontend && node build.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,7 +14,12 @@
     "@types/gapi": "^0.0.47",
     "@types/gapi.auth2": "^0.0.61",
     "@types/node": "^22.5.5",
+    "esbuild": "^0.24.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "@dfinity/agent": "^2.1.2",
+    "@dfinity/auth-client": "^2.1.2"
   }
 }

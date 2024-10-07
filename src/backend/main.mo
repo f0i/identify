@@ -63,6 +63,7 @@ actor Main {
 
   public shared func prepareDelegation(sub : Text, token : Nat32) : async Result.Result<{ pubKey : [Nat8]; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
     //if (not Set.has(tokens, n32hash, token)) return #err("invalid token");
+    if (token != 123454321) return #err("invalid token");
     let pubKey : [Nat8] = Ed25519.getPubKey(db, sub);
 
     let perf1 = Float.fromInt(Nat64.toNat(IC.performanceCounter(1)));
