@@ -26,6 +26,11 @@ function handleCredentialResponse(response: any) {
   const idToken = response.credential;
   console.log(response);
 
+  // decode payload
+  const payload = JSON.parse(atob(idToken.split(".")[1]));
+
+  console.log("payload:", payload, payload.sub);
+
   // Send the token to the server for verification
   if (false) {
     fetch("/api/verify-token", {
