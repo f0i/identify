@@ -1,4 +1,4 @@
-import Debug "mo:base/Debug";
+import { print; trap } "mo:base/Debug";
 import Jwt "../src/backend/JWT";
 import RSA "../src/backend/RSA";
 
@@ -36,8 +36,11 @@ let googleKeys = "{
   ]
 }";
 
+print("# JWT test");
+print("- parse RSA keys");
+
 let keys = switch (RSA.pubKeysFromJSON(googleKeys)) {
-  case (#err err) Debug.trap("failed to parse keys: " # err);
+  case (#err err) trap("failed to parse keys: " # err);
   case (#ok data) data;
 };
 
@@ -49,14 +52,16 @@ let nowNanos2 = 1727527187123456789;
 //   iat token2 1727525312
 //   exp token2 1727528912
 
+print("- token 1");
 let data1 = switch (Jwt.decode(testJWT1, keys, nowNanos1)) {
-  case (#err err) Debug.trap("failed to decode jwt 1: " # err);
+  case (#err err) trap("failed to decode jwt 1: " # err);
   case (#ok data) data;
 };
 assert data1.payload.name == "Martin S.";
 
+print("- token 2");
 let data2 = switch (Jwt.decode(testJWT2, keys, nowNanos2)) {
-  case (#err err) Debug.trap("failed to decode jwt 2: " # err);
+  case (#err err) trap("failed to decode jwt 2: " # err);
   case (#ok data) data;
 };
 assert data2.payload.name == "Martin S.";

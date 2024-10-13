@@ -3,27 +3,30 @@ import ULEB128 "ULEB128";
 import Int "mo:base/Int";
 import Blob "mo:base/Blob";
 import Array "mo:base/Array";
+import Time "mo:base/Time";
 import Sha256 "mo:sha2/Sha256";
 module {
+  public type Delegation = {
+    delegation : {
+      pubkey : [Nat8];
+      expiration : Int;
+      //targets : ?[Principal];
+    };
+    signature : [Nat8];
+  };
+
   public type AuthResponse = {
     kind : Text;
-    delegations : [{
-      delegation : {
-        pubkey : [Nat8];
-        expiration : Int;
-        targets : ?[Principal];
-      };
-      signature : [Nat8];
-    }];
+    delegations : [Delegation];
     userPublicKey : [Nat8];
     authnMethod : Text;
   };
 
   let kind = "authorize-client-success";
-  let authnMethod = "gsi"; // II uses "passkey";
+  let authnMethod = "gsi"; // II uses "passkey"
 
-  public func getDelegation(sessionKey : [Nat8], identityKeyPair : Ed25519.KeyPair, expiration : Int) : AuthResponse {
-    assert expiration > 0;
+  public func getUnsignedBytes(sessionKey : [Nat8], expiration : Int) : [Nat8] {
+
     let expirationBytes = ULEB128.encode(Int.abs(expiration));
 
     // SHA256("expiration") = "2EEA88AC2BAA11E3A7468126879609105E6DB78F210978EE00BDDB13FCD8CC4C"
@@ -36,26 +39,46 @@ module {
 
     // concat and hash
     let concatenated = Array.flatten([expHash, expirationHash, pubHash, pubkeyHash]);
+    //Debug.print("hashes: " # debug_show [expHash, expirationHash, pubHash, pubkeyHash]);
     let concatHash = Blob.toArray(Sha256.fromArray(#sha256, concatenated));
+    //Debug.print("hashed: " # debug_show concatHash);
 
-    // add domain seperator "\x1Aic-request-auth-delegation";
+    // add domain seperator "\x1Aic-request-auth-delegation" (first byte is length)
     let domainSeparator : [Nat8] = [0x1A, 0x69, 0x63, 0x2d, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2d, 0x61, 0x75, 0x74, 0x68, 0x2d, 0x64, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e];
-    let unsigned = Array.flatten<Nat8>([domainSeparator, concatHash]);
+
+    return Array.flatten<Nat8>([domainSeparator, concatHash]);
+  };
+
+  /// Generate a delegation structure for given keys.
+  /// settionKey is alreadfy DER encoded and used as is.
+  /// identityKeyPair ist handing the delegation to the sessionKey
+  /// the princial is determined by the identityKeyPair
+  /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
+  public func getDelegation(sessionKey : [Nat8], identityKeyPair : Ed25519.KeyPair, expiration : Time.Time) : AuthResponse {
+    assert expiration > 0;
+
+    // DER encode session key
+    let pubkey = sessionKey;
+    let unsigned = getUnsignedBytes(sessionKey, expiration);
+
+    //Debug.print("signing with: " # debug_show identityKeyPair);
 
     let signature = Ed25519.sign(unsigned, identityKeyPair.secretKey);
+
     let delegation = {
       delegation = {
-        pubkey = sessionKey;
+        pubkey;
         expiration;
-        targets = null;
+        //targets = null;
       };
       signature;
     };
     return {
       kind;
       delegations = [delegation];
-      userPublicKey = identityKeyPair.publicKey;
+      userPublicKey = Ed25519.DERencodePubKey(identityKeyPair.publicKey);
       authnMethod;
     };
   };
+
 };

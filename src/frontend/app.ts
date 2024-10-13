@@ -24,8 +24,41 @@ async function initGsi() {
   window.google.accounts.id.prompt();
 }
 
-async function initAuth() {
+async function checkAuth() {
+  const status = document.getElementById("login-status")!;
+  const login = document.getElementById("demo-login")!;
+  const logout = document.getElementById("demo-logout")!;
   const authClient = await AuthClient.create();
+  if (await authClient.isAuthenticated()) {
+    console.log("Already authenticated!", authClient.getIdentity());
+    authClient.getIdentity();
+    // Handle authenticated state (e.g., show user dashboard)
+    status.innerText = "Authenticated ...";
+    const isDev = process.env.DFX_NETWORK !== "ic";
+    const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
+
+    const backend = createActor(canisterId, {
+      agentOptions: { host, identity: authClient.getIdentity() },
+    });
+    status.innerText = await backend
+      .getPrincipal()
+      .catch((e: any): string => "" + e);
+    login.style.display = "none";
+    logout.style.display = "inline-block";
+  } else {
+    status.innerText = "Not authenticated";
+    login.style.display = "inline-block";
+    logout.style.display = "none";
+  }
+}
+
+async function initAuth() {
+  const authClient = await AuthClient.create({
+    idleOptions: {
+      idleTimeout: 1000 * 60 * 60 * 24 * 7, // set to 7 days
+      disableDefaultIdleCallback: true, // disable the default reload behavior
+    },
+  });
 
   // Check if the user is already authenticated
   if (await authClient.isAuthenticated()) {
@@ -37,14 +70,21 @@ async function initAuth() {
       identityProvider: "https://login.f0i.de",
       onSuccess: () => {
         console.log("Successfully authenticated!");
+        checkAuth();
         // Handle successful authentication (e.g., redirect to your app)
       },
       onError: (error) => {
         console.error("Authentication failed", error);
+        checkAuth();
         // Handle authentication failure
       },
     });
   }
+}
+
+async function resetAuth() {
+  const authClient = await AuthClient.create();
+  authClient.logout().finally(checkAuth);
 }
 
 window.onload = () => {
@@ -68,7 +108,11 @@ window.onload = () => {
     demo.style.display = "block";
     const login = document.getElementById("demo-login")!;
     login.addEventListener("click", initAuth);
+    const logout = document.getElementById("demo-logout")!;
+    logout.addEventListener("click", resetAuth);
   }
+
+  checkAuth();
 };
 
 function handleCredentialResponse(response: any) {
@@ -109,27 +153,4 @@ function handleCredentialResponse(response: any) {
     .catch((err) => {
       status.innerText = err.toString();
     });
-
-  // Send the token to the server for verification
-  if (false) {
-    fetch("/api/verify-token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ token: idToken }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Server response:", data);
-        if (data.success) {
-          console.log("Login successful!");
-        } else {
-          console.log("Login failed!");
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
-  }
 }

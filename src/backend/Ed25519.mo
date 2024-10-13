@@ -6,6 +6,7 @@ import Nat8 "mo:base/Nat8";
 import Array "mo:base/Array";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
+import Nat "mo:base/Nat";
 import Hex "./Hex";
 
 module {
@@ -38,19 +39,19 @@ module {
   };
 
   public func sign<T>(data : [Nat8], secretKey : [Nat8]) : [Nat8] {
-    NACL.SIGN.sign(data, secretKey);
+    if (secretKey.size() != 64) Debug.trap("Invalid key size: expected 64 got" # Nat.toText(secretKey.size()));
+    NACL.SIGN.DETACHED.detached(data, secretKey);
   };
 
-  public func signVerify(msg : Text, publicKey : Text) : async (Text, Text) {
-    let rs = NACL.SIGN.open(Hex.toArrayUnsafe(msg), Hex.toArrayUnsafe(publicKey));
-    switch (rs) {
-      case null ("", "");
-      case (?r) (Hex.toText(r), revert(r));
-    };
+  public func verify(data : [Nat8], signature : [Nat8], publicKey : [Nat8]) : Bool {
+    NACL.SIGN.DETACHED.verify(data, signature, publicKey);
   };
 
-  public func DERencodeED25519PubKey(publicKey : [Nat8]) : [Nat8] {
-    assert (publicKey.size() == 32); // Public key must be 32 bytes
+  public func DERencodePubKey(publicKey : [Nat8]) : [Nat8] {
+    if (publicKey.size() != 32) Debug.trap("Unexpected key length: " # Nat.toText(publicKey.size()));
+
+    return Array.flatten<Nat8>([[0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00], publicKey]);
+
     // DER encoding components for Ed25519
     let derAlgorithmIdentifier : [Nat8] = [
       // SEQUENCE (5 bytes)
