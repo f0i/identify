@@ -10,7 +10,7 @@ module {
     delegation : {
       pubkey : [Nat8];
       expiration : Int;
-      //targets : ?[Principal];
+      targets : ?[Principal];
     };
     signature : [Nat8];
   };
@@ -69,7 +69,7 @@ module {
       delegation = {
         pubkey;
         expiration;
-        //targets = null;
+        targets = null;
       };
       signature;
     };

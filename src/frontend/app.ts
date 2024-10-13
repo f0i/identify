@@ -1,5 +1,6 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
+import { AuthResponse } from "../declarations/backend/backend.did";
 
 declare global {
   interface Window {
@@ -95,7 +96,10 @@ window.onload = () => {
 
     window.addEventListener("message", (event) => {
       console.log("message", event, "origin", window.location.origin);
-      if (event.origin === window.location.origin) {
+      if (
+        event.origin === window.location.origin &&
+        event.data.kind === "authorize-client"
+      ) {
         console.log("setting data", event.data);
         authRequest = event.data;
       }
@@ -115,6 +119,42 @@ window.onload = () => {
   checkAuth();
 };
 
+export interface AuthResponseUnwrapped {
+  kind: string;
+  delegations: Array<DelegationUnwrapped>;
+  authnMethod: string;
+  userPublicKey: Uint8Array | number[];
+}
+export interface DelegationUnwrapped {
+  signature: Uint8Array | number[];
+  delegation: {
+    pubkey: Uint8Array | number[];
+    targets?: Array<any>;
+    expiration: bigint;
+  };
+}
+function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
+  return {
+    ...authRes,
+    delegations: authRes.delegations.map((d): DelegationUnwrapped => {
+      if (d.delegation.targets.length > 0) return d;
+      const { targets: _, ...delegation } = d.delegation;
+      return { ...d, delegation };
+    }),
+  };
+}
+
+function mapOk<T, R, E>(
+  option: { ok: T } | { err: E },
+  func: (ok: T) => R,
+): { ok: R } | { err: E } {
+  if ("ok" in option) {
+    return { ok: func(option.ok) };
+  } else {
+    return option;
+  }
+}
+
 function handleCredentialResponse(response: any) {
   const idToken = response.credential;
   console.log(response);
@@ -128,25 +168,32 @@ function handleCredentialResponse(response: any) {
 
   const backend = createActor(canisterId, { agentOptions: { host } });
 
+  status.innerText = "Google login succeeded. Authorizing client...";
+
   console.log("payload:", payload, payload.sub);
   backend
+    //TODO: prepareDelegation only has to be called once per subject / origin combination. Skip to make login faster!
     .prepareDelegation(payload.sub, 123454321)
     .then((prepRes) => {
       console.log("prepareDelegation response:", prepRes);
+      status.innerText = "Google login succeeded. Get client authorization...";
+    })
+    .then(() => {
       if (!authRequest?.sessionPublicKey) throw "Session key not set";
       return backend.getDelegations(
         idToken,
         authRequest.sessionPublicKey,
-        31n * 24n * 60n * 60n * 1_000_000_000n,
+        authRequest.maxTimeToLive,
       );
     })
     .then((authRes) => {
       console.log("getDelegation response:", authRes);
       if ("ok" in authRes) {
-        // TODO: send response and close window
         console.log("authRes", authRes.ok);
         status.innerText = "Login completed";
-        const msg = authRes.ok.auth;
+        // send response. window will be closed by opener
+        const msg = unwrapTargets(authRes.ok.auth);
+        debugger;
         window.opener.postMessage(msg, "*");
       }
     })
