@@ -144,17 +144,6 @@ function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
   };
 }
 
-function mapOk<T, R, E>(
-  option: { ok: T } | { err: E },
-  func: (ok: T) => R,
-): { ok: R } | { err: E } {
-  if ("ok" in option) {
-    return { ok: func(option.ok) };
-  } else {
-    return option;
-  }
-}
-
 function handleCredentialResponse(response: any) {
   const idToken = response.credential;
   console.log(response);

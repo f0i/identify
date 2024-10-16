@@ -1,36 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IC Google Sign In</title>
-  
-  <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  
-  <style>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IC Google Sign In</title>
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <style>
+    @font-face {
+      font-family: 'Mina';
+      src: url('fonts/Mina/Mina-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
     body {
-      font-family: Arial, sans-serif;
+      font-family: Mina, Arial, sans-serif;
+      color: #222;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f0f0f0;
+      font-size: 15px;
+    }
+
+    .content {
+      background-color: white;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 600px;
+      min-height: 400px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .header {
+      padding: 15px 20px 7px 20px;
+      margin: 0;
+      font-size: 25px;
+    }
+
+    hr {
+      width: 100%;
+      color: #555;
+    }
+
+    .body-content {
+      flex-grow: 1;
+      padding: 50px 20px;
       text-align: center;
-      margin-top: 100px;
     }
 
-    #g_id_signin {
-      display: inline-block;
-      margin: 20px;
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      padding-bottom: 10px;
     }
-  </style>
-</head>
-<body>
-  <h1>Google Login</h1>
-  <div id="g_id_signin"></div>
 
-  <div id="demo" style="display: none;">
-    <button id="demo-login">Log in</button>
-    <button id="demo-logout" style="display: none;">Log out</button>
-  </div>
+    .footer a {
+      margin: 0 10px;
+      padding: 5px 14px;
+      border-radius: 5px;
+      text-decoration: none;
+      color: #555;
+      align-content: center;
+    }
 
-  <p id="login-status"></p>
+    .footer a:hover {
+      background: #f0f0f0;
+    }
 
-  <script src="./app.js" type="module"></script>
-</body>
+    /* For screens larger than 800px */
+    @media (min-width: 800px) {
+      .content {
+        width: 70%;
+        max-width: 800px;
+        height: auto;
+        border-radius: 16px;
+      }
+    }
+
+    /* For screens 800px or smaller */
+    @media (max-width: 800px) {
+      .content {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+      }
+    }
+
+    button {
+      background: linear-gradient(135deg, #4CAF50, #2E7D32); /* Gradient background */
+      color: white; /* White text */
+      padding: 12px 24px; /* Padding for size */
+      font-size: 16px; /* Font size */
+      font-weight: bold; /* Bold text */
+      border: none; /* Remove default border */
+      border-radius: 8px; /* Rounded corners */
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+      cursor: pointer; /* Pointer cursor on hover */
+      transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+    }
+
+    button {
+      background: linear-gradient(135deg, #66BB6A, #388E3C); /* Lighter gradient on hover */
+      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Stronger shadow on hover */
+      transform: translateY(-2px); /* Slight lift on hover */
+    }
+
+    button:active {
+      background: linear-gradient(135deg, #388E3C, #2E7D32); /* Darker gradient on active */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow on active */
+      transform: translateY(0); /* Button returns to normal position */
+    }
+
+    button:focus {
+      outline: none; /* Remove focus outline */
+      box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3); /* Greenish glow for accessibility */
+    }
+
+    .flex-center {
+      display: flex;
+      justify-content: center;
+    }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <div class="header">
+        <img src="img/id.png" alt="logo" height="26px" />
+        Identify</h1>
+      </div>
+      <hr>
+
+      <div class="body-content">
+        <div id="g_id_signin" class="flex-center"></div>
+
+        <div id="demo" style="display: none;">
+          <button id="demo-login">Log in</button>
+          <button id="demo-logout" style="display: none;">Log out</button>
+        </div>
+
+        <p id="login-status"></p>
+      </div>
+
+      <div class="footer">
+        <a href="#">Help</a>
+        <a href="#">Security</a>
+        <a href="#">About</a>
+      </div>
+    </div>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

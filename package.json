@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "mkdir -p ./out/frontend && cp src/frontend/index.html out/frontend && node build.js",
+    "build": "mkdir -p ./out/frontend && cp -r src/frontend/index.html src/frontend/img src/frontend/fonts out/frontend && node build.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
