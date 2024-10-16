@@ -182,7 +182,6 @@ function handleCredentialResponse(response: any) {
         status.innerText = "Login completed";
         // send response. window will be closed by opener
         const msg = unwrapTargets(authRes.ok.auth);
-        debugger;
         window.opener.postMessage(msg, "*");
       }
     })

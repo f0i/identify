@@ -12,10 +12,13 @@ import Nat64 "mo:base/Nat64";
 import Nat32 "mo:base/Nat32";
 import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
+import Http "Http";
 
 actor Main {
-  let MAX_EXPIRATION_TIME = 31 * 24 * 60 * 60 * 1_000_000_000;
+  let TIME_HOUR = 60 * 60 * 1_000_000_000;
+  let MAX_EXPIRATION_TIME = 31 * 24 * TIME_HOUR;
   let MAX_INSTRUCTIONS : Float = 20_000_000_000;
+  let MIN_FETCH_TIME = 24 * TIME_HOUR;
 
   type KeyPair = Ed25519.KeyPair;
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
@@ -24,8 +27,10 @@ actor Main {
     get = func(k : Text) : ?Ed25519.KeyPair = Map.get(keyPairs, thash, k);
   };
 
-  // TODO: remove old keys / implement update function that fetches https://www.googleapis.com/oauth2/v3/certs
-  let googleKeys = "{
+  type Stat = { origin : Text; accounts : Nat };
+  stable var stats : Map.Map<Text, Stat> = Map.new();
+
+  let defaultGoogleKeys = "{
     \"keys\": [
       {
         \"kid\": \"a50f6e70ef4b548a5fd9142eecd1fb8f54dce9ee\",
@@ -46,6 +51,39 @@ actor Main {
     ]
   }";
 
+  var googleKeys = switch (RSA.pubKeysFromJSON(defaultGoogleKeys)) {
+    case (#ok keys) keys;
+    case (#err _) [];
+  };
+
+  public query func transform(raw : Http.TransformArgs) : async Http.CanisterHttpResponsePayload {
+    return {
+      status = raw.response.status;
+      body = raw.response.body;
+      headers = [];
+    };
+  };
+
+  var lastFetch : Time.Time = 0;
+  public shared ({ caller }) func fetchGoogleKeys(json : ?Text) : async Result.Result<[RSA.PubKey], Text> {
+    if (not Principal.isController(caller)) {
+      if (Time.now() - lastFetch < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
+      // TODO?: Remove parameter json completely
+      if (json != null) return #err("Permission denied. Try calling this function with parameter null to fetch from google api.");
+    };
+
+    let jsonKeys = switch (json) {
+      case (?data) data;
+      case (null) (await Http.getRequest("https://www.googleapis.com/oauth2/v3/certs", 5000, transform)).data;
+    };
+
+    switch (RSA.pubKeysFromJSON(jsonKeys)) {
+      case (#ok keys) googleKeys := keys;
+      case (#err err) return #err(err);
+    };
+    return #ok(googleKeys);
+  };
+
   // TODO: add origin to have different keys for each app
   public shared func prepareDelegation(sub : Text, token : Nat32) : async Result.Result<{ pubKey : [Nat8]; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
     // prevent bots and people exploring the interface from creating keys *by accident*
@@ -64,10 +102,10 @@ actor Main {
 
   public shared query func getDelegations(token : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
     // verify token
-    let #ok(keys) = RSA.pubKeysFromJSON(googleKeys) else return #err("failed to parse keys");
+    if (googleKeys.size() == 0) return #err("Google keys not set");
     if (expireIn > MAX_EXPIRATION_TIME) return #err("exporation time to long");
 
-    let jwt = switch (Jwt.decode(token, keys, Time.now())) {
+    let jwt = switch (Jwt.decode(token, googleKeys, Time.now())) {
       case (#err err) return #err("failed to decode token: " # err);
       case (#ok data) data;
     };
