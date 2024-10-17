@@ -1,42 +1,16 @@
 import NACL "mo:tweetnacl";
-import Option "mo:base/Option";
-import Blob "mo:base/Blob";
-import Text "mo:base/Text";
 import Nat8 "mo:base/Nat8";
 import Array "mo:base/Array";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
 import Nat "mo:base/Nat";
-import Hex "./Hex";
 
 module {
-  //let convert = func(x : Text) : [Nat8] = Blob.toArray(Text.encodeUtf8(x));
-  let revert = func(r : [Nat8]) : Text = Option.get(Text.decodeUtf8(Blob.fromArray(r)), "");
   type Result<T, E> = Result.Result<T, E>;
 
   public type KeyPair = { publicKey : [Nat8]; secretKey : [Nat8] };
-  public type DB<T> = {
-    set : (k : T, v : KeyPair) -> ();
-    get : (k : T) -> ?KeyPair;
-  };
 
-  public func getKeyPair<T>(map : DB<T>, k : T, createIfNotFound : Bool) : Result<KeyPair, Text> {
-    switch (map.get(k)) {
-      case (?keys) return #ok(keys);
-      case (null) {
-        if (not createIfNotFound) return #err("Key not found");
-        // TODO!: keyPair is using insecure seed for key generation
-        var keys = NACL.SIGN.keyPair(null);
-        map.set(k, keys);
-        return #ok(keys);
-      };
-    };
-  };
-
-  public func getPubKey<T>(map : DB<T>, k : T) : [Nat8] {
-    let #ok(keys) = getKeyPair(map, k, true) else Debug.trap("Key not found");
-    keys.publicKey;
-  };
+  public func generateKeyPair() : KeyPair = NACL.SIGN.keyPair(null);
 
   public func sign<T>(data : [Nat8], secretKey : [Nat8]) : [Nat8] {
     if (secretKey.size() != 64) Debug.trap("Invalid key size: expected 64 got" # Nat.toText(secretKey.size()));

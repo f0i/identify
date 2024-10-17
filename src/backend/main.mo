@@ -12,7 +12,10 @@ import Nat64 "mo:base/Nat64";
 import Nat32 "mo:base/Nat32";
 import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
+import Iter "mo:base/Iter";
+import Array "mo:base/Array";
 import Http "Http";
+import Stats "Stats";
 
 actor Main {
   let TIME_HOUR = 60 * 60 * 1_000_000_000;
@@ -22,13 +25,8 @@ actor Main {
 
   type KeyPair = Ed25519.KeyPair;
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
-  let db = {
-    set = func(k : Text, v : Ed25519.KeyPair) = Map.set(keyPairs, thash, k, v);
-    get = func(k : Text) : ?Ed25519.KeyPair = Map.get(keyPairs, thash, k);
-  };
 
-  type Stat = { origin : Text; accounts : Nat };
-  stable var stats : Map.Map<Text, Stat> = Map.new();
+  stable var stats = Stats.new(1000);
 
   let defaultGoogleKeys = "{
     \"keys\": [
@@ -65,30 +63,45 @@ actor Main {
   };
 
   var lastFetch : Time.Time = 0;
-  public shared ({ caller }) func fetchGoogleKeys(json : ?Text) : async Result.Result<[RSA.PubKey], Text> {
+  public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<{ keys : [RSA.PubKey]; cost : Nat; expectedCost : Nat }, Text> {
     if (not Principal.isController(caller)) {
       if (Time.now() - lastFetch < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
-      // TODO?: Remove parameter json completely
-      if (json != null) return #err("Permission denied. Try calling this function with parameter null to fetch from google api.");
     };
 
-    let jsonKeys = switch (json) {
-      case (?data) data;
-      case (null) (await Http.getRequest("https://www.googleapis.com/oauth2/v3/certs", 5000, transform)).data;
-    };
+    let fetched = await Http.getRequest("https://www.googleapis.com/oauth2/v3/certs", 5000, transform);
+    Stats.log(stats, "google keys fetched");
 
-    switch (RSA.pubKeysFromJSON(jsonKeys)) {
+    switch (RSA.pubKeysFromJSON(fetched.data)) {
       case (#ok keys) googleKeys := keys;
       case (#err err) return #err(err);
     };
-    return #ok(googleKeys);
+    return #ok({
+      keys = googleKeys;
+      cost = fetched.cost;
+      expectedCost = fetched.expectedCost;
+    });
   };
 
   // TODO: add origin to have different keys for each app
-  public shared func prepareDelegation(sub : Text, token : Nat32) : async Result.Result<{ pubKey : [Nat8]; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
+  public shared func prepareDelegation(sub : Text, origin : Text, token : Nat32) : async Result.Result<{ pubKey : [Nat8]; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
+
     // prevent bots and people exploring the interface from creating keys *by accident*
     if (token != 123454321) return #err("invalid token");
-    let pubKey : [Nat8] = Ed25519.getPubKey(db, sub);
+    let lookupKey = origin # " " # sub;
+    let pubKey = switch (Map.get(keyPairs, thash, lookupKey)) {
+      case (?keyPair) {
+        Stats.inc(stats, "login", origin);
+        Stats.log(stats, "login from " # origin);
+        keyPair.publicKey;
+      };
+      case (null) {
+        Stats.inc(stats, "register", origin);
+        let key = Ed25519.generateKeyPair();
+        Map.set(keyPairs, thash, lookupKey, key);
+        Stats.log(stats, "register user from " # origin # " cost ~" # Float.toText(Float.fromInt(Nat64.toNat(IC.performanceCounter(1))) * 0.000000000000536) # "$");
+        key.publicKey;
+      };
+    };
 
     let perf1 = Float.fromInt(Nat64.toNat(IC.performanceCounter(1)));
     return #ok({
@@ -100,7 +113,10 @@ actor Main {
     });
   };
 
-  public shared query func getDelegations(token : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
+  public shared query func getDelegations(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; perf0 : Nat64; perf1 : Nat64; usage : Float; cost : Float }, Text> {
+    // The following log statement will only show up if this function is called as an update call
+    Stats.log(stats, "getDelegations called as update function from " # origin);
+
     // verify token
     if (googleKeys.size() == 0) return #err("Google keys not set");
     if (expireIn > MAX_EXPIRATION_TIME) return #err("exporation time to long");
@@ -111,9 +127,10 @@ actor Main {
     };
 
     // get prepared keys
-    let keyPair = switch (Ed25519.getKeyPair(db, jwt.payload.sub, false)) {
-      case (#ok keys) keys;
-      case (#err _err) return #err("Couldn't get key for subject " # jwt.payload.sub # ". Call prepareDelegation(" # jwt.payload.sub # ") to generate one.");
+    let lookupKey = origin # " " # jwt.payload.sub;
+    let keyPair = switch (Map.get(keyPairs, thash, lookupKey)) {
+      case (?keys) keys;
+      case (null) return #err("Couldn't get key for subject " # jwt.payload.sub # ".");
     };
 
     // sign delegation
@@ -131,7 +148,17 @@ actor Main {
 
   public shared query ({ caller }) func getPrincipal() : async Text {
     if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
-    return "Principal " # Principal.toText(caller) # " 1 of " # Nat.toText(Map.size(keyPairs));
+    return "Principal " # Principal.toText(caller);
+  };
+
+  public shared query ({ caller }) func getStats() : async [Text] {
+    let keyCount = Nat.toText(Map.size(keyPairs)) # " keys created";
+    let appCount = "Login for " # Nat.toText(Stats.getSubCount(stats, "register")) # " apps";
+
+    if (not Principal.isController(caller)) return [keyCount, appCount];
+
+    let log = Iter.toArray(Stats.logEntries(stats));
+    return Array.flatten<Text>([[keyCount, appCount], log]);
   };
 
 };

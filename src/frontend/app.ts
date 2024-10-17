@@ -25,6 +25,26 @@ async function initGsi() {
   window.google.accounts.id.prompt();
 }
 
+function updateListById(ulId: string, items: string[]): void {
+  const ul = document.getElementById(ulId);
+
+  if (ul) {
+    // Remove all previous children
+    while (ul.firstChild) {
+      ul.removeChild(ul.firstChild);
+    }
+
+    // Add new list items
+    items.forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+  } else {
+    console.error(`No <ul> element found with id: ${ulId}`);
+  }
+}
+
 async function checkAuth() {
   const status = document.getElementById("login-status")!;
   const login = document.getElementById("demo-login")!;
@@ -44,10 +64,14 @@ async function checkAuth() {
     status.innerText = await backend
       .getPrincipal()
       .catch((e: any): string => "" + e);
+    updateListById(
+      "log",
+      await backend.getStats().catch((e: any): string[] => ["Error: " + e]),
+    );
     login.style.display = "none";
     logout.style.display = "inline-block";
   } else {
-    status.innerText = "Not authenticated";
+    status.innerText = "Status: not authenticated";
     login.style.display = "inline-block";
     logout.style.display = "none";
   }
@@ -95,9 +119,9 @@ window.onload = () => {
     initGsi();
 
     window.addEventListener("message", (event) => {
-      console.log("message", event, "origin", window.location.origin);
+      console.log("message", event, "origin", window.opener.origin);
       if (
-        event.origin === window.location.origin &&
+        event.origin === window.opener.origin &&
         event.data.kind === "authorize-client"
       ) {
         console.log("setting data", event.data);
@@ -161,8 +185,7 @@ function handleCredentialResponse(response: any) {
 
   console.log("payload:", payload, payload.sub);
   backend
-    //TODO: prepareDelegation only has to be called once per subject / origin combination. Skip to make login faster!
-    .prepareDelegation(payload.sub, 123454321)
+    .prepareDelegation(payload.sub, opener.origin, 123454321)
     .then((prepRes) => {
       console.log("prepareDelegation response:", prepRes);
       status.innerText = "Google login succeeded. Get client authorization...";
@@ -171,6 +194,7 @@ function handleCredentialResponse(response: any) {
       if (!authRequest?.sessionPublicKey) throw "Session key not set";
       return backend.getDelegations(
         idToken,
+        opener.origin,
         authRequest.sessionPublicKey,
         authRequest.maxTimeToLive,
       );
