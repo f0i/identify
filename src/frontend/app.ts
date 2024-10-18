@@ -116,12 +116,13 @@ window.onload = () => {
   console.log("onload: opener:", window.opener);
 
   if (window.opener) {
+    const referrer = new URL(document.referrer);
     initGsi();
 
     window.addEventListener("message", (event) => {
-      console.log("message", event, "origin", window.opener.origin);
+      console.log("message", event);
       if (
-        event.origin === window.opener.origin &&
+        event.origin === referrer.origin &&
         event.data.kind === "authorize-client"
       ) {
         console.log("setting data", event.data);
@@ -182,10 +183,11 @@ function handleCredentialResponse(response: any) {
   const backend = createActor(canisterId, { agentOptions: { host } });
 
   status.innerText = "Google login succeeded. Authorizing client...";
+  const referrer = new URL(document.referrer);
 
   console.log("payload:", payload, payload.sub);
   backend
-    .prepareDelegation(payload.sub, opener.origin, 123454321)
+    .prepareDelegation(payload.sub, referrer.origin, 123454321)
     .then((prepRes) => {
       console.log("prepareDelegation response:", prepRes);
       status.innerText = "Google login succeeded. Get client authorization...";
@@ -194,7 +196,7 @@ function handleCredentialResponse(response: any) {
       if (!authRequest?.sessionPublicKey) throw "Session key not set";
       return backend.getDelegations(
         idToken,
-        opener.origin,
+        referrer.origin,
         authRequest.sessionPublicKey,
         authRequest.maxTimeToLive,
       );

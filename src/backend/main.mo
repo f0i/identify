@@ -1,4 +1,5 @@
 import Result "mo:base/Result";
+import Cycles "mo:base/ExperimentalCycles";
 import Time "mo:base/Time";
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
@@ -152,13 +153,15 @@ actor Main {
   };
 
   public shared query ({ caller }) func getStats() : async [Text] {
+    let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
     let keyCount = Nat.toText(Map.size(keyPairs)) # " keys created";
-    let appCount = "Login for " # Nat.toText(Stats.getSubCount(stats, "register")) # " apps";
 
     if (not Principal.isController(caller)) return [keyCount, appCount];
+    let balance = Cycles.balance();
+    let balanceText = "Current cycle balance is " # Float.format(#fix 6, Float.fromInt(balance) / 1_000_000_000_000) # " TC";
 
     let log = Iter.toArray(Stats.logEntries(stats));
-    return Array.flatten<Text>([[keyCount, appCount], log]);
+    return Array.flatten<Text>([[keyCount, appCount, balanceText], log]);
   };
 
 };
