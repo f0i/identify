@@ -9,7 +9,7 @@
       "frontend": {
         "entrypoint": "out/frontend/index.html"
       },
-      "source": ["out"],
+      "source": ["out/frontend"],
       "type": "assets"
     }
   },
