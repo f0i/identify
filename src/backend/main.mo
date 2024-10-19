@@ -159,9 +159,11 @@ actor Main {
     if (not Principal.isController(caller)) return [keyCount, appCount];
     let balance = Cycles.balance();
     let balanceText = "Current cycle balance is " # Float.format(#fix 6, Float.fromInt(balance) / 1_000_000_000_000) # " TC";
+    let counter = Stats.counterEntries(stats);
+    let counterText = Array.map<Stats.CounterEntry, Text>(counter, func(c) = c.category # " " # c.sub # ": " # Nat.toText(c.counter));
 
     let log = Iter.toArray(Stats.logEntries(stats));
-    return Array.flatten<Text>([[keyCount, appCount, balanceText], log]);
+    return Array.flatten<Text>([[keyCount, appCount, balanceText], counterText, log]);
   };
 
 };

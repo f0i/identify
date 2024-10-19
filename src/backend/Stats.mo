@@ -4,6 +4,7 @@ import Array "mo:base/Array";
 import Iter "mo:base/Iter";
 import Time "mo:base/Time";
 import Int "mo:base/Int";
+import Buffer "mo:base/Buffer";
 import TimeFormat "TimeFormat";
 
 module {
@@ -31,7 +32,21 @@ module {
         data;
       };
     };
-    ignore Map.update<Text, Nat>(cat, thash, sub, func(_, x) = switch (x) { case (?v) ?(v + 1); case (null) ?0 });
+    ignore Map.update<Text, Nat>(cat, thash, sub, func(_, x) = switch (x) { case (?v) ?(v + 1); case (null) ?1 });
+  };
+  public type CounterEntry = {
+    category : Text;
+    sub : Text;
+    counter : Nat;
+  };
+  public func counterEntries(stats : Stats) : [CounterEntry] {
+    let out = Buffer.Buffer<CounterEntry>(10);
+    for ((category, val) in Map.entries(stats.counter)) {
+      for ((sub, counter) in Map.entries(val)) {
+        out.add({ category; sub; counter });
+      };
+    };
+    return Buffer.toArray(out);
   };
 
   public func log(stats : Stats, msg : Text) {
