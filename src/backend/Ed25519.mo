@@ -10,7 +10,10 @@ module {
 
   public type KeyPair = { publicKey : [Nat8]; secretKey : [Nat8] };
 
-  public func generateKeyPair() : KeyPair = NACL.SIGN.keyPair(null);
+  public func generateKeyPair() : async KeyPair {
+    return await NACL.SIGN.asyncKeyPair(null);
+  };
+  public func generateInsecureKeyPair() : KeyPair = NACL.SIGN.keyPair(null);
 
   public func sign<T>(data : [Nat8], secretKey : [Nat8]) : [Nat8] {
     if (secretKey.size() != 64) Debug.trap("Invalid key size: expected 64 got" # Nat.toText(secretKey.size()));

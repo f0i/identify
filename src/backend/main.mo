@@ -97,7 +97,7 @@ actor Main {
       };
       case (null) {
         Stats.inc(stats, "register", origin);
-        let key = Ed25519.generateKeyPair();
+        let key = await Ed25519.generateKeyPair();
         Map.set(keyPairs, thash, lookupKey, key);
         Stats.log(stats, "register user from " # origin # " cost ~" # Float.toText(Float.fromInt(Nat64.toNat(IC.performanceCounter(1))) * 0.000000000000536) # "$");
         key.publicKey;

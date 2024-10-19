@@ -9,7 +9,14 @@ let voidDB = {
 print("# ED25519");
 
 print("- generate keys");
-let #ok(keys) = Ed25519.getKeyPair(voidDB, "", true) else trap("failed to generate keys");
+let keys1 = Ed25519.generateInsecureKeyPair();
+let keys2 = Ed25519.generateInsecureKeyPair();
+let keys3 = await Ed25519.generateKeyPair();
+let keys4 = await Ed25519.generateKeyPair();
 //print(debug_show (keys));
-assert (keys.publicKey.size() == 32);
-assert (keys.secretKey.size() == 64);
+assert (keys1.publicKey.size() == 32);
+assert (keys1.secretKey.size() == 64);
+assert (keys1 == keys2); // This is bad but expected
+assert (keys2 != keys3);
+assert (keys2 != keys4);
+assert (keys3 != keys4);
