@@ -10,6 +10,9 @@ declare global {
 var authRequest: any = null;
 
 export function initICgsi(clientID: string) {
+  const icgsi = document.getElementById("icgsi")!;
+  icgsi.style.display = "block";
+
   const referrer = new URL(document.referrer);
   initGsi(clientID);
 
@@ -25,11 +28,11 @@ export function initICgsi(clientID: string) {
     }
   });
 
-  const status = document.getElementById("login-status")!;
-  status.innerText = "Sign in to " + referrer.origin;
-
   const msg = { kind: "authorize-ready" };
   window.opener.postMessage(msg, "*");
+
+  const appOrigin = document.getElementById("app-origin")!;
+  appOrigin.innerText = referrer.origin;
 }
 
 async function initGsi(clientId: string) {
@@ -39,7 +42,7 @@ async function initGsi(clientId: string) {
   });
 
   window.google.accounts.id.renderButton(
-    document.getElementById("icgsi") as HTMLElement,
+    document.getElementById("icgsi-google-btn")!,
     { theme: "outline", size: "large" },
   );
 
@@ -60,7 +63,7 @@ async function handleCredentialResponse(response: any) {
 
     const backend = createActor(canisterId, { agentOptions: { host } });
 
-    status.innerText = "Google login succeeded. Authorizing client...";
+    status.innerText = "Google sign in succeeded. Authorizing client...";
     const referrer = new URL(document.referrer);
 
     console.log("payload:", payload, payload.sub);
@@ -70,9 +73,10 @@ async function handleCredentialResponse(response: any) {
       123454321,
     );
     console.log("prepareDelegation response:", prepRes);
-    status.innerText = "Google login succeeded. Get client authorization...";
+    status.innerText = "Google sign in succeeded. Get client authorization...";
 
-    if (!authRequest?.sessionPublicKey) throw "Session key not set";
+    if (!authRequest?.sessionPublicKey)
+      throw "Sign in failed: Session key was not set.";
 
     let authRes = await backend.getDelegations(
       idToken,

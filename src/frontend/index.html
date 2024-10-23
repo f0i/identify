@@ -165,6 +165,10 @@
       #info {
         padding: 2em 6em;
       }
+
+      #app-name {
+        padding: 2em 6em;
+      }
     </style>
   </head>
   <body>
@@ -176,9 +180,12 @@
       <hr />
 
       <div class="body-content">
-        <div id="icgsi" class="flex-center"></div>
+        <div id="icgsi" style="display: none;">
+          <div id="icgsi-google-btn" class="flex-center"></div>
+          <div id="app-name">Sign in to <strong id="app-origin">-</strong></div>
+        </div>
 
-        <div id="demo" style="display: none">
+        <div id="demo" style="display: none;">
           <button id="demo-login">Log in</button>
           <button id="demo-logout" style="display: none">Log out</button>
         </div>
