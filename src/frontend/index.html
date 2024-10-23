@@ -1,177 +1,287 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IC Google Sign In</title>
-    <link rel="icon" href="img/icon.png" type="image/png">
+    <link rel="icon" href="img/icon.png" type="image/png" />
 
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <style>
-    @font-face {
-      font-family: 'Mina';
-      src: url('fonts/Mina/Mina-Regular.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-
-    body {
-      font-family: Mina, Arial, sans-serif;
-      color: #222;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #f0f0f0;
-      font-size: 15px;
-    }
-
-    .content {
-      background-color: white;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      width: 90%;
-      max-width: 600px;
-      min-height: 400px;
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .header {
-      padding: 15px 20px 7px 20px;
-      margin: 0;
-      font-size: 25px;
-      display: flex;
-    }
-
-    .header img {
-      margin: 5px;
-    }
-
-    hr {
-      width: 100%;
-      color: #555;
-    }
-
-    .body-content {
-      flex-grow: 1;
-      padding: 50px 20px;
-      text-align: center;
-    }
-
-    .footer {
-      text-align: center;
-      margin-top: 20px;
-      padding-bottom: 10px;
-    }
-
-    .footer a {
-      margin: 0 10px;
-      padding: 5px 14px;
-      border-radius: 5px;
-      text-decoration: none;
-      color: #555;
-      align-content: center;
-    }
-
-    .footer a:hover {
-      background: #f0f0f0;
-    }
-
-    /* For screens larger than 800px */
-    @media (min-width: 800px) {
-      .content {
-        width: 70%;
-        max-width: 800px;
-        height: auto;
-        border-radius: 16px;
+      @font-face {
+        font-family: "Mina";
+        src: url("fonts/Mina/Mina-Regular.ttf") format("truetype");
+        font-weight: normal;
+        font-style: normal;
       }
-    }
 
-    /* For screens 800px or smaller */
-    @media (max-width: 800px) {
+      body {
+        font-family: Mina, Arial, sans-serif;
+        color: #222;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #f0f0f0;
+        font-size: 15px;
+      }
+
       .content {
+        background-color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        width: 90%;
+        max-width: 600px;
+        min-height: 400px;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .header {
+        padding: 15px 20px 7px 20px;
+        margin: 0;
+        font-size: 25px;
+        display: flex;
+      }
+
+      .header img {
+        margin: 5px;
+      }
+
+      hr {
         width: 100%;
-        height: 100%;
-        border-radius: 0;
+        color: #555;
       }
-    }
 
-    button {
-      background: linear-gradient(135deg, #4CAF50, #2E7D32); /* Gradient background */
-      color: white; /* White text */
-      padding: 12px 24px; /* Padding for size */
-      font-size: 16px; /* Font size */
-      font-weight: bold; /* Bold text */
-      border: none; /* Remove default border */
-      border-radius: 8px; /* Rounded corners */
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-      cursor: pointer; /* Pointer cursor on hover */
-      transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease; /* Smooth transitions */
-    }
+      .body-content {
+        flex-grow: 1;
+        padding: 50px 20px;
+        text-align: center;
+      }
 
-    button {
-      background: linear-gradient(135deg, #66BB6A, #388E3C); /* Lighter gradient on hover */
-      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Stronger shadow on hover */
-      transform: translateY(-2px); /* Slight lift on hover */
-    }
+      .footer {
+        text-align: center;
+        margin-top: 20px;
+        padding-bottom: 10px;
+      }
 
-    button:active {
-      background: linear-gradient(135deg, #388E3C, #2E7D32); /* Darker gradient on active */
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow on active */
-      transform: translateY(0); /* Button returns to normal position */
-    }
+      .footer a {
+        margin: 0 10px;
+        padding: 5px 14px;
+        border-radius: 5px;
+        text-decoration: none;
+        color: #555;
+        align-content: center;
+      }
 
-    button:focus {
-      outline: none; /* Remove focus outline */
-      box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3); /* Greenish glow for accessibility */
-    }
+      .footer a:hover {
+        background: #f0f0f0;
+      }
 
-    .flex-center {
-      display: flex;
-      justify-content: center;
-    }
+      /* For screens larger than 800px */
+      @media (min-width: 800px) {
+        .content {
+          width: 70%;
+          max-width: 800px;
+          height: auto;
+          border-radius: 16px;
+          margin: 1em;
+        }
+      }
 
-    ul {
-      list-style: none;
-    }
+      /* For screens 800px or smaller */
+      @media (max-width: 800px) {
+        .content {
+          width: 100%;
+          height: 100%;
+          border-radius: 0;
+        }
+      }
 
-    li {
-      box-shadow: 0 -1px 2px -2px gray;
-      padding: 7px 0px;
-    }
+      button {
+        background: linear-gradient(
+          135deg,
+          #4caf50,
+          #2e7d32
+        ); /* Gradient background */
+        color: white; /* White text */
+        padding: 12px 24px; /* Padding for size */
+        font-size: 16px; /* Font size */
+        font-weight: bold; /* Bold text */
+        border: none; /* Remove default border */
+        border-radius: 8px; /* Rounded corners */
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+        cursor: pointer; /* Pointer cursor on hover */
+        transition:
+          background 0.3s ease,
+          box-shadow 0.3s ease,
+          transform 0.2s ease; /* Smooth transitions */
+      }
 
+      button {
+        background: linear-gradient(
+          135deg,
+          #66bb6a,
+          #388e3c
+        ); /* Lighter gradient on hover */
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Stronger shadow on hover */
+        transform: translateY(-2px); /* Slight lift on hover */
+      }
+
+      button:active {
+        background: linear-gradient(
+          135deg,
+          #388e3c,
+          #2e7d32
+        ); /* Darker gradient on active */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow on active */
+        transform: translateY(0); /* Button returns to normal position */
+      }
+
+      button:focus {
+        outline: none; /* Remove focus outline */
+        box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3); /* Greenish glow for accessibility */
+      }
+
+      .flex-center {
+        display: flex;
+        justify-content: center;
+      }
+
+      ul {
+        list-style: none;
+      }
+
+      li {
+        box-shadow: 0 -1px 2px -2px gray;
+        padding: 7px 0px;
+      }
+
+      #info {
+        padding: 2em 6em;
+      }
     </style>
   </head>
   <body>
     <div class="content">
       <div class="header">
         <img src="img/id.png" alt="logo" height="26px" />
-        Identify</h1>
+        Identify
       </div>
-      <hr>
+      <hr />
 
       <div class="body-content">
-        <div id="g_id_signin" class="flex-center"></div>
+        <div id="icgsi" class="flex-center"></div>
 
-        <div id="demo" style="display: none;">
+        <div id="demo" style="display: none">
           <button id="demo-login">Log in</button>
-          <button id="demo-logout" style="display: none;">Log out</button>
+          <button id="demo-logout" style="display: none">Log out</button>
         </div>
 
         <p id="login-status"></p>
+
         <ul id="log"></ul>
       </div>
 
       <div class="footer">
-        <a href="#">Help</a>
-        <a href="#">Security</a>
-        <a href="#">About</a>
+        <a href="#help" onclick="showInfo('help')">Help</a>
+        <a href="#security" onclick="showInfo('security')">Security</a>
+        <a href="#about" onclick="showInfo('about')">About</a>
+      </div>
+      <div id="info" style="display: none;">
+        <div id="help">
+          <h2>Help</h2>
+
+          <h3>Logging In</h3>
+          <p>To log in, click the Google Sign-In button. Select your Google account and you'll be redirected to the service you want to use. Each application will create a separate identity for authentication purposes.</p>
+
+          <h3>Why Are Separate Identities Used?</h3>
+          <p>Each application uses a unique identity to ensure your activities in one app are independent from others. This keeps your data and actions isolated between applications.</p>
+
+          <h3>Common Issues</h3>
+          <ul>
+            <li><strong>I can’t log in:</strong> Ensure that you’ve selected the correct Google account and that you have internet access.</li>
+            <li><strong>Login expired:</strong> If you're logged out automatically, it may be due to an expired session. Please log in again.</li>
+            <li><strong>Permissions issue:</strong> Make sure you’ve granted the necessary permissions when prompted during login.</li>
+          </ul>
+
+          <h3>Browser Compatibility</h3>
+          <p>This application should work with all modern browsers. Please ensure your browser is up to date for the best performance.</p>
+
+          <h3>Need Further Assistance?</h3>
+          <p>If you're experiencing issues or have questions, please contact us at <a href="mailto:support@login.f0i.de">support@login.f0i.de</a>.</p>
+        </div>
+        <div id="security">
+          <h2>Security</h2>
+
+          <h3>Data Protection</h3>
+          <p>Your login credentials are securely handled using Google Sign-In. The application does not store any of your passwords or sensitive information. All interactions with the application are conducted over secure, encrypted connections.</p>
+
+          <h3>Separate Identities</h3>
+          <p>Each application you access through this platform uses a separate identity, ensuring that no data is shared between apps. This helps keep your information compartmentalized and private.</p>
+
+          <h3>Minimal Data Collection</h3>
+          <p>The application only requests the basic information necessary to authenticate your login through Google.
+          The canister stores the following data:
+            <ul>
+              <li>Google account ID</li>
+              <li>Email address</li>
+              <li>URL of the application requestin authentication (protocol and host name)</li>
+              <li>Private keys for each user+application</li>
+              <li>Time of each login</li>
+            </ul>
+          </p>
+
+          <h3>Automatic Login Management</h3>
+          <p>The platform automatically manages your login sessions. You do not need to manually handle your credentials or identities, reducing the risk of mistakes or unauthorized access.</p>
+
+          <h2>Technical limitations</h2>
+
+          <h3>Canister control</h3>
+          <p>
+            Canister control is currently with a single developer. SNS/DAO could be an option to mitigate this risk, but require further consideration to not introduce new attack vectors.
+          </p>
+          <h3>Private keys in canister</h3>
+          <p>
+            Node providers could extract personal information including the private keys of users from canister memory.
+            Threshold signatures would avoid this but generate much higher costs.
+            Signing could be done off-chain to reduce costs (as done by NFID), but his would shift the trust to another entity like AWS and anyone who can access the specific system.
+          </p>
+          <h3>Google account</h3>
+          <p>
+            Anyone with access to your Google account could login as you. E.g. an attacker could take over your Google account and log in as you. If Google locks you out of your account, you also can't log in here anymore.
+          </p>
+          <h3>DNS</h3>
+          <p>
+            Taking control over the domain of the auth provider can hand over control over the front-end.
+            This would allow the attacker to inject his own session key or performing a MITM attack during authentication.
+            The service worker provides some limited protection against this, by showing 
+          </p>
+          <h3>No security audit</h3>
+          <p>
+            The code has not been audited. 
+            Critical path in libraries has been reviewed by myself to make sure no obvious issues are present (e.g. use of insecure randomness for key generation).
+            Review by third party can be arranged when it is economically viable a.k.a. somebody pays for it.
+          </p>
+        </div>
+
+        <div id="about">
+          <h2>About</h2>
+          <p>This application allows users to log in using Google and interact with services on the Internet Computer. Each application receives with a separate identity for authentication, ensuring that user sessions are independent across different apps.</p>
+
+          <h3>Version</h3>
+          <p>Current version: <span id="version">1.0.0</span></p>
+
+          <h3>Contact</h3>
+          <p>This application was developed by <a href="https://cubeworksgmbh.de">CubeWorks GmbH</a>, specialists in embedded software and web/mobile development. CubeWorks provides customized software solutions and expert consulting.</p>
+
+          <p>For inquiries, please contact us at <a href="mailto:info@login.f0i.de">info@login.f0i.de</a> or reach out to CubeWorks directly at <a href="mailto:info@cubeworksgmbh.de">info@cubeworksgmbh.de</a>.</p>
+        </div>
       </div>
     </div>
 
