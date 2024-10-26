@@ -11,14 +11,17 @@ import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
+import Debug "mo:base/Debug";
 import Http "Http";
 import Stats "Stats";
 import Info "Info";
 
 actor Main {
-  let TIME_HOUR = 60 * 60 * 1_000_000_000;
+  let TIME_MINUTE = 60 * 1_000_000_000;
+  let TIME_HOUR = 60 * TIME_MINUTE;
   let MAX_EXPIRATION_TIME = 31 * 24 * TIME_HOUR;
-  let MIN_FETCH_TIME = 24 * TIME_HOUR;
+  let MIN_FETCH_ATTEMPT_TIME = TIME_MINUTE * 10;
+  let MIN_FETCH_TIME = 6 * TIME_HOUR;
 
   type KeyPair = Ed25519.KeyPair;
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
@@ -36,13 +39,17 @@ actor Main {
     };
   };
 
+  var lastFetchaAttempt : Time.Time = 0;
+  var pendingFetchAttempts : Nat = 0;
   var lastFetch : Time.Time = 0;
-  public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<{ keys : [RSA.PubKey]; cost : Nat; expectedCost : Nat }, Text> {
+  public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
     if (not Principal.isController(caller)) {
       if (Time.now() - lastFetch < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
+      if (Time.now() - lastFetchaAttempt < MIN_FETCH_ATTEMPT_TIME) return #err("Rate limit reached. Try again in one hours.");
     };
     let start = Info.cycleBalanceStart();
-    lastFetch := Time.now();
+    pendingFetchAttempts += 1;
+    lastFetchaAttempt := Time.now();
 
     let fetched = await Http.getRequest("https://www.googleapis.com/oauth2/v3/certs", 5000, transform);
 
@@ -53,18 +60,40 @@ actor Main {
         return #err(err);
       };
     };
+    pendingFetchAttempts := 0;
+    lastFetch := Time.now();
     Stats.log(stats, Nat.toText(googleKeys.size()) # " google keys fetched. " # Info.cycleBalance(start));
     return #ok({
       keys = googleKeys;
-      cost = fetched.cost;
-      expectedCost = fetched.expectedCost;
+    });
+  };
+
+  public shared ({ caller }) func setGoogleKeys(data : Text) : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
+    if (pendingFetchAttempts < 3) {
+      return #err("Function inactive. Try using fetchGoogleKeys instead. pending Fetch requests: " # Nat.toText(pendingFetchAttempts));
+    };
+    if (not Principal.isController(caller)) {
+      return #err("Permission denied.");
+    };
+    let start = Info.cycleBalanceStart();
+    switch (RSA.pubKeysFromJSON(data)) {
+      case (#ok keys) googleKeys := keys;
+      case (#err err) {
+        Stats.log(stats, "google keys fetch failed: " # err # " " # Info.cycleBalance(start));
+        return #err(err);
+      };
+    };
+    Stats.log(stats, Nat.toText(googleKeys.size()) # " google keys fetched. " # Info.cycleBalance(start));
+    return #ok({
+      keys = googleKeys;
     });
   };
 
   // TODO: add origin to have different keys for each app
   public shared func prepareDelegation(sub : Text, origin : Text, token : Nat32) : async Result.Result<{ pubKey : [Nat8] }, Text> {
+    Debug.print("qwer 1");
     // prevent bots and people exploring the interface from creating keys *by accident*
-    if (token != 123454321) return #err("invalid token");
+    if (token != 123454321) return #err("Invalid token");
     let startBalance = Info.cycleBalanceStart();
     let lookupKey = origin # " " # sub;
     let pubKey = switch (Map.get(keyPairs, thash, lookupKey)) {

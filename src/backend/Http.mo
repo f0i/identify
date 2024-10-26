@@ -1,4 +1,3 @@
-import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";
 import Cycles "mo:base/ExperimentalCycles";
 import Nat8 "mo:base/Nat8";
@@ -116,11 +115,12 @@ module {
     //"Function add(amount) indicates the additional amount of cycles to be transferred in the next remote call"
     //See: https://internetcomputer.org/docs/current/references/ic-interface-spec/#ic-http_request
     let maxCost = 400_000 /* base cost */ + Nat64.toNat(maxBytes) * 100_000 /* cost per byte */ * 3 /* factor to ensure enough cycles */;
-    Cycles.add<system>(maxCost);
+
+    let balance1 = Cycles.balance();
 
     //4. MAKE HTTPS REQUEST AND WAIT FOR RESPONSE
     //Since the cycles were added above, we can just call the IC management canister with HTTPS outcalls below
-    let balance1 = Cycles.balance();
+    Cycles.add<system>(maxCost);
     let http_response : HttpResponsePayload = await ic.http_request(http_request);
     let balance2 = Cycles.balance();
 

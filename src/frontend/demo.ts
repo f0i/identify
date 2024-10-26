@@ -1,37 +1,28 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 
-function updateListById(ulId: string, items: string[]): void {
-  const ul = document.getElementById(ulId);
-
-  if (ul) {
-    // Remove all previous children
-    while (ul.firstChild) {
-      ul.removeChild(ul.firstChild);
-    }
-
-    // Add new list items
-    items.forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = item;
-      ul.appendChild(li);
-    });
-  } else {
-    console.error(`No <ul> element found with id: ${ulId}`);
-  }
-}
-
+// Init the demo application
 export function initDemo(identityProvider: string) {
-  const demo = document.getElementById("demo")!;
-  demo.style.display = "block";
+  show("demo");
   const login = document.getElementById("demo-login")!;
   login.addEventListener("click", () => initAuth(identityProvider));
   const logout = document.getElementById("demo-logout")!;
   logout.addEventListener("click", resetAuth);
 
+  const fetchKeys = document.getElementById("demo-fetch-keys")!;
+  fetchKeys.addEventListener("click", fetchGoogleKeys);
+  if (document.location.hash === "#admin") fetchKeys.style.display = "block";
+
+  innerText("demo-build-time", process.env.BUILD_TIME!);
+  innerText("demo-network", process.env.DFX_NETWORK!);
+  const isDev = process.env.DFX_NETWORK !== "ic";
+  const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
+  innerText("demo-api", host);
+
   checkAuth();
 }
 
+// Log in
 async function initAuth(identityProvider: string) {
   const authClient = await AuthClient.create({
     idleOptions: {
@@ -47,7 +38,7 @@ async function initAuth(identityProvider: string) {
   } else {
     // If not authenticated, authenticate
     await authClient.login({
-      identityProvider: "https://login.f0i.de",
+      identityProvider: identityProvider,
       onSuccess: () => {
         console.log("Successfully authenticated!");
         checkAuth();
@@ -62,39 +53,107 @@ async function initAuth(identityProvider: string) {
   }
 }
 
+// Fetch keys for auth verification
+async function fetchGoogleKeys() {
+  innerText("login-status", "Fetching keys...");
+  try {
+    const isDev = process.env.DFX_NETWORK !== "ic";
+    const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
+    const backend = createActor(canisterId, {
+      agentOptions: { host },
+    });
+    const res = await backend.fetchGoogleKeys();
+    if ("ok" in res) {
+      innerText("login-status", res.ok.keys.length + " keys fetched.");
+    } else {
+      throw res.err;
+    }
+  } catch (err: any) {
+    innerText("login-status", "Error: " + err);
+  }
+}
+
+// Log out
 async function resetAuth() {
   const authClient = await AuthClient.create();
   authClient.logout().finally(checkAuth);
 }
 
+// Chack auth status, get principal and load statistics
 async function checkAuth() {
-  const status = document.getElementById("login-status")!;
-  const login = document.getElementById("demo-login")!;
-  const logout = document.getElementById("demo-logout")!;
   const authClient = await AuthClient.create();
   if (await authClient.isAuthenticated()) {
     console.log("Already authenticated!", authClient.getIdentity());
-    authClient.getIdentity();
-    // Handle authenticated state (e.g., show user dashboard)
-    status.innerText = "Authenticated ...";
+    innerText("login-status", "Authenticated...");
     const isDev = process.env.DFX_NETWORK !== "ic";
     const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
 
     const backend = createActor(canisterId, {
       agentOptions: { host, identity: authClient.getIdentity() },
     });
-    status.innerText = await backend
-      .getPrincipal()
-      .catch((e: any): string => "" + e);
+    const msg = await backend.getPrincipal().catch((e: any): string => "" + e);
+
+    innerText("login-status", msg);
+
     updateListById(
       "log",
       await backend.getStats().catch((e: any): string[] => ["Error: " + e]),
     );
-    login.style.display = "none";
-    logout.style.display = "inline-block";
+
+    hide("demo-login");
+    show("demo-logout");
   } else {
-    status.innerText = "Status: not authenticated";
-    login.style.display = "inline-block";
-    logout.style.display = "none";
+    innerText("demo-status", "Status: not authenticated");
+    show("demo-login");
+    hide("demo-logout");
+  }
+}
+
+// Set list items
+function updateListById(ulId: string, items: string[]): void {
+  const ul = document.getElementById(ulId);
+  if (!ul) {
+    console.error(`No <ul> element found with id: ${ulId}`);
+    return;
+  }
+  // Remove all previous children
+  while (ul.firstChild) {
+    ul.removeChild(ul.firstChild);
+  }
+  // Add new list items
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = item;
+    ul.appendChild(li);
+  });
+}
+
+// Set text content of an element
+function innerText(id: string, text: string) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.innerText = text;
+  } else {
+    console.log("Element not found", id, "to set innerText", text);
+  }
+}
+
+// Set an element visible
+function show(id: string) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = "initial";
+  } else {
+    console.log("Element not found", id, "to show");
+  }
+}
+
+// Set an element invisible
+function hide(id: string) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = "none";
+  } else {
+    console.log("Element not found", id, "to show");
   }
 }

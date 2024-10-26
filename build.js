@@ -16,6 +16,7 @@ esbuild
       "process.env": JSON.stringify({
         CANISTER_ID_BACKEND: process.env.CANISTER_ID_BACKEND,
         DFX_NETWORK: process.env.DFX_NETWORK,
+        BUILD_TIME: new Date().toISOString(),
       }), // pass in dfx environment variables
       global: "window",
     },

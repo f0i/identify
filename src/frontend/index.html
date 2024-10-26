@@ -167,7 +167,7 @@
       }
 
       #app-name {
-        padding: 2em 6em;
+        padding-top: 6em;
       }
     </style>
   </head>
@@ -187,7 +187,11 @@
 
         <div id="demo" style="display: none;">
           <button id="demo-login">Log in</button>
-          <button id="demo-logout" style="display: none">Log out</button>
+          <button id="demo-logout" style="display: none;">Log out</button>
+          <button id="demo-fetch-keys" style="display: xnone">Fetch google keys</button>
+          <div id="app-name">Build time: <span id="demo-build-time">-</span></div>
+          <div>Network: <span id="demo-network">-</span></div>
+          <div>API endpoint: <span id="demo-api">-</span></div>
         </div>
 
         <p id="login-status"></p>
@@ -247,7 +251,7 @@
           <h3>Automatic Login Management</h3>
           <p>The platform automatically manages your login sessions. You do not need to manually handle your credentials or identities, reducing the risk of mistakes or unauthorized access.</p>
 
-          <h2>Technical limitations</h2>
+          <h2>Risks</h2>
 
           <h3>Canister control</h3>
           <p>
