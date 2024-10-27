@@ -23,6 +23,11 @@ module {
     let nanoseconds = Int.abs(time);
     var seconds = nanoseconds / 1_000_000_000; // Convert nanoseconds to seconds
 
+    secondsToText(seconds);
+  };
+
+  public func secondsToText(unixTimestamp : Nat) : Text {
+    var seconds = unixTimestamp;
     // Starting from 1970
     var year : Nat = 1970;
 

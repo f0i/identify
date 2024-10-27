@@ -7,6 +7,7 @@ import Nat "mo:base/Nat";
 import Base64 "Base64";
 import Sha256 "mo:sha2/Sha256";
 import RSA "./RSA";
+import TimeFormat "TimeFormat";
 
 module {
   public type Header = {
@@ -37,9 +38,10 @@ module {
     signature : Text;
   };
 
-  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time.Time) : Result.Result<JWT, Text> {
+  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time.Time, issuedToleranceS : Nat) : Result.Result<JWT, Text> {
     assert (pubKeys.size() > 0);
     let nowS = now / 1_000_000_000;
+    let issuedBeforeS = nowS + issuedToleranceS;
     let iter = Text.split(token, #char('.'));
 
     let ?header64 = iter.next() else return #err("no header found");
@@ -76,8 +78,8 @@ module {
     };
     let ?payload : ?Payload = from_candid (payloadBlob) else return #err("missing fields in payload " # payloadJSON);
 
-    if (payload.iat > nowS) return #err("JWT creation time " # Nat.toText(payload.iat) # " invalid");
-    if (payload.exp < nowS) return #err("JWT is expired at " # Nat.toText(payload.exp));
+    if (payload.iat > issuedBeforeS) return #err("JWT creation time " # TimeFormat.secondsToText(payload.iat) # " invalid. IC time is " # TimeFormat.toText(now) # ".");
+    if (nowS > payload.exp) return #err("JWT is expired at " # Nat.toText(payload.exp));
 
     // check signature
     let hash : Blob = Sha256.fromBlob(#sha256, Text.encodeUtf8(header64 # "." # payload64));

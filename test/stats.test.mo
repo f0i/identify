@@ -1,9 +1,16 @@
 import { print; trap } "mo:base/Debug";
+import Array "mo:base/Array";
+import Map "mo:map/Map";
 import Stats "../src/backend/Stats";
 
 print("# Stats");
 
-let stats = Stats.new(10);
+let stats : Stats.Stats = {
+  counter = Map.new();
+  log = Array.init(10, "");
+  var logIndex = 0;
+  var lastBalance = 123;
+};
 
 print("- empty log");
 
@@ -31,3 +38,10 @@ switch (iter.next()) {
   case (null) {};
   case (x) trap("first element is unexpected: " # debug_show x);
 };
+
+print("- format precentages");
+assert Stats.formatPercent(0.1234) == "12.3%";
+assert Stats.formatPercent(0.01234) == "1.23%";
+assert Stats.formatPercent(0.001234) == "0.123%";
+assert Stats.formatPercent(0.0001234) == "1.23e-02%";
+assert Stats.formatPercent(0.00001234) == "1.23e-03%";

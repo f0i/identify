@@ -3,9 +3,14 @@ import { thash } "mo:map/Map";
 import Array "mo:base/Array";
 import Iter "mo:base/Iter";
 import Time "mo:base/Time";
-import Int "mo:base/Int";
 import Buffer "mo:base/Buffer";
 import TimeFormat "TimeFormat";
+import Float "mo:base/Float";
+import Cycles "mo:base/ExperimentalCycles";
+import IC "mo:base/ExperimentalInternetComputer";
+import Nat "mo:base/Nat";
+import Int "mo:base/Int";
+import Nat64 "mo:base/Nat64";
 
 module {
 
@@ -15,12 +20,14 @@ module {
     counter : Map<Text, Map<Text, Nat>>;
     log : [var Text];
     var logIndex : Nat;
+    var lastBalance : Nat;
   };
 
   public func new(logSize : Nat) : Stats = {
     counter = Map.new();
     log = Array.init(logSize, "");
     var logIndex = 0;
+    var lastBalance = Cycles.balance();
   };
 
   public func inc(stats : Stats, category : Text, sub : Text) {
@@ -55,6 +62,14 @@ module {
     stats.logIndex += 1;
   };
 
+  public func logBalance(stats : Stats) {
+    let prefix = TimeFormat.toText(Time.now()) # " ";
+    let msg = cycleBalance(stats.lastBalance);
+    stats.log[stats.logIndex % stats.log.size()] := prefix # msg;
+    stats.logIndex += 1;
+    stats.lastBalance := Cycles.balance();
+  };
+
   public func getSubCount(stats : Stats, category : Text) : Nat {
     switch (Map.get(stats.counter, thash, category)) {
       case (?data) return Map.size(data);
@@ -83,4 +98,55 @@ module {
     };
   };
 
+  let MAX_INSTRUCTIONS : Float = 20_000_000_000;
+
+  public func cycleBalance(start : Nat) : Text {
+    let balance = Cycles.balance();
+    let diff = if (start != 0) start : Int - balance else 0;
+    let current = formatNat(balance, "C");
+    let diffText = formatNat(Int.abs(diff), "C");
+    "Current balance " # current # " (call cost: " # diffText # ")";
+  };
+
+  public func perf1() : Text {
+    let perf1 = Float.fromInt(Nat64.toNat(IC.performanceCounter(1)));
+    let perfC1 = Nat64.toText(IC.performanceCounter(1));
+    let usage = formatPercent(perf1 / MAX_INSTRUCTIONS); // percentage of maximum instruction per request
+    let cost = Float.format(#fix 5, perf1 * 0.000000000000536) # "$"; // $ per instruction https://link.medium.com/zjNeJd73sNb
+    "Useage " # usage # " ~" # cost # " perfC1 " # perfC1 # ".";
+  };
+
+  public func formatNat(val : Nat, unit : Text) : Text {
+    if (val < 1_000) {
+      Nat.toText(val) # " " # unit;
+    } else if (val < 1_000_000) {
+      Float.format(#fix 3, Float.fromInt(val) / 1_000) # " k" # unit;
+    } else if (val < 1_000_000_000) {
+      Float.format(#fix 3, Float.fromInt(val) / 1_000_000) # " M" #unit;
+    } else if (val < 1_000_000_000_000) {
+      Float.format(#fix 3, Float.fromInt(val) / 1_000_000_000) # " B" #unit;
+    } else {
+      Float.format(#fix 3, Float.fromInt(val) / 1_000_000_000_000) # " T" #unit;
+    };
+  };
+
+  public func formatPercent(val : Float) : Text {
+    if (val >= 0.05) {
+      Float.format(#fix 1, val * 100) # "%";
+    } else if (val >= 0.01) {
+      Float.format(#fix 2, val * 100) # "%";
+    } else if (val >= 0.001) {
+      Float.format(#fix 3, val * 100) # "%";
+    } else {
+      Float.format(#exp 2, val * 100) # "%";
+    };
+  };
+
+  public func cycleBalanceStart() : Nat {
+    Cycles.balance();
+  };
+
+  public func instructionCount() : Nat64 {
+    IC.performanceCounter(1);
+  };
 };

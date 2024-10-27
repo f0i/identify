@@ -1,5 +1,5 @@
 import { canisterId, createActor } from "../declarations/backend";
-import { AuthResponse } from "../declarations/backend/backend.did";
+import { AuthResponse, PrepRes } from "../declarations/backend/backend.did";
 
 declare global {
   interface Window {
@@ -67,11 +67,21 @@ async function handleCredentialResponse(response: any) {
     const referrer = new URL(document.referrer);
 
     console.log("payload:", payload, payload.sub);
-    let prepRes = backend.prepareDelegation(
+    let prepRes = await backend.prepareDelegation(
       payload.sub,
       referrer.origin,
       123454321,
     );
+    if ("ok" in prepRes) {
+      if (prepRes.ok.register) {
+        status.innerText = "Google sign in succeeded. Generate new identity...";
+        // Small delay to make be able to read the above message
+        // and to make sure all nodes receive state with new keys before next query call (just in case; unlikely to be actually needed)
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    } else {
+      throw prepRes.err;
+    }
     console.log("prepareDelegation response:", prepRes);
     status.innerText = "Google sign in succeeded. Get client authorization...";
 
