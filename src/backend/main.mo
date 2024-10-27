@@ -1,7 +1,7 @@
 import Result "mo:base/Result";
 import Time "mo:base/Time";
 import Map "mo:map/Map";
-import { thash } "mo:map/Map";
+import { thash; phash } "mo:map/Map";
 import Jwt "JWT";
 import RSA "RSA";
 import Delegation "Delegation";
@@ -13,6 +13,7 @@ import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Http "Http";
 import Stats "Stats";
+import Email "Email";
 
 actor Main {
   let TIME_MINUTE = 60 * 1_000_000_000;
@@ -23,6 +24,7 @@ actor Main {
 
   type KeyPair = Ed25519.KeyPair;
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
+  stable var emails : Map.Map<Principal, Text> = Map.new();
 
   stable var stats = Stats.new(1000);
   Stats.logBalance(stats);
@@ -151,6 +153,56 @@ actor Main {
     return #ok({
       auth = authResponse;
     });
+  };
+
+  public shared ({ caller }) func setEmail(token : Text, origin : Text) : async Result.Result<{ email : Text; principal : Principal; caller : Principal }, Text> {
+    // verify token
+    if (googleKeys.size() == 0) return #err("Google keys not loaded");
+
+    // The log statement will only show up if this function is called as an update call
+    Stats.logBalance(stats);
+
+    // Time of JWT token from google must not be more than 5 minutes in the future
+    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/)) {
+      case (#err err) {
+        Stats.log(stats, "setEmail failed: invalid token from " # origin);
+        return #err("failed to decode token: " # err);
+      };
+      case (#ok data) data;
+    };
+
+    // get prepared keys
+    let lookupKey = origin # " " # jwt.payload.sub;
+    let keyPair = switch (Map.get(keyPairs, thash, lookupKey)) {
+      case (?keys) keys;
+      case (null) {
+        Stats.log(stats, "setEmail failed: no key for " # lookupKey);
+        return #err("Could not get key for " # lookupKey # ".");
+      };
+    };
+    let principal = Ed25519.toPrincipal(keyPair.publicKey);
+    let email = jwt.payload.email;
+    let normalized = Email.normalizeGmail(email);
+    switch (normalized) {
+      case (#ok email) {
+        Map.set(emails, phash, principal, email);
+      };
+      case (#err err) {
+        Stats.log(stats, "!!!!!!!!!! Could not normalize gmail address which was signed by google: " # err # " !!!!!!!!!!");
+        return #err("Failed to normalize gmail address.");
+      };
+    };
+
+    return #ok({
+      email;
+      principal;
+      caller;
+    });
+  };
+
+  public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
+    let ?actual = Map.get(emails, phash, principal) else return false;
+    return email == actual;
   };
 
   public shared query ({ caller }) func getPrincipal() : async Text {
