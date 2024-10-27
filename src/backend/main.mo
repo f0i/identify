@@ -2,6 +2,7 @@ import Result "mo:base/Result";
 import Time "mo:base/Time";
 import Map "mo:map/Map";
 import { thash; phash } "mo:map/Map";
+import Set "mo:map/Set";
 import Jwt "JWT";
 import RSA "RSA";
 import Delegation "Delegation";
@@ -45,12 +46,13 @@ actor Main {
   var lastFetch : Time.Time = 0;
   public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
     Stats.logBalance(stats);
-    if (not Principal.isController(caller)) {
+    if (not hasPermission(caller)) {
       if (Time.now() - lastFetch < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
-      if (Time.now() - lastFetchaAttempt < MIN_FETCH_ATTEMPT_TIME) return #err("Rate limit reached. Try again in one hours.");
+      if (Time.now() - lastFetchaAttempt < MIN_FETCH_ATTEMPT_TIME) return #err("Rate limit reached. Try again in 30 minutes.");
     };
     pendingFetchAttempts += 1;
     lastFetchaAttempt := Time.now();
+    Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(pendingFetchAttempts) # ")");
 
     let fetched = await Http.getRequest("https://www.googleapis.com/oauth2/v3/certs", 5000, transform);
 
@@ -74,7 +76,7 @@ actor Main {
     if (pendingFetchAttempts < 3 and googleKeys.size() != 0) {
       return #err("Function inactive. Try using fetchGoogleKeys instead. pending Fetch requests: " # Nat.toText(pendingFetchAttempts));
     };
-    if (not Principal.isController(caller)) {
+    if (not hasPermission(caller)) {
       return #err("Permission denied.");
     };
     switch (RSA.pubKeysFromJSON(data)) {
@@ -216,14 +218,26 @@ actor Main {
     let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
     let keyCount = Nat.toText(Map.size(keyPairs)) # " keys created";
 
-    if (not Principal.isController(caller)) {
-      //return [keyCount, appCount];
+    if (not hasPermission(caller)) {
+      return [keyCount, appCount];
     };
     let counter = Stats.counterEntries(stats);
     let counterText = Array.map<Stats.CounterEntry, Text>(counter, func(c) = c.category # " " # c.sub # ": " # Nat.toText(c.counter));
 
     let log = Iter.toArray(Stats.logEntries(stats));
     return Array.flatten<Text>([[keyCount, appCount], counterText, log]);
+  };
+
+  stable var mods : Set.Set<Principal> = Set.new();
+  public shared ({ caller }) func addMod(user : Principal) : async Result.Result<(), Text> {
+    if (not Principal.isController(caller)) return #err("Permisison denied.");
+    Set.add(mods, phash, user);
+    #ok;
+  };
+  private func hasPermission(user : Principal) : Bool {
+    if (Principal.isController(user)) return true;
+    if (Set.has(mods, phash, user)) return true;
+    return false;
   };
 
 };
