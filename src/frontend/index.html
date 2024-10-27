@@ -17,6 +17,11 @@
         font-style: normal;
       }
 
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100%; 
+      }
       body {
         font-family: Mina, Arial, sans-serif;
         color: #222;
@@ -25,16 +30,14 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        min-height: 100vh;
         background-color: #f0f0f0;
         font-size: 15px;
+        min-height: 100%; 
       }
 
       .content {
         background-color: white;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        width: 90%;
-        max-width: 600px;
         min-height: 400px;
         border-radius: 12px;
         display: flex;
@@ -87,7 +90,7 @@
       @media (min-width: 800px) {
         .content {
           width: 70%;
-          max-width: 800px;
+          max-width: 600px;
           height: auto;
           border-radius: 16px;
           margin: 1em;
@@ -168,9 +171,6 @@
         padding: 2em 6em;
       }
 
-      #app-name {
-        padding-top: 6em;
-      }
     </style>
   </head>
   <body>
@@ -190,10 +190,14 @@
         <div id="demo" style="display: none;">
           <button id="demo-login">Log in</button>
           <button id="demo-logout" style="display: none;">Log out</button>
-          <button id="demo-fetch-keys" style="display: xnone">Fetch google keys</button>
-          <div>Network: <span id="demo-network">-</span></div>
-          <div>API endpoint: <span id="demo-api">-</span></div>
-          <div id="app-name">Build time: <span id="demo-build-time">-</span></div>
+          <div id="demo-admin" style="display: none; margin-top: 1em;">
+            <button id="demo-fetch-keys">Fetch google keys</button>
+          </div>
+          <div id="demo-build-info" style="padding-top: 6em;">
+            <div>Network: <span id="demo-network">-</span></div>
+            <div>API endpoint: <span id="demo-api">-</span></div>
+            <div>Build time: <span id="demo-build-time">-</span></div>
+          </div>
         </div>
 
         <p id="login-status"></p>
@@ -288,7 +292,7 @@
           <p>This application allows users to log in using Google and interact with services on the Internet Computer. Each application receives with a separate identity for authentication, ensuring that user sessions are independent across different apps.</p>
 
           <h3>Version</h3>
-          <p>Current version: <span id="version">1.0.0</span></p>
+          <p>Current version: <span id="version">-</span></p>
 
           <h3>Contact</h3>
           <p>This application was developed by <a href="https://cubeworksgmbh.de">CubeWorks GmbH</a>, specialists in embedded software and web/mobile development. CubeWorks provides customized software solutions and expert consulting.</p>

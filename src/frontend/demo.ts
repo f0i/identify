@@ -1,7 +1,7 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 
-// Init the demo application
+// Initialize the demo application
 export function initDemo(identityProvider: string) {
   show("demo");
   const login = document.getElementById("demo-login")!;
@@ -11,7 +11,9 @@ export function initDemo(identityProvider: string) {
 
   const fetchKeys = document.getElementById("demo-fetch-keys")!;
   fetchKeys.addEventListener("click", fetchGoogleKeys);
-  if (document.location.hash === "#admin") fetchKeys.style.display = "block";
+  if (document.location.hash === "#admin") {
+    show("demo-admin");
+  }
 
   innerText("demo-build-time", process.env.BUILD_TIME!);
   innerText("demo-network", process.env.DFX_NETWORK!);
@@ -53,7 +55,7 @@ async function initAuth(identityProvider: string) {
   }
 }
 
-// Fetch keys for auth verification
+// Fetch keys for authentication verification
 async function fetchGoogleKeys() {
   innerText("login-status", "Fetching keys...");
   try {
@@ -79,7 +81,7 @@ async function resetAuth() {
   authClient.logout().finally(checkAuth);
 }
 
-// Chack auth status, get principal and load statistics
+// Check authentication status, get principal and load statistics
 async function checkAuth() {
   const authClient = await AuthClient.create();
   if (await authClient.isAuthenticated()) {

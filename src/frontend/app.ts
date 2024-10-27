@@ -14,7 +14,8 @@ window.onload = () => {
   } else {
     initDemo(IDENTITY_PROVIDER);
   }
-  document.getElementById("version")!.innerText = "TODO";
+  document.getElementById("version")!.innerText = process.env.BUILD_TIME!;
+  (window as any).showInfo(document.location.hash.substring(1));
 };
 
 (window as any).showInfo = function (sectionId: string) {
