@@ -10,6 +10,7 @@ let stats : Stats.Stats = {
   log = Array.init(10, "");
   var logIndex = 0;
   var lastBalance = 123;
+  var lastFn = "none";
 };
 
 print("- empty log");

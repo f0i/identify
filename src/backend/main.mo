@@ -28,7 +28,6 @@ actor Main {
   stable var emails : Map.Map<Principal, Text> = Map.new();
 
   stable var stats = Stats.new(1000);
-  Stats.logBalance(stats);
   Stats.log(stats, "deploied new backend version.");
 
   var googleKeys : [RSA.PubKey] = [];
@@ -45,7 +44,7 @@ actor Main {
   var pendingFetchAttempts : Nat = 0;
   var lastFetch : Time.Time = 0;
   public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
-    Stats.logBalance(stats);
+    Stats.logBalance(stats, "fetchGoogleKeys");
     if (not hasPermission(caller)) {
       if (Time.now() - lastFetch < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
       if (Time.now() - lastFetchaAttempt < MIN_FETCH_ATTEMPT_TIME) return #err("Rate limit reached. Try again in 30 minutes.");
@@ -72,7 +71,7 @@ actor Main {
   };
 
   public shared ({ caller }) func setGoogleKeys(data : Text) : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
-    Stats.logBalance(stats);
+    Stats.logBalance(stats, "setGoogleKeys");
     if (pendingFetchAttempts < 3 and googleKeys.size() != 0) {
       return #err("Function inactive. Try using fetchGoogleKeys instead. pending Fetch requests: " # Nat.toText(pendingFetchAttempts));
     };
@@ -92,10 +91,9 @@ actor Main {
     });
   };
 
-  // TODO: add origin to have different keys for each app
   type PrepRes = Result.Result<{ pubKey : [Nat8]; register : Bool }, Text>;
   public shared func prepareDelegation(sub : Text, origin : Text, token : Nat32) : async PrepRes {
-    Stats.logBalance(stats);
+    Stats.logBalance(stats, "prepareDelegation");
     // prevent bots and people exploring the interface from creating keys *by accident*
     if (token != 123454321) return #err("Invalid token");
     let lookupKey = origin # " " # sub;
@@ -123,12 +121,11 @@ actor Main {
   };
 
   public shared query func getDelegations(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
+    // The log statements will only show up if this function is called as an update call
+    Stats.logBalance(stats, "getDelegations");
     // verify token
     if (googleKeys.size() == 0) return #err("Google keys not loaded");
     if (expireIn > MAX_EXPIRATION_TIME) return #err("Expiration time to long");
-
-    // The log statement will only show up if this function is called as an update call
-    Stats.logBalance(stats);
 
     // Time of JWT token from google must not be more than 5 minutes in the future
     let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/)) {
@@ -158,11 +155,10 @@ actor Main {
   };
 
   public shared ({ caller }) func setEmail(token : Text, origin : Text) : async Result.Result<{ email : Text; principal : Principal; caller : Principal }, Text> {
+    // The log statement will only show up if this function is called as an update call
+    Stats.logBalance(stats, "setEmail");
     // verify token
     if (googleKeys.size() == 0) return #err("Google keys not loaded");
-
-    // The log statement will only show up if this function is called as an update call
-    Stats.logBalance(stats);
 
     // Time of JWT token from google must not be more than 5 minutes in the future
     let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/)) {
@@ -203,33 +199,38 @@ actor Main {
   };
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
+    Stats.logBalance(stats, "checkEmail");
     let ?actual = Map.get(emails, phash, principal) else return false;
     return email == actual;
   };
 
   public shared query ({ caller }) func getPrincipal() : async Text {
-    Stats.logBalance(stats);
+    Stats.logBalance(stats, "getPrincipal");
     if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
     return "Principal " # Principal.toText(caller);
   };
 
   public shared query ({ caller }) func getStats() : async [Text] {
-    Stats.logBalance(stats);
+    Stats.logBalance(stats, "getStats");
     let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
-    let keyCount = Nat.toText(Map.size(keyPairs)) # " keys created";
+    let keyCount = Nat.toText(Map.size(keyPairs)) # " identities created";
+    let loginCount = Nat.toText(Stats.getSubSum(stats, "login") + Map.size(keyPairs)) # " sign ins";
 
     if (not hasPermission(caller)) {
-      return [keyCount, appCount];
+      return [appCount, keyCount, loginCount];
     };
     let counter = Stats.counterEntries(stats);
     let counterText = Array.map<Stats.CounterEntry, Text>(counter, func(c) = c.category # " " # c.sub # ": " # Nat.toText(c.counter));
 
+    let costs = Stats.costData(stats);
+
     let log = Iter.toArray(Stats.logEntries(stats));
-    return Array.flatten<Text>([[keyCount, appCount], counterText, log]);
+    return Array.flatten<Text>([[appCount, keyCount, loginCount], counterText, costs, log]);
   };
 
   stable var mods : Set.Set<Principal> = Set.new();
   public shared ({ caller }) func addMod(user : Principal) : async Result.Result<(), Text> {
+    Stats.logBalance(stats, "addMod");
     if (not Principal.isController(caller)) return #err("Permisison denied.");
     Set.add(mods, phash, user);
     #ok;

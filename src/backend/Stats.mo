@@ -21,6 +21,17 @@ module {
     log : [var Text];
     var logIndex : Nat;
     var lastBalance : Nat;
+    var lastFn : Text;
+    costs : Map<Text, FnCost>;
+  };
+
+  public type FnCost = {
+    fn : Text;
+    var count : Nat;
+    var total : Nat;
+    var min : Nat;
+    var max : Nat;
+    log : [var Nat];
   };
 
   public func new(logSize : Nat) : Stats = {
@@ -28,6 +39,8 @@ module {
     log = Array.init(logSize, "");
     var logIndex = 0;
     var lastBalance = Cycles.balance();
+    var lastFn = "init";
+    costs = Map.new();
   };
 
   public func inc(stats : Stats, category : Text, sub : Text) {
@@ -62,17 +75,49 @@ module {
     stats.logIndex += 1;
   };
 
-  public func logBalance(stats : Stats) {
+  /// This should be called at the beginning of every update call to log the balance difference from the last call.
+  public func logBalance(stats : Stats, nextFn : Text) {
     let prefix = TimeFormat.toText(Time.now()) # " ";
-    let msg = cycleBalance(stats.lastBalance);
-    stats.log[stats.logIndex % stats.log.size()] := prefix # msg;
+    let (msg, diff) = cycleBalance(stats.lastBalance);
+    stats.log[stats.logIndex % stats.log.size()] := prefix # stats.lastFn # " " # msg;
     stats.logIndex += 1;
     stats.lastBalance := Cycles.balance();
+    switch (Map.get(stats.costs, thash, stats.lastFn)) {
+      case (?cost) {
+        setCost(cost, diff);
+      };
+      case (null) {
+        let cost = {
+          fn = stats.lastFn;
+          var count = 1;
+          var total = diff;
+          var min = diff;
+          var max = diff;
+          log = Array.init(100, 0);
+        } : FnCost;
+        cost.log[0] := diff;
+        Map.set(stats.costs, thash, stats.lastFn, cost);
+      };
+    };
+    stats.lastFn := nextFn;
   };
 
   public func getSubCount(stats : Stats, category : Text) : Nat {
     switch (Map.get(stats.counter, thash, category)) {
       case (?data) return Map.size(data);
+      case (null) return 0;
+    };
+  };
+
+  public func getSubSum(stats : Stats, category : Text) : Nat {
+    switch (Map.get(stats.counter, thash, category)) {
+      case (?data) {
+        var acc = 0;
+        for (n in Map.vals(data)) {
+          acc += n;
+        };
+        return acc;
+      };
       case (null) return 0;
     };
   };
@@ -98,14 +143,45 @@ module {
     };
   };
 
+  public func costData(stats : Stats) : [Text] {
+    let overview = Iter.toArray(Iter.map(Map.vals(stats.costs), describeCost));
+    let history = Iter.toArray(Iter.map(Map.vals(stats.costs), costHistory));
+    Array.tabulate(overview.size() * 2, func(i : Nat) : Text { if (i % 2 == 0) overview[i / 2] else history[i / 2] });
+  };
+
   let MAX_INSTRUCTIONS : Float = 20_000_000_000;
 
-  public func cycleBalance(start : Nat) : Text {
+  public func cycleBalance(start : Nat) : (Text, Nat) {
     let balance = Cycles.balance();
     let diff = if (start != 0) start : Int - balance else 0;
     let current = formatNat(balance, "C");
     let diffText = formatNat(Int.abs(diff), "C");
-    "Current balance " # current # " (call cost: " # diffText # ")";
+    let msg = "balance " # current # " (call cost: " # diffText # ")";
+    (msg, Int.abs(diff));
+  };
+
+  public func setCost(cost : FnCost, cycles : Nat) {
+    cost.log[cost.count % cost.log.size()] := cycles;
+    cost.count += 1;
+    cost.total += cycles;
+    if (cost.max < cycles) cost.max := cycles;
+    if (cost.min > cycles) cost.min := cycles;
+  };
+
+  private func describeCost(cost : FnCost) : Text {
+    let avg = cost.total / cost.count;
+    cost.fn # ": " # formatNat(cost.count, "x") # ", avg: " # formatNat(avg, "C") # ", min: " # formatNat(cost.min, "C") # ", max: " # formatNat(cost.max, "C");
+  };
+
+  private func costHistory(cost : FnCost) : Text {
+    var out = cost.fn # " cost log:";
+    let size = cost.log.size();
+    var i = if (cost.count < size) 0 else cost.count - size : Nat;
+    while (i < cost.count) {
+      out #= " " # formatNat(cost.log[i], "C");
+      i += 1;
+    };
+    out;
   };
 
   public func perf1() : Text {
