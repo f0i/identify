@@ -97,6 +97,15 @@ async function handleCredentialResponse(response: any) {
 
     console.log("getDelegation response:", authRes);
     if ("ok" in authRes) {
+      // Set email address so apps can verify it via inter-canister call to backend.checkEmail()
+      if (!authRes.ok.emailSet) {
+        status.innerText =
+          "Google sign in succeeded. Finalize account setup...";
+        let emailRes = await backend.setEmail(idToken, referrer.origin);
+
+        console.log(emailRes);
+      }
+
       console.log("authRes", authRes.ok);
       status.innerText = "Login completed";
       // send response; window will be closed by opener

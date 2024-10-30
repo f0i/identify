@@ -120,7 +120,7 @@ actor Main {
     });
   };
 
-  public shared query func getDelegations(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
+  public shared query func getDelegations(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; emailSet : Bool }, Text> {
     // The log statements will only show up if this function is called as an update call
     Stats.logBalance(stats, "getDelegations");
     // verify token
@@ -148,9 +148,11 @@ actor Main {
 
     // sign delegation
     let authResponse = Delegation.getDelegation(sessionKey, keyPair, Time.now() + expireIn);
+    let emailSet = Map.has(emails, phash, Ed25519.toPrincipal(keyPair.publicKey));
 
     return #ok({
       auth = authResponse;
+      emailSet;
     });
   };
 
@@ -180,7 +182,7 @@ actor Main {
     };
     let principal = Ed25519.toPrincipal(keyPair.publicKey);
     let email = jwt.payload.email;
-    let normalized = Email.normalizeGmail(email);
+    let normalized = Email.normalizeEmail(email);
     switch (normalized) {
       case (#ok email) {
         Map.set(emails, phash, principal, email);
@@ -206,8 +208,9 @@ actor Main {
 
   public shared query ({ caller }) func getPrincipal() : async Text {
     Stats.logBalance(stats, "getPrincipal");
+    let hasEmail = if (Map.has(emails, phash, caller)) " email set" else " no email set";
     if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
-    return "Principal " # Principal.toText(caller);
+    return "Principal " # Principal.toText(caller) # hasEmail;
   };
 
   public shared query ({ caller }) func getStats() : async [Text] {

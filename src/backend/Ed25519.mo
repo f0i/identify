@@ -8,6 +8,7 @@ import Principal "mo:base/Principal";
 import Blob "mo:base/Blob";
 import Nat32 "mo:base/Nat32";
 import CRC32 "mo:hash/CRC32";
+import Sha256 "mo:sha2/Sha256";
 
 module {
   type Result<T, E> = Result.Result<T, E>;
@@ -67,20 +68,11 @@ module {
   };
 
   public func toPrincipal(publicKey : [Nat8]) : Principal {
-    let bytes = Array.flatten<Nat8>([[0x02], publicKey]);
-    let crc32Bytes = nat32ToBytes(CRC32.checksum(bytes));
-    let allBytes = Array.flatten<Nat8>([bytes, crc32Bytes]);
+    let hash = Sha256.fromArray(#sha224, DERencodePubKey(publicKey));
+    let bytes = Blob.toArray(hash);
+    let allBytes = Array.flatten<Nat8>([bytes, [0x02]]);
 
     Principal.fromBlob(Blob.fromArray(allBytes));
-  };
-
-  func nat32ToBytes(n : Nat32) : [Nat8] {
-    [
-      Nat8.fromNat(Nat32.toNat(n >> 24 & 0xFF)),
-      Nat8.fromNat(Nat32.toNat(n >> 16 & 0xFF)),
-      Nat8.fromNat(Nat32.toNat(n >> 8 & 0xFF)),
-      Nat8.fromNat(Nat32.toNat(n & 0xFF)),
-    ];
   };
 
 };
