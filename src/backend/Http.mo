@@ -113,7 +113,9 @@ module {
       };
     };
 
-    let body = "{ \"keys\": [\n" # Text.join(",", Iter.map(Iter.range(0, keyIndex - 1), func(i : Nat) : Text = keys[i])) # "]}";
+    let sorted = Array.sort<Text>(Array.freeze(keys), Text.compare);
+
+    let body = "{ \"keys\": [\n" # Text.join(",", Iter.filter(sorted.vals(), func(t : Text) : Bool = t != "")) # "]}";
 
     return {
       status = raw.response.status;
