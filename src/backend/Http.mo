@@ -3,6 +3,11 @@ import Cycles "mo:base/ExperimentalCycles";
 import Nat8 "mo:base/Nat8";
 import Nat64 "mo:base/Nat64";
 import Text "mo:base/Text";
+import Debug "mo:base/Debug";
+import Error "mo:base/Error";
+import Array "mo:base/Array";
+import Char "mo:base/Char";
+import Iter "mo:base/Iter";
 
 module {
   type Timestamp = Nat64;
@@ -71,6 +76,52 @@ module {
     http_request : HttpRequestArgs -> async HttpResponsePayload;
   };
 
+  public func transform(raw : TransformArgs) : CanisterHttpResponsePayload {
+    // TODO: assert body start with "{\n  \"keys\": [\n"
+    let ?content = Text.decodeUtf8(Blob.fromArray(raw.response.body)) else Debug.trap("Invalid response body");
+
+    let lines = Text.split(content, #char '\n');
+    var buffer = Array.init<Text>(6, "");
+    var keys = Array.init<Text>(7, "");
+    var keyIndex = 0;
+    var lineNo = 0;
+    label lineLoop for (line in lines) {
+      lineNo += 1;
+      var entry = Text.trim(line, #predicate(Char.isWhitespace));
+      if (lineNo == 1) {
+        if (entry != "{") Debug.trap("Invalid response line 1");
+      } else if (lineNo == 2) {
+        if (entry != "\"keys\": [") Debug.trap("Invalid response line 2");
+      } else if (Text.startsWith(entry, #text "\"e\": ")) {
+        buffer[0] := entry;
+      } else if (Text.startsWith(entry, #text "\"n\": ")) {
+        buffer[1] := entry;
+      } else if (Text.startsWith(entry, #text "\"kid\": ")) {
+        buffer[2] := entry;
+      } else if (Text.startsWith(entry, #text "\"use\": ")) {
+        buffer[3] := entry;
+      } else if (Text.startsWith(entry, #text "\"alg\": ")) {
+        buffer[4] := entry;
+      } else if (Text.startsWith(entry, #text "\"kty\": ")) {
+        buffer[5] := entry;
+      } else if (Text.startsWith(entry, #text "}")) {
+        keys[keyIndex] := Text.join("\n", buffer.vals());
+      } else if (Text.startsWith(entry, #text "]")) {
+        keys[keyIndex] := "{" # Text.join("\n", buffer.vals()) # "}";
+        keyIndex += 1;
+        if (keyIndex >= keys.size()) break lineLoop;
+      };
+    };
+
+    let body = "{ \"keys\": [\n" # Text.join(",", Iter.map(Iter.range(0, keyIndex - 1), func(i : Nat) : Text = keys[i])) # "]}";
+
+    return {
+      status = raw.response.status;
+      body = Blob.toArray(Text.encodeUtf8(body));
+      headers = [];
+    };
+  };
+
   public func getRequest(url : Text, maxBytes : Nat64, transform : shared query TransformArgs -> async HttpResponsePayload) : async {
     data : Text;
     cost : Nat;
@@ -120,37 +171,42 @@ module {
 
     //4. MAKE HTTPS REQUEST AND WAIT FOR RESPONSE
     //Since the cycles were added above, we can just call the IC management canister with HTTPS outcalls below
-    Cycles.add<system>(maxCost);
-    let http_response : HttpResponsePayload = await ic.http_request(http_request);
-    let balance2 = Cycles.balance();
+    try {
+      Cycles.add<system>(maxCost);
+      let http_response : HttpResponsePayload = await ic.http_request(http_request);
+      let balance2 = Cycles.balance();
 
-    //5. DECODE THE RESPONSE
+      //5. DECODE THE RESPONSE
 
-    //As per the type declarations, the BODY in the HTTP response
-    //comes back as [Nat8s] (e.g. [2, 5, 12, 11, 23]). Type signature:
+      //As per the type declarations, the BODY in the HTTP response
+      //comes back as [Nat8s] (e.g. [2, 5, 12, 11, 23]). Type signature:
 
-    //public type HttpResponsePayload = {
-    //     status : Nat;
-    //     headers : [HttpHeader];
-    //     body : [Nat8];
-    // };
+      //public type HttpResponsePayload = {
+      //     status : Nat;
+      //     headers : [HttpHeader];
+      //     body : [Nat8];
+      // };
 
-    //We need to decode that [Nat8] array that is the body into readable text.
-    //To do this, we:
-    //  1. Convert the [Nat8] into a Blob
-    //  2. Use Blob.decodeUtf8() method to convert the Blob to a ?Text optional
-    //  3. We use a switch to explicitly call out both cases of decoding the Blob into ?Text
-    let response_body : Blob = Blob.fromArray(http_response.body);
-    let decoded_text : Text = switch (Text.decodeUtf8(response_body)) {
-      case (null) { "No value returned" };
-      case (?y) { y };
-    };
+      //We need to decode that [Nat8] array that is the body into readable text.
+      //To do this, we:
+      //  1. Convert the [Nat8] into a Blob
+      //  2. Use Blob.decodeUtf8() method to convert the Blob to a ?Text optional
+      //  3. We use a switch to explicitly call out both cases of decoding the Blob into ?Text
+      let response_body : Blob = Blob.fromArray(http_response.body);
+      let decoded_text : Text = switch (Text.decodeUtf8(response_body)) {
+        case (null) { "No value returned" };
+        case (?y) { y };
+      };
 
-    //6. RETURN RESPONSE OF THE BODY
-    return {
-      data = decoded_text;
-      cost = balance1 - balance2;
-      expectedCost = maxCost;
+      //6. RETURN RESPONSE OF THE BODY
+      return {
+        data = decoded_text;
+        cost = balance1 - balance2;
+        expectedCost = maxCost;
+      };
+
+    } catch (err) {
+      Debug.trap("http outcall error: " # Error.message(err));
     };
   };
 

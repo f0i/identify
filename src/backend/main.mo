@@ -33,11 +33,7 @@ actor Main {
   var googleKeys : [RSA.PubKey] = [];
 
   public query func transform(raw : Http.TransformArgs) : async Http.CanisterHttpResponsePayload {
-    return {
-      status = raw.response.status;
-      body = raw.response.body;
-      headers = [];
-    };
+    Http.transform(raw);
   };
 
   var lastFetchaAttempt : Time.Time = 0;
