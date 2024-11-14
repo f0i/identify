@@ -1,5 +1,5 @@
 import { canisterId, createActor } from "../declarations/backend";
-import { AuthResponse, PrepRes } from "../declarations/backend/backend.did";
+import { AuthResponse } from "../declarations/backend/backend.did";
 
 declare global {
   interface Window {
@@ -8,21 +8,24 @@ declare global {
 }
 
 var authRequest: any = null;
+var origin: string | null = null;
 
 export function initICgsi(clientID: string) {
   const icgsi = document.getElementById("icgsi")!;
   icgsi.style.display = "block";
 
-  const referrer = new URL(document.referrer);
   initGsi(clientID);
 
   window.addEventListener("message", (event) => {
     if (
-      event.origin === referrer.origin &&
+      event.source === window.opener &&
       event.data.kind === "authorize-client"
     ) {
       console.log("setting data", event.data);
       authRequest = event.data;
+      origin = event.origin;
+      const appOrigin = document.getElementById("app-origin")!;
+      appOrigin.innerText = origin;
     } else {
       console.log("unhandled message (ignore)", event);
     }
@@ -32,7 +35,7 @@ export function initICgsi(clientID: string) {
   window.opener.postMessage(msg, "*");
 
   const appOrigin = document.getElementById("app-origin")!;
-  appOrigin.innerText = referrer.origin;
+  appOrigin.innerText = "-";
 }
 
 async function initGsi(clientId: string) {
@@ -64,12 +67,15 @@ async function handleCredentialResponse(response: any) {
     const backend = createActor(canisterId, { agentOptions: { host } });
 
     status.innerText = "Google sign in succeeded. Authorizing client...";
-    const referrer = new URL(document.referrer);
+
+    if (!origin) {
+      throw "Could not determine app origin.";
+    }
 
     console.log("payload:", payload, payload.sub);
     let prepRes = await backend.prepareDelegation(
       payload.sub,
-      referrer.origin,
+      origin,
       123454321,
     );
     if ("ok" in prepRes) {
@@ -90,7 +96,7 @@ async function handleCredentialResponse(response: any) {
 
     let authRes = await backend.getDelegations(
       idToken,
-      referrer.origin,
+      origin,
       authRequest.sessionPublicKey,
       authRequest.maxTimeToLive,
     );
@@ -101,7 +107,7 @@ async function handleCredentialResponse(response: any) {
       if (!authRes.ok.emailSet) {
         status.innerText =
           "Google sign in succeeded. Finalize account setup...";
-        let emailRes = await backend.setEmail(idToken, referrer.origin);
+        let emailRes = await backend.setEmail(idToken, origin);
 
         console.log(emailRes);
       }
