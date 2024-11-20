@@ -12,6 +12,7 @@ import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
+import Debug "mo:base/Debug";
 import Http "Http";
 import Stats "Stats";
 import Email "Email";
@@ -26,6 +27,7 @@ actor Main {
   type KeyPair = Ed25519.KeyPair;
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
   stable var emails : Map.Map<Principal, Text> = Map.new();
+  stable var trustedApps : Map.Map<Principal, Text> = Map.new();
 
   stable var stats = Stats.new(1000);
   Stats.log(stats, "deploied new backend version.");
@@ -202,6 +204,12 @@ actor Main {
     return email == actual;
   };
 
+  public shared query ({ caller }) func getEmail(principal : Principal) : async ?Text {
+    Stats.logBalance(stats, "getEmail");
+    let ?_name = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for " # Principal.toText(caller));
+    return Map.get(emails, phash, principal);
+  };
+
   public shared query ({ caller }) func getPrincipal() : async Text {
     Stats.logBalance(stats, "getPrincipal");
     let hasEmail = if (Map.has(emails, phash, caller)) " email set" else " no email set";
@@ -224,7 +232,8 @@ actor Main {
     let costs = Stats.costData(stats);
 
     let log = Iter.toArray(Stats.logEntries(stats));
-    return Array.flatten<Text>([[appCount, keyCount, loginCount], counterText, costs, log]);
+    let accs = Iter.toArray(Iter.map(Map.entries(emails), func((p : Principal, e : Text)) : Text = Principal.toText(p) # " " # e));
+    return Array.flatten<Text>([[appCount, keyCount, loginCount], counterText, costs, log, accs]);
   };
 
   stable var mods : Set.Set<Principal> = Set.new();
