@@ -1,11 +1,12 @@
 [dependencies]
-base = "0.13.0"
-serde = "3.2.1"
+base = "0.13.5"
+serde = "3.2.2"
 sha2 = "0.1.0"
-tweetnacl = "1.0.3"
+tweetnacl = "1.1.1"
 map = "9.0.1"
 prng = "0.0.5"
 hash = "1.0.0"
 
 [toolchain]
 wasmtime = "25.0.1"
+moc = "0.13.5"
