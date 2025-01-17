@@ -178,7 +178,7 @@ module {
     let size = cost.log.size();
     var i = if (cost.count < size) 0 else cost.count - size : Nat;
     while (i < cost.count) {
-      out #= " " # formatNat(cost.log[i], "C");
+      out #= " " # formatNat(cost.log[i % size], "C");
       i += 1;
     };
     out;

@@ -10,6 +10,9 @@ import RSA "./RSA";
 import TimeFormat "TimeFormat";
 
 module {
+  /**
+  Data sturcture of a decoded JWT token's header.
+  */
   public type Header = {
     alg : Text;
     typ : Text; // optional but recomended
@@ -21,6 +24,9 @@ module {
     crit : ?Text;
   };
 
+  /**
+  Data sturcture of a decoded JWT token's payload
+  */
   public type Payload = {
     iss : Text;
     sub : Text;
@@ -32,14 +38,52 @@ module {
     name : Text;
   };
 
+  /**
+  Data sturcture of a decoded JWT token
+  */
   public type JWT = {
     header : Header;
     payload : Payload;
     signature : Text;
   };
 
-  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time.Time, issuedToleranceS : Nat) : Result.Result<JWT, Text> {
+  /**
+  Decode and validate a JWT token.
+  The payload of the token is required to contain at least values from `Header` and `Payload`.
+
+  **Validation**
+
+  The following validations are performed:
+
+  - valid encoding without without excess data
+  - presense of all required values in `Header` and `Payload`
+  - The token has not expired (`now` is smaller then `header.exp`)
+  - The token was not issued in the future (specifically not more than `issuedToleranceS` seconds in the future)
+  - The token was issued by one of the authorized keys (specified by their private key)
+  - The public key is of `typ`: RSA with `alg`: `RS256` for `use`: `sig`.
+  - Header field `typ` is `JWT`
+  - Payload field `aud` must contain a string listed in audiences
+
+  **Function arguments**
+
+  - token: The JWT token to decode and validate.
+  - pubKeys: Array of public keys. The JWT token must be signed with one of the corresponding private keys. Must contain at least one public key!
+  - now: The current time in nanos as returned by `Time.now()`.
+  - issuedToleranceS: Specifies how much in the future the token can be generated.
+    This is to avoid issues with server times being slightly out of sync.
+    This argument has no effect on the verification of the expiration time.
+  - audiences: Array of values allowed for the `aud` attribute inside the payload. Must contain at least one audience string.
+
+  **Return value**
+
+  The function returns a Result type contining the decoded values from a valid JWT token or
+  the an error result with the reason why the token could not be verified.
+
+  */
+  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time.Time, issuedToleranceS : Nat, audiences : [Text]) : Result.Result<JWT, Text> {
     assert (pubKeys.size() > 0);
+    assert (audiences.size() > 0);
+
     let nowS = now / 1_000_000_000;
     let issuedBeforeS = nowS + issuedToleranceS;
     let iter = Text.split(token, #char('.'));
@@ -78,6 +122,12 @@ module {
     };
     let ?payload : ?Payload = from_candid (payloadBlob) else return #err("missing fields in payload " # payloadJSON);
 
+    // check audience
+    if (Array.find(audiences, func(a : Text) : Bool { a == payload.aud }) == null) {
+      return #err("audience is not whitelisted: " # payload.aud);
+    };
+
+    // check if token is valid at the current time
     if (payload.iat > issuedBeforeS) return #err("JWT creation time " # TimeFormat.secondsToText(payload.iat) # " invalid. IC time is " # TimeFormat.toText(now) # ".");
     if (nowS > payload.exp) return #err("JWT is expired at " # Nat.toText(payload.exp));
 

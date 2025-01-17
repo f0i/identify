@@ -28,11 +28,13 @@ actor Main {
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
   stable var emails : Map.Map<Principal, Text> = Map.new();
   stable var trustedApps : Map.Map<Principal, Text> = Map.new();
+  Map.set(trustedApps, phash, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), "btc-gift-cards.com");
 
   stable var stats = Stats.new(1000);
   Stats.log(stats, "deploied new backend version.");
 
   var googleKeys : [RSA.PubKey] = [];
+  var googleClientIds : [Text] = ["376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com"];
 
   public query func transform(raw : Http.TransformArgs) : async Http.CanisterHttpResponsePayload {
     Http.transform(raw);
@@ -126,7 +128,7 @@ actor Main {
     if (expireIn > MAX_EXPIRATION_TIME) return #err("Expiration time to long");
 
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/)) {
+    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
@@ -161,7 +163,7 @@ actor Main {
     if (googleKeys.size() == 0) return #err("Google keys not loaded");
 
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/)) {
+    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds)) {
       case (#err err) {
         Stats.log(stats, "setEmail failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
