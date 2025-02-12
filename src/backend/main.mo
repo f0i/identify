@@ -145,13 +145,13 @@ actor class Main() = this {
     };
 
     let sub = jwt.payload.sub;
-    let seed = HashTree.encodeSeed(origin, sub);
+    let { seed; hashedSeed } = HashTree.encodeSeed(origin, sub);
     let signingCanisterID = Principal.fromActor(this);
     let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
     let hash = Delegation.getUnsignedHash(sessionKey, Time.now() + expireIn);
-    sigTree := HashTree.addSig(#Empty, seed, hash, Time.now());
-    //TODO: sigTree := HashTree.addSig(sigTree, seed, hash, Time.now());
+    sigTree := HashTree.addSig(#Empty, hashedSeed, hash, Time.now());
+    //TODO: sigTree := HashTree.addSig(sigTree, hashedSeed, hash, Time.now());
     CertifiedData.set(Blob.fromArray(HashTree.hash(sigTree)));
 
     let principal = CanisterSignature.toPrincipal(signingCanisterID, seed);
@@ -195,11 +195,11 @@ actor class Main() = this {
 
     let signingCanisterID = Principal.fromActor(this);
     let sub = jwt.payload.sub;
-    let seed = HashTree.encodeSeed(origin, sub);
+    let { seed; hashedSeed } = HashTree.encodeSeed(origin, sub);
     let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
     //sign delegation
-    let signature = HashTree.getSignature(sigTree, seed, cert);
+    let signature = HashTree.getSignature(sigTree, hashedSeed, cert);
     let authResponse = Delegation.getDelegationExternalSig(sessionKey, pubKey, signature, Time.now() + expireIn);
     let emailSet = Map.has(emails, phash, CanisterSignature.toPrincipal(signingCanisterID, seed));
 

@@ -36,8 +36,13 @@ module {
     };
   };
 
-  public func encodeSeed(sub : Text, origin : Text) : Blob {
-    shaHashTextToBlob(sub # " " # origin);
+  public func encodeSeed(sub : Text, origin : Text) : {
+    seed : Blob;
+    hashedSeed : Blob;
+  } {
+    let seed = shaHashTextToBlob(sub # " " # origin);
+    let hashedSeed = Sha256.fromBlob(#sha256, seed);
+    return { seed; hashedSeed };
   };
 
   func insertSig(tree : HashTree, seed : Blob, hash : [Nat8], now : Time) : HashTree {
