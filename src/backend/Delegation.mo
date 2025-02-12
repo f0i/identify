@@ -25,6 +25,7 @@ module {
   let kind = "authorize-client-success";
   let authnMethod = "gsi"; // II uses "passkey"
 
+  /// sessionKey: DER encoded session key as provided by the auth-client, including a domain separator
   public func getUnsignedBytes(sessionKey : [Nat8], expiration : Int) : [Nat8] {
 
     let expirationBytes = ULEB128.encode(Int.abs(expiration));
@@ -47,6 +48,13 @@ module {
     let domainSeparator : [Nat8] = [0x1A, 0x69, 0x63, 0x2d, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2d, 0x61, 0x75, 0x74, 0x68, 0x2d, 0x64, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e];
 
     return Array.flatten<Nat8>([domainSeparator, concatHash]);
+  };
+
+  /// Get sha256 hash of representation independend map of public key and expiration, including the domain saparator
+  public func getUnsignedHash(sessionKey : [Nat8], expiration : Int) : [Nat8] {
+    let unsigned = getUnsignedBytes(sessionKey, expiration);
+    let hash : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, unsigned));
+    return hash;
   };
 
   /// Generate a delegation structure for given keys.
@@ -77,6 +85,30 @@ module {
       kind;
       delegations = [delegation];
       userPublicKey = Ed25519.DERencodePubKey(identityKeyPair.publicKey);
+      authnMethod;
+    };
+  };
+
+  /// Generate a delegation structure for given keys.
+  /// settionKey is alreadfy DER encoded and used as is.
+  /// identityKeyPair ist handing the delegation to the sessionKey
+  /// the princial is determined by the identityKeyPair
+  /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
+  public func getDelegationExternalSig(sessionKey : [Nat8], userPublicKey : [Nat8], signature : [Nat8], expiration : Time.Time) : AuthResponse {
+    let pubkey = sessionKey;
+
+    let delegation = {
+      delegation = {
+        pubkey;
+        expiration;
+        targets = null;
+      };
+      signature;
+    };
+    return {
+      kind;
+      delegations = [delegation];
+      userPublicKey;
       authnMethod;
     };
   };

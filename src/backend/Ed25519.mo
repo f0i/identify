@@ -6,8 +6,6 @@ import Result "mo:base/Result";
 import Nat "mo:base/Nat";
 import Principal "mo:base/Principal";
 import Blob "mo:base/Blob";
-import Nat32 "mo:base/Nat32";
-import CRC32 "mo:hash/CRC32";
 import Sha256 "mo:sha2/Sha256";
 
 module {
@@ -32,39 +30,23 @@ module {
   public func DERencodePubKey(publicKey : [Nat8]) : [Nat8] {
     if (publicKey.size() != 32) Debug.trap("Unexpected key length: " # Nat.toText(publicKey.size()));
 
-    return Array.flatten<Nat8>([[0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00], publicKey]);
-
-    // DER encoding components for Ed25519
-    let derAlgorithmIdentifier : [Nat8] = [
-      // SEQUENCE (5 bytes)
-      0x30,
-      0x05,
-      // OID 1.3.101.112 (Ed25519)
-      0x06,
-      0x03,
-      0x2B,
-      0x65,
-      0x70,
-      // NULL
-      0x05,
-      0x00,
-    ];
-
-    // BIT STRING (33 bytes total: 1 padding byte (0x00) + 32-byte key)
-    let derBitStringPrefix : [Nat8] = [0x03, 33, 0x00]; // BIT STRING (33 bytes (0x21))
-
-    // Wrap everything in a SEQUENCE
-    // 9 byte derAlgorithmIdentifier + 3 byte derBitStringPrefix + 32 byte key;
-    let contentSize : Nat8 = 9 + 3 + 32;
-
-    let derSequence : [Nat8] = Array.flatten<Nat8>([
-      [0x30 : Nat8, contentSize],
-      derAlgorithmIdentifier,
-      derBitStringPrefix,
+    return Array.flatten<Nat8>([
+      [
+        0x30, // start sequence
+        0x2a, // total length
+        0x30,
+        0x05, // sequence
+        0x06,
+        0x03,
+        0x2b,
+        0x65,
+        0x70, // ed25519
+        0x03, // start bit string
+        0x21, // length key + 1byte padding (33)
+        0x00, // padding
+      ],
       publicKey,
     ]);
-
-    return derSequence;
   };
 
   public func toPrincipal(publicKey : [Nat8]) : Principal {

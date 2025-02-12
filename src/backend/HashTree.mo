@@ -6,7 +6,7 @@ import Debug "mo:base/Debug";
 import Nat8 "mo:base/Nat8";
 import Time "mo:base/Time";
 import Result "mo:base/Result";
-import Result "mo:base/Result";
+import Nat64 "mo:base/Nat64";
 
 // Partial implementation of a hash tree with just the functions to generate canister signatures
 module {
@@ -25,33 +25,40 @@ module {
   // I only want to insert signatures at /sig/<seed>/<data> and /time/<time>.
   // Order does not matter because I will always return a pruned tree which only contains /time and one element in /sig
 
-  public func addSig(tree : HashTree, seed : Text, hash : Blob) : Result<HashTree, Text> {
-    let now = Time.now();
+  public func addSig(tree : HashTree, seed : Blob, hash : [Nat8], now : Time) : HashTree {
     switch (tree) {
       case (#Fork(#Labeled("sig", _), #Labeled("time", #Leaf(_)))) insertSig(tree, seed, hash, now);
       case (#Empty) initSigTree(seed, hash, now);
-      case (_) initSigTree(seed, hash, now); // TODO: handle other cases instead of overwriting
+      case (_) {
+        Debug.print("Unexpected tree formatk: " # debug_show tree);
+        initSigTree(seed, hash, now); // TODO: handle other cases instead of overwriting
+      };
     };
   };
 
-  func insertSig(tree : HashTree, seed : Text, hash : [Nat8], now : Time) : HashTree {
-    let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(time))) = tree else return #Empty;
+  public func encodeSeed(sub : Text, origin : Text) : Blob {
+    shaHashTextToBlob(sub # " " # origin);
+  };
+
+  func insertSig(tree : HashTree, seed : Blob, hash : [Nat8], now : Time) : HashTree {
+    let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(_time))) = tree else return #Empty;
     let newSig : HashTree = labeled(seed, #Labeled(Blob.fromArray(hash), #Leaf("")));
     // this is not well formed (not ordered, unbalanced, duplicate), but since the other sigs will be purned, it doesn't matter
     let allSig = #Fork(newSig, sig);
-    return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(now)));
+    return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(timeToBytes(now))));
   };
 
-  let certKey = [0x6B, 0x63, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65]; // "certificate"
-  let treeKey = [0x64, 0x74, 0x72, 0x65, 0x65]; // "tree"
+  let certKey : [Nat8] = [0x6B, 0x63, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65]; // "certificate"
+  let treeKey : [Nat8] = [0x64, 0x74, 0x72, 0x65, 0x65]; // "tree"
 
-  public func encodeCert(tree : HashTree, seed : Text, cert : Blob) : [Nat8] {
-    let tagHeader = [0xD9, 0xD9, 0xF7]; // CBOR tag 55799
+  // Get a cbor encoded signature
+  public func getSignature(tree : HashTree, seed : Blob, cert : Blob) : [Nat8] {
+    let tagHeader : [Nat8] = [0xD9, 0xD9, 0xF7]; // CBOR tag 55799
 
     let certCBOR = cborBlob(cert);
-    let treeCBOR = cbor(tree);
+    let treeCBOR = cbor(getPrunedSigTree(tree, seed)); // TODO: fail if seed not found
 
-    Array.flatten([
+    Array.flatten<Nat8>([
       tagHeader,
       [0xA2], // cbor Map with two key value pairs
       certKey,
@@ -61,7 +68,7 @@ module {
     ]);
   };
 
-  public func getPrunedSig(tree : HashTree, seed : Text) : HashTree {
+  public func getPrunedSigTree(tree : HashTree, seed : Blob) : HashTree {
     let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(time))) = tree else return #Empty;
     let sigTree = getSig(sig, seed);
     if (sigTree.found) {
@@ -70,7 +77,7 @@ module {
     return #Empty;
   };
 
-  func getSig(tree : HashTree, seed : Text) : { found : Bool; tree : HashTree } {
+  func getSig(tree : HashTree, seed : Blob) : { found : Bool; tree : HashTree } {
     switch (tree) {
       case (#Empty) return { found = false; tree };
       case (#Fork(a, b)) {
@@ -86,18 +93,22 @@ module {
         };
         return { found = false; tree };
       };
-      case (#Labeled(l, t)) return { found = (l == seed) };
-      case (#Leaf(v)) return { found = false; tree };
-      case (#Pruned(h)) return { found = false; tree };
+      case (#Labeled(l, _t)) return { found = (l == seed); tree };
+      case (#Leaf(_v)) return { found = false; tree };
+      case (#Pruned(_h)) return { found = false; tree };
     };
   };
 
-  func initSigTree(seed : Text, Hash : [Nat8], now : Time) : HashTree {
+  func initSigTree(seed : Blob, hash : [Nat8], now : Time) : HashTree {
     let allSig : HashTree = labeled(seed, #Labeled(Blob.fromArray(hash), #Leaf("")));
-    return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(now)));
+    return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(timeToBytes(now))));
   };
 
-  public func labeled(l : Text, tree : HashTree) : HashTree {
+  public func labeled(l : Blob, tree : HashTree) : HashTree {
+    return #Labeled(l, tree);
+  };
+
+  public func labeledText(l : Text, tree : HashTree) : HashTree {
     return #Labeled(Text.encodeUtf8(l), tree);
   };
 
@@ -125,21 +136,34 @@ module {
   };
 
   func shaHash(data : [Nat8]) : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, data));
+  func shaHashTextToBlob(data : Text) : Blob = Sha256.fromBlob(#sha256, Text.encodeUtf8(data));
 
-  func textToBytes(t : Text) : [Nat8] = Blob.toArray(Text.encodeUtf8(t));
+  func timeToBytes(t : Time) : Blob {
+    assert t > 0;
+    let n = Nat64.fromIntWrap(t);
+    func toNat8(x : Nat64) : Nat8 = Nat8.fromNat(Nat64.toNat(x));
+
+    let bytes : [Nat8] = [
+      toNat8((n >> 56) & 0xFF),
+      toNat8((n >> 48) & 0xFF),
+      toNat8((n >> 40) & 0xFF),
+      toNat8((n >> 32) & 0xFF),
+      toNat8((n >> 24) & 0xFF),
+      toNat8((n >> 16) & 0xFF),
+      toNat8((n >> 8) & 0xFF),
+      toNat8(n & 0xFF),
+    ];
+    return Blob.fromArray(bytes);
+  };
 
   public func cbor(tree : HashTree) : [Nat8] {
     switch (tree) {
       case (#Empty) [0x81, 0];
       case (#Fork(a, b)) Array.flatten<Nat8>([[0x83, 1], cbor(a), cbor(b)]);
-      case (#Labeled(l, t)) Array.flatten<Nat8>([[0x83, 2], cborLabel(l), cbor(t)]);
+      case (#Labeled(l, t)) Array.flatten<Nat8>([[0x83, 2], cborBlob(l), cbor(t)]);
       case (#Leaf(v)) Array.flatten<Nat8>([[0x82, 3], cborBlob(v)]);
       case (#Pruned(h)) Array.flatten<Nat8>([[0x82, 4], cborHash(h)]);
     };
-  };
-
-  func cborLabel(l : Text) : [Nat8] {
-    cborData(textToBytes(l));
   };
 
   func cborBlob(blob : Blob) : [Nat8] {

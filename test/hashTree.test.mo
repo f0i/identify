@@ -1,4 +1,5 @@
 import { print; trap } "mo:base/Debug";
+import Debug "mo:base/Debug";
 import HashTree "../src/backend/HashTree";
 type HashTree = HashTree.HashTree;
 
@@ -43,6 +44,29 @@ let hash : [Nat8] = [
 if (HashTree.cbor(tree) != cbor) trap("could not encode full tree");
 if (HashTree.hash(tree) != hash) trap("could not calculate hash of full tree");
 
-print("- encode pruned tree");
+print("- sig pruning");
 
-if (HashTree.cbor(tree) != cbor) trap("could not encode pruned tree");
+let sigTree = HashTree.addSig(#Empty, "test", [1,2,3,4], 1234567890);
+let pruned1 = HashTree.getPrunedSigTree(sigTree, "test");
+if (pruned1 != sigTree) trap("should not prune anything from tree with only one signature");
+
+let sigTree2 = HashTree.addSig(sigTree, "asdf", [4,3,2,1], 12345678920);
+let hash2 = HashTree.hash(sigTree2);
+
+
+let expectedHash2: [Nat8] = [140, 30, 35, 152, 250, 235, 73, 46, 245, 79, 212, 59, 255, 84, 220, 240, 101, 49, 244, 169, 151, 95, 10, 132, 240, 41, 15, 120, 171, 107, 206, 221];
+
+if (hash2 != expectedHash2) trap("unexpected hash for tree with two signatures");
+
+let pruned2 = HashTree.getPrunedSigTree(sigTree2, "test");
+if (HashTree.hash(pruned2) != hash2) trap("hash must not change when pruning");
+
+print("- sig encoding");
+
+let cert = [11,22,33,44,55,66];
+
+let cbor2 = HashTree.cbor(pruned2);
+
+
+Debug.print(debug_show cbor2);
+

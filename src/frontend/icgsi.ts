@@ -74,9 +74,10 @@ async function handleCredentialResponse(response: any) {
 
     console.log("payload:", payload, payload.sub);
     let prepRes = await backend.prepareDelegation(
-      payload.sub,
+      idToken,
       origin,
-      123454321,
+      authRequest.sessionPublicKey,
+      authRequest.maxTimeToLive,
     );
     if ("ok" in prepRes) {
       if (prepRes.ok.register) {
@@ -93,8 +94,9 @@ async function handleCredentialResponse(response: any) {
 
     if (!authRequest?.sessionPublicKey)
       throw "Sign in failed: Session key was not set.";
+    console.log("authRequest data from auth-client:", authRequest);
 
-    let authRes = await backend.getDelegations(
+    let authRes = await backend.getDelegation(
       idToken,
       origin,
       authRequest.sessionPublicKey,
@@ -114,6 +116,7 @@ async function handleCredentialResponse(response: any) {
 
       console.log("authRes", authRes.ok);
       status.innerText = "Login completed";
+      debugger;
       // send response; window will be closed by opener
       const msg = unwrapTargets(authRes.ok.auth);
       window.opener.postMessage(msg, "*");
