@@ -257,6 +257,18 @@ actor class Main() = this {
     return "Principal " # Principal.toText(caller) # hasEmail;
   };
 
+  public shared query ({ caller }) func getBalance() : async {
+    val : Nat;
+    text : Text;
+  } {
+    if (not hasPermission(caller)) {
+      Debug.trap("Permisison denied.");
+    };
+    let val = Stats.cycleBalanceStart();
+    let text = Stats.formatNat(val, "C");
+    return { val; text };
+  };
+
   public shared query ({ caller }) func getStats() : async [Text] {
     Stats.logBalance(stats, "getStats");
     let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
