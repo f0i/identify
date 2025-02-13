@@ -6,7 +6,6 @@ import Set "mo:map/Set";
 import Jwt "JWT";
 import RSA "RSA";
 import Delegation "Delegation";
-import Ed25519 "Ed25519";
 import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
@@ -19,6 +18,7 @@ import Stats "Stats";
 import Email "Email";
 import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
+import Ed25519 "Ed25519";
 
 actor class Main() = this {
   let TIME_MINUTE = 60 * 1_000_000_000;
@@ -28,12 +28,17 @@ actor class Main() = this {
   let MIN_FETCH_TIME = 6 * TIME_HOUR;
 
   type HashTree = HashTree.HashTree;
+  type Time = Time.Time;
 
+  stable var emails : Map.Map<Principal, Text> = Map.new(); // TODO remove, was deprecated, use users instead
   type KeyPair = Ed25519.KeyPair;
   stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
-  stable var emails : Map.Map<Principal, Text> = Map.new();
-  stable var trustedApps : Map.Map<Principal, Text> = Map.new();
-  Map.set(trustedApps, phash, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), "btc-gift-cards.com");
+
+  type User = { email : Text; sub : Text; origin : Text; createdAt : Time };
+  stable var users : Map.Map<Principal, User> = Map.new();
+
+  type AppInfo = { name : Text; origins : [Text] };
+  stable var trustedApps : Map.Map<Principal, AppInfo> = Map.new();
 
   stable var stats = Stats.new(1000);
   Stats.log(stats, "deploied new backend version.");
@@ -41,6 +46,7 @@ actor class Main() = this {
   var googleKeys : [RSA.PubKey] = [];
   var googleClientIds : [Text] = ["376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com"];
 
+  // init values
   let initKeys = "
 {
   \"keys\": [
@@ -69,14 +75,20 @@ actor class Main() = this {
       Stats.log(stats, "initial set google keys failed: " # err);
     };
   };
+  trustedApps := Map.new(); // Reset because data type changed (TODO: remove after first deploy)
+  let btcGiftCards = {
+    name = "Bitcoin Gift Cards";
+    origins = ["https://btc-gift-cards.com"];
+  };
+  Map.set(trustedApps, phash, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), btcGiftCards);
 
   public query func transform(raw : Http.TransformArgs) : async Http.CanisterHttpResponsePayload {
     Http.transform(raw);
   };
 
-  var lastFetchaAttempt : Time.Time = 0;
+  var lastFetchaAttempt : Time = 0;
   var pendingFetchAttempts : Nat = 0;
-  var lastFetch : Time.Time = 0;
+  var lastFetch : Time = 0;
   public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
     Stats.logBalance(stats, "fetchGoogleKeys");
     if (not hasPermission(caller)) {
@@ -159,7 +171,14 @@ actor class Main() = this {
     let normalized = Email.normalizeEmail(rawEmail);
     switch (normalized) {
       case (#ok email) {
-        Map.set(emails, phash, principal, email);
+        if (Map.has(emails, phash, CanisterSignature.toPrincipal(signingCanisterID, seed))) {
+          Stats.inc(stats, "signin", origin);
+        } else {
+          Map.set(emails, phash, principal, email);
+          Map.set(users, phash, principal, { email; sub; origin; createdAt = Time.now() });
+          Stats.inc(stats, "signup", origin);
+          Stats.inc(stats, "signin", origin);
+        };
       };
       case (#err err) {
         Stats.log(stats, "!!!!!!!!!! Could not normalize gmail address which was signed by google: " # err # " !!!!!!!!!!");
@@ -217,10 +236,18 @@ actor class Main() = this {
     return email == actual;
   };
 
-  public shared query ({ caller }) func getEmail(principal : Principal) : async ?Text {
+  /// Get an email address for a principal
+  public shared query ({ caller }) func getEmail(principal : Principal, origin : Text) : async ?Text {
     Stats.logBalance(stats, "getEmail");
-    let ?_name = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for " # Principal.toText(caller));
-    return Map.get(emails, phash, principal);
+    let ?appInfo = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for " # Principal.toText(caller));
+    for (o in appInfo.origins.vals()) {
+      if (o == origin) {
+        let ?user = Map.get(users, phash, principal) else return null;
+        if (user.origin == origin) return ?user.email;
+      };
+    };
+    // origin was not in appInfo.origions
+    Debug.trap("Permission denied for " # origin);
   };
 
   public shared query ({ caller }) func getPrincipal() : async Text {
@@ -233,8 +260,8 @@ actor class Main() = this {
   public shared query ({ caller }) func getStats() : async [Text] {
     Stats.logBalance(stats, "getStats");
     let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
-    let keyCount = Nat.toText(Map.size(keyPairs)) # " identities created";
-    let loginCount = Nat.toText(Stats.getSubSum(stats, "login") + Map.size(keyPairs)) # " sign ins";
+    let keyCount = Nat.toText(Map.size(emails)) # " identities created";
+    let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
 
     if (not hasPermission(caller)) {
       return [appCount, keyCount, loginCount];
