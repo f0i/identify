@@ -24,6 +24,7 @@ actor class Main() = this {
   let TIME_MINUTE = 60 * 1_000_000_000;
   let TIME_HOUR = 60 * TIME_MINUTE;
   let MAX_EXPIRATION_TIME = 31 * 24 * TIME_HOUR;
+  let MIN_EXPIRATION_TIME = TIME_MINUTE * 2;
   let MIN_FETCH_ATTEMPT_TIME = TIME_MINUTE * 10;
   let MIN_FETCH_TIME = 6 * TIME_HOUR;
 
@@ -137,7 +138,7 @@ actor class Main() = this {
     });
   };
 
-  type PrepRes = Result.Result<{ pubKey : [Nat8]; register : Bool }, Text>;
+  type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
 
   var sigTree : HashTree = #Empty;
   public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat) : async PrepRes {
@@ -146,6 +147,8 @@ actor class Main() = this {
     // verify token
     if (googleKeys.size() == 0) return #err("Google keys not loaded");
     if (expireIn > MAX_EXPIRATION_TIME) return #err("Expiration time to long");
+    if (expireIn < MIN_EXPIRATION_TIME) return #err("Expiration time to short");
+    let expireAt = Time.now() + expireIn;
 
     // Time of JWT token from google must not be more than 5 minutes in the future
     let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds)) {
@@ -161,7 +164,7 @@ actor class Main() = this {
     let signingCanisterID = Principal.fromActor(this);
     let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
-    let hash = Delegation.getUnsignedHash(sessionKey, Time.now() + expireIn);
+    let hash = Delegation.getUnsignedHash(sessionKey, expireAt);
     sigTree := HashTree.addSig(#Empty, hashedSeed, hash, Time.now());
     //TODO: sigTree := HashTree.addSig(sigTree, hashedSeed, hash, Time.now());
     CertifiedData.set(Blob.fromArray(HashTree.hash(sigTree)));
@@ -188,11 +191,11 @@ actor class Main() = this {
 
     return #ok({
       pubKey;
-      register = true;
+      expireAt;
     });
   };
 
-  public shared query func getDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat) : async Result.Result<{ auth : Delegation.AuthResponse; emailSet : Bool }, Text> {
+  public shared query func getDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireAt : Time) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
     // The log statements will only show up if this function is called as an update call
     Stats.logBalance(stats, "getDelegations");
 
@@ -201,7 +204,7 @@ actor class Main() = this {
 
     // verify token
     if (googleKeys.size() == 0) return #err("Google keys not loaded");
-    if (expireIn > MAX_EXPIRATION_TIME) return #err("Expiration time to long");
+    if (expireAt < Time.now()) return #err("Expired");
 
     // Time of JWT token from google must not be more than 5 minutes in the future
     let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds)) {
@@ -219,14 +222,10 @@ actor class Main() = this {
 
     //sign delegation
     let signature = HashTree.getSignature(sigTree, hashedSeed, cert);
-    let authResponse = Delegation.getDelegationExternalSig(sessionKey, pubKey, signature, Time.now() + expireIn);
-    let emailSet = Map.has(emails, phash, CanisterSignature.toPrincipal(signingCanisterID, seed));
-
-    if (not emailSet) return #err("Email not set");
+    let authResponse = Delegation.getDelegationExternalSig(sessionKey, pubKey, signature, expireAt);
 
     return #ok({
       auth = authResponse;
-      emailSet;
     });
   };
 

@@ -80,16 +80,10 @@ async function handleCredentialResponse(response: any) {
       authRequest.maxTimeToLive,
     );
     if ("ok" in prepRes) {
-      if (prepRes.ok.register) {
-        status.innerText = "Google sign in succeeded. Generate new identity...";
-        // Small delay to make be able to read the above message
-        // and to make sure all nodes receive state with new keys before next query call (just in case; unlikely to be actually needed)
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      }
+      console.log("prepareDelegation response:", prepRes.ok);
     } else {
       throw prepRes.err;
     }
-    console.log("prepareDelegation response:", prepRes);
     status.innerText = "Google sign in succeeded. Get client authorization...";
 
     if (!authRequest?.sessionPublicKey)
@@ -100,20 +94,11 @@ async function handleCredentialResponse(response: any) {
       idToken,
       origin,
       authRequest.sessionPublicKey,
-      authRequest.maxTimeToLive,
+      prepRes.ok.expireAt,
     );
 
     console.log("getDelegation response:", authRes);
     if ("ok" in authRes) {
-      // Set email address so apps can verify it via inter-canister call to backend.checkEmail()
-      if (!authRes.ok.emailSet) {
-        status.innerText =
-          "Google sign in succeeded. Finalize account setup...";
-        let emailRes = await backend.setEmail(idToken, origin);
-
-        console.log(emailRes);
-      }
-
       console.log("authRes", authRes.ok);
       status.innerText = "Login completed";
       debugger;
