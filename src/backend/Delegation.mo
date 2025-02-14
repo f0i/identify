@@ -58,8 +58,8 @@ module {
   };
 
   /// Generate a delegation structure for given keys.
-  /// settionKey is alreadfy DER encoded and used as is.
-  /// identityKeyPair ist handing the delegation to the sessionKey
+  /// sessionKey is alreadfy DER encoded and used as is.
+  /// identityKeyPair is handing the delegation to the sessionKey
   /// the princial is determined by the identityKeyPair
   /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
   public func getDelegation(sessionKey : [Nat8], identityKeyPair : Ed25519.KeyPair, expiration : Time.Time) : AuthResponse {
@@ -90,9 +90,9 @@ module {
   };
 
   /// Generate a delegation structure for given keys.
-  /// settionKey is alreadfy DER encoded and used as is.
-  /// identityKeyPair ist handing the delegation to the sessionKey
-  /// the princial is determined by the identityKeyPair
+  /// sessionKey is alreadfy DER encoded and used as is.
+  /// usePublicKey is already DER encoded and used as is.
+  /// signature is a cbor encoded signature.
   /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
   public func getDelegationExternalSig(sessionKey : [Nat8], userPublicKey : [Nat8], signature : [Nat8], expiration : Time.Time) : AuthResponse {
     let pubkey = sessionKey;
