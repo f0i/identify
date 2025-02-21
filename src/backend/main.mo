@@ -19,6 +19,7 @@ import Email "Email";
 import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
 import Ed25519 "Ed25519";
+import Hex "Hex";
 
 actor class Main() = this {
   let TIME_MINUTE = 60 * 1_000_000_000;
@@ -150,8 +151,9 @@ actor class Main() = this {
     if (expireIn < MIN_EXPIRATION_TIME) return #err("Expiration time to short");
     let expireAt = Time.now() + expireIn;
 
+    let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds)) {
+    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds, nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
@@ -206,10 +208,11 @@ actor class Main() = this {
     if (googleKeys.size() == 0) return #err("Google keys not loaded");
     if (expireAt < Time.now()) return #err("Expired");
 
+    let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds)) {
+    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds, nonce)) {
       case (#err err) {
-        Stats.log(stats, "getDelegations failed: invalid token from " # origin);
+        Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
         return #err("failed to decode token: " # err);
       };
       case (#ok data) data;

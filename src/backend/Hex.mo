@@ -18,7 +18,6 @@ module {
         case (?a, ?b) { return ?(a, b) };
         case (_, _) { return null };
       };
-
     };
 
     return { next };

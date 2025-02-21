@@ -11,7 +11,7 @@ It also lets whitelisted apps look up the email address for a specific principal
 To integrate ICgsi into your own app, you just have to point the auth-client to one of the supported login urls.
 
 - Integrate the auth-client into your app.
-- Instead of a"identity.ic0.app" point the auth client to one of the public instances of ICgsi (e.g. "https://login.f0i.de").
+- Instead of "identity.ic0.app" point the auth client to one of the public instances of ICgsi (e.g. "https://login.f0i.de").
 
 ## Self deployed
 
@@ -49,4 +49,19 @@ You can run all of them using the following commands.
 mops test --mode wasi base64 jwt leb128 stats
 mops test --mode interpreter delegation ed25519
 ```
+
+# Roadmap / Ideas
+
+Ideas for further work, roughly ordered by importance, starting with the most important one.
+
+- Provide more documentation about how it works
+- Create tutorial to showcase integration options
+- Use timer to automatically update googlke keys
+- Support other login providers (X, GitHub, Apple, Microsoft, Auth0)
+- Derive mops packages for JWT, RSA, HashTree, Email validation, ULEB128, etc.
+- provide dummy version for local development where email addresses can be manually set per principal.
+- Make auth work with local development by falling back to self contained ED25519 signatures instead of canister signatures.
+- Provide an option to integrate the sign in button directly into the app, eliminating the extra step of redirecting to the auth provider.
+- Support other algorithms than just RS256 for JWT tokens
+- Implement with threshold ECDSA or shreshold Schnorr signatures, just to showcase them.
 

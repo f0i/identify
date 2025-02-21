@@ -14,28 +14,29 @@ module {
   Data sturcture of a decoded JWT token's header.
   */
   public type Header = {
-    alg : Text;
-    typ : Text; // optional but recomended
-    kid : Text; // optional but needed for our usecase
-    cty : ?Text;
-    jku : ?Text;
-    x5t : ?Text;
-    x5c : ?Text;
-    crit : ?Text;
+    alg : Text; // algorithm used (e.g. RS256 for RSA with SHA256)
+    typ : Text; // type (e.g. JWT) optional but recomended
+    kid : Text; // key ID, optional but needed for our usecase
+    cty : ?Text; // content type
+    jku : ?Text; // JWK Set URL
+    x5t : ?Text; // X.509 certificate thumbprint
+    x5c : ?Text; // X.509 certificate chain
+    crit : ?Text; // criticla extensions
   };
 
   /**
   Data sturcture of a decoded JWT token's payload
   */
   public type Payload = {
-    iss : Text;
-    sub : Text;
-    aud : Text;
-    exp : Nat;
-    iat : Nat;
-    jti : Text;
-    email : Text;
-    name : Text;
+    iss : Text; // issuer
+    sub : Text; // subject (Google user ID)
+    aud : Text; // audience (Google client ID)
+    exp : Nat; // expiration time in seconds since Unix epoch
+    iat : Nat; // issued at time
+    jti : Text; // JWT token ID
+    email : Text; // user email
+    name : Text; // user full name
+    nonce : ?Text; // nonce (used here to link the session key)
   };
 
   /**
@@ -80,7 +81,7 @@ module {
   the an error result with the reason why the token could not be verified.
 
   */
-  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time.Time, issuedToleranceS : Nat, audiences : [Text]) : Result.Result<JWT, Text> {
+  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time.Time, issuedToleranceS : Nat, audiences : [Text], nonce : ?Text) : Result.Result<JWT, Text> {
     assert (pubKeys.size() > 0);
     assert (audiences.size() > 0);
 
@@ -122,6 +123,8 @@ module {
     };
     let ?payload : ?Payload = from_candid (payloadBlob) else return #err("missing fields in payload " # payloadJSON);
 
+    // check nonce
+    if (nonce != null and nonce != payload.nonce) return #err("invalid nonce in payload");
     // check audience
     if (Array.find(audiences, func(a : Text) : Bool { a == payload.aud }) == null) {
       return #err("audience is not whitelisted: " # payload.aud);

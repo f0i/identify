@@ -11,10 +11,10 @@ var authRequest: any = null;
 var origin: string | null = null;
 
 export function initICgsi(clientID: string) {
+  const status = document.getElementById("login-status")!;
   const icgsi = document.getElementById("icgsi")!;
   icgsi.style.display = "block";
-
-  initGsi(clientID);
+  status.innerText = "Waiting for session key...";
 
   window.addEventListener("message", (event) => {
     if (
@@ -26,6 +26,9 @@ export function initICgsi(clientID: string) {
       origin = event.origin;
       const appOrigin = document.getElementById("app-origin")!;
       appOrigin.innerText = origin;
+      const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
+      initGsi(clientID, nonce);
+      status.innerText = "";
     } else {
       console.log("unhandled message (ignore)", event);
     }
@@ -38,10 +41,11 @@ export function initICgsi(clientID: string) {
   appOrigin.innerText = "-";
 }
 
-async function initGsi(clientId: string) {
+async function initGsi(clientId: string, nonce: string) {
   window.google.accounts.id.initialize({
     client_id: clientId,
     callback: handleCredentialResponse,
+    nonce: nonce,
   });
 
   window.google.accounts.id.renderButton(
@@ -136,4 +140,10 @@ function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
       return { ...d, delegation };
     }),
   };
+}
+
+function uint8ArrayToHex(array: Uint8Array): string {
+  return Array.from(array)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
