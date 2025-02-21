@@ -1,4 +1,6 @@
 const esbuild = require("esbuild");
+const fs = require("fs");
+const { execSync } = require("child_process");
 
 esbuild
   .build({
@@ -21,4 +23,25 @@ esbuild
       global: "window",
     },
   })
-  .catch(() => process.exit(1));
+  .then(() => {
+    const input = "src/frontend/index.html";
+    const outfile = "out/frontend/index.html";
+
+    // Add a timestamp as version ID
+    let html = fs.readFileSync(input, "utf8");
+    html = html.replace(
+      /<script src=".\/app\.js"/,
+      `<script src="./app\.js?v=${Date.now()}"`,
+    );
+
+    fs.writeFileSync(outfile, html, "utf8");
+  })
+  .then(() => {
+    // copy static files
+    execSync(`cp -r src/frontend/img out/frontend/img`);
+    execSync(`cp -r src/frontend/fonts out/frontend/fonts`);
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
