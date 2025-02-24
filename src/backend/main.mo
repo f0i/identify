@@ -186,7 +186,7 @@ actor class Main() = this {
         };
       };
       case (#err err) {
-        Stats.log(stats, "!!!!!!!!!! Could not normalize gmail address which was signed by google: " # err # " !!!!!!!!!!");
+        Stats.log(stats, "!!!!!!!!!! Could not normalize email address which was signed by google: " # err # " !!!!!!!!!!");
         return #err("Failed to normalize gmail address.");
       };
     };

@@ -62,6 +62,7 @@ Ideas for further work, roughly ordered by importance, starting with the most im
 - provide dummy version for local development where email addresses can be manually set per principal.
 - Make auth work with local development by falling back to self contained ED25519 signatures instead of canister signatures.
 - Provide an option to integrate the sign in button directly into the app, eliminating the extra step of redirecting to the auth provider.
+- Run performance test and reduce cycle usage
 - Support other algorithms than just RS256 for JWT tokens
 - Implement with threshold ECDSA or shreshold Schnorr signatures, just to showcase them.
 
