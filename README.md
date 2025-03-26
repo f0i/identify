@@ -1,6 +1,6 @@
-# `ICgsi`
+# Identify
 
-ICgsi is an authentication provider for the Internet Computer, providing an endpoint for the standard authentication client to request Sign In with Google.
+Identic is an authentication provider for the Internet Computer, providing an endpoint for the standard authentication client to request Sign In with Google.
 
 It also lets whitelisted apps look up the email address for a specific principal.
 
@@ -8,10 +8,10 @@ It also lets whitelisted apps look up the email address for a specific principal
 
 ## Managed setup
 
-To integrate ICgsi into your own app, you just have to point the auth-client to one of the supported login urls.
+To integrate Identify into your own app, you just have to point the auth-client to one of the supported login urls.
 
 - Integrate the auth-client into your app.
-- Instead of a"identity.ic0.app" point the auth client to one of the public instances of ICgsi (e.g. "https://login.f0i.de").
+- Instead of a"identity.ic0.app" point the auth client to one of the public instances of Identify (e.g. "https://login.f0i.de").
 
 ## Self deployed
 
@@ -23,7 +23,7 @@ Follow this steps if you want full control over the login process.
 - Periodically update the google public keys
 - Follow the same steps as for the section [Managed Setup](#Managed-Setup) to configure the auth-client
 
-# Apps that use ICgsi
+# Apps that use Identify
 
 ## Bitcoin Gift Cards
 
@@ -31,7 +31,7 @@ https://btc-gift-cards.com
 
 ## login.f0i.de
 
-This app shows some basic statistics about how many apps are connected and how many users signed in with ICgsi.
+This app shows some basic statistics about how many apps are connected and how many users signed in with Identify.
 
 # Development
 
