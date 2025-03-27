@@ -50,3 +50,21 @@ mops test --mode wasi base64 jwt leb128 stats
 mops test --mode interpreter delegation ed25519
 ```
 
+# Resources and Related projects
+
+- IC interface spec
+  - https://internetcomputer.org/docs/references/ic-interface-spec/#authentication
+  - https://internetcomputer.org/docs/references/ic-interface-spec/#signatures
+- II Spec
+  - https://internetcomputer.org/docs/references/ii-spec#client-authentication-protocol
+- PoC JWT Authentication in Rust
+  - https://github.com/ilbertt/ic-react-native-jwt-auth
+- Sign in with Ethereum
+  - https://github.com/spruceid/siwe
+- Internet Identity
+  - https://github.com/dfinity/internet-identity
+- NFID
+  - https://github.com/internet-identity-labs/nfid
+- IC replica
+  - https://github.com/dfinity/ic
+
