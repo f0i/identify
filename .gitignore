@@ -26,4 +26,7 @@ tsconfig.tsbuildinfo
 # environment variables
 .env
 
+# mops and raw test data
 .mops
+
+/test/keys/20*

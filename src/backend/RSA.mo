@@ -5,6 +5,7 @@ import Blob "mo:base/Blob";
 import Buffer "mo:base/Buffer";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
+import Debug "mo:base/Debug";
 import Base64 "Base64";
 import { JSON } "mo:serde";
 module {

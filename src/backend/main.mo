@@ -49,43 +49,44 @@ actor class Main() = this {
   var googleClientIds : [Text] = ["376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com"];
 
   // init values
-  let initKeys = "
-{
-  \"keys\": [
-    {
-      \"e\": \"AQAB\",
-      \"kty\": \"RSA\",
-      \"n\": \"5D9Xb4z8eFr-3Zh3m5GnM_KVqc6rskPL7EMa6lSxNiMJ-PhXGORU-S-QgLmMvHu3vAMfvxz6ph3JZDpdGT68wj-vWqqBudaDYCbnbkjXm6UpcrFMpGAiOS6gACNxpz80JXaO2DPtl9jTN6WyJY9tLHdqRfesfOlwzB0lmVZ8shSDh8usN3vB1KfYuR6Vytly1phaWJr92yMICKUjtXT-0SlrtqDgX_U2Swl4QyZN6rrfuG3F6Fmw-m12Ve_kyoPUb02bbJCSFDnIZsMvRlSZem5nUrs86zDPTWfNcB0LUYG8OgMzOev7r04h_RY2F6K7c8nE2EobYTrH0kw2QIf8vQ\",
-      \"use\": \"sig\",
-      \"alg\": \"RS256\",
-      \"kid\": \"eec534fa5b8caca201ca8d0ff96b54c562210d1e\"
-    },
-    {
-      \"n\": \"uac7NRcojCutcceWq1nrpLGJjQ7ywvgWsUcb1DWMKJ3KNNHiRzh9jshoi9tmq1zlarJ_h7GQg8iU1qD7SgpVYJmjlKG1MNVRAtuNrNMC0UAnNfG7mBBNorHFndfp-9cLTiMjXSXRzhNqiMvTVKeolRdMB2lH9RzJnwlpXtvUbD7M1pXOlPlMaOy1zxUnHn0uszU5mPRQk79i03BNrAdhwrAUB-ZuMnqpjaUcb9VU3KIwuZNPtsVenLN12sRYpaZ6WBw8Q9q7fAoaJUovM0Go8deC9pJYyxJuHdVo9HP0osyzg3g_rOYi14wmvMBuiDf3F4pTnudAfFyl3d0Mn_i4ZQ\",
-      \"use\": \"sig\",
-      \"kty\": \"RSA\",
-      \"alg\": \"RS256\",
-      \"kid\": \"5d12ab782cb6096285f69e48aea99079bb59cb86\",
-      \"e\": \"AQAB\"
-    }
-  ]
-}
-  ";
+  let initKeys = "";
   switch (RSA.pubKeysFromJSON(initKeys)) {
     case (#ok keys) googleKeys := keys;
     case (#err err) {
       Stats.log(stats, "initial set google keys failed: " # err);
     };
   };
-  trustedApps := Map.new(); // Reset because data type changed (TODO: remove after first deploy)
+  // Reset trusted apps on each deployment
+  trustedApps := Map.new();
   let btcGiftCards = {
     name = "Bitcoin Gift Cards";
-    origins = ["https://btc-gift-cards.com"];
+    origins = ["https://btc-gift-cards.com", "https://y4leg-vyaaa-aaaah-aq3ra-cai.icp0.io"];
   };
   Map.set(trustedApps, phash, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), btcGiftCards);
+  let btcGiftCardsDemo = {
+    name = "Bitcoin Gift Cards Demo";
+    origins = ["https://mdh4j-syaaa-aaaah-arcfq-cai.icp0.io/"];
+  };
+  Map.set(trustedApps, phash, Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"), btcGiftCardsDemo);
 
-  public query func transform(raw : Http.TransformArgs) : async Http.CanisterHttpResponsePayload {
-    Http.transform(raw);
+  // Transform http request by sorting keys by key ID
+  public query func transform(raw : Http.TransformArgs) : async Http.TransformResult {
+    Http.transform(raw, #keepAll);
+  };
+
+  // Transform http request and remove first key if 3 keys are present
+  public query func transform1(raw : Http.TransformArgs) : async Http.TransformResult {
+    Http.transform(raw, #ignoreNofM(0, 3));
+  };
+
+  // Transform http request and remove second key if 3 keys are present
+  public query func transform2(raw : Http.TransformArgs) : async Http.TransformResult {
+    Http.transform(raw, #ignoreNofM(1, 3));
+  };
+
+  // Transform http request and remove third key if 3 keys are present
+  public query func transform3(raw : Http.TransformArgs) : async Http.TransformResult {
+    Http.transform(raw, #ignoreNofM(2, 3));
   };
 
   var lastFetchaAttempt : Time = 0;
@@ -101,6 +102,7 @@ actor class Main() = this {
     lastFetchaAttempt := Time.now();
     Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(pendingFetchAttempts) # ")");
 
+    // TODO: retry with other transform functions
     let fetched = await Http.getRequest("https://www.googleapis.com/oauth2/v3/certs", 5000, transform);
 
     switch (RSA.pubKeysFromJSON(fetched.data)) {
