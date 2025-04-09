@@ -65,7 +65,7 @@ actor class Main() = this {
   Map.set(trustedApps, phash, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), btcGiftCards);
   let btcGiftCardsDemo = {
     name = "Bitcoin Gift Cards Demo";
-    origins = ["https://mdh4j-syaaa-aaaah-arcfq-cai.icp0.io/"];
+    origins = ["https://mdh4j-syaaa-aaaah-arcfq-cai.icp0.io"];
   };
   Map.set(trustedApps, phash, Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"), btcGiftCardsDemo);
 
@@ -243,7 +243,7 @@ actor class Main() = this {
   /// Get an email address for a principal
   public shared query ({ caller }) func getEmail(principal : Principal, origin : Text) : async ?Text {
     Stats.logBalance(stats, "getEmail");
-    let ?appInfo = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for " # Principal.toText(caller));
+    let ?appInfo = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for caller " # Principal.toText(caller));
     for (o in appInfo.origins.vals()) {
       if (o == origin) {
         let ?user = Map.get(users, phash, principal) else return null;
@@ -251,7 +251,7 @@ actor class Main() = this {
       };
     };
     // origin was not in appInfo.origions
-    Debug.trap("Permission denied for " # origin);
+    Debug.trap("Permission denied for origin " # origin);
   };
 
   public shared query ({ caller }) func getPrincipal() : async Text {
