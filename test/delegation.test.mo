@@ -8,12 +8,12 @@ print("# Delegation");
 
 print("- unsigned bytes epoch");
 
-let unsigned = Delegation.getUnsignedBytes([1, 2, 3], 0);
+let unsigned = Delegation.getUnsignedBytes([1, 2, 3], 0, null);
 let expected = Hex.toArrayUnsafe "1a69632d726571756573742d617574682d64656c65676174696f6e6ccc91d777f1a2b156834c0f8b879f3cdc0a57ecef1dd80f1e1a9f2129b082a0";
 assert (unsigned == expected);
 
 print("- unsigned bytes with time");
-let unsigned2 = Delegation.getUnsignedBytes([1, 2, 3], 1234567890123123123);
+let unsigned2 = Delegation.getUnsignedBytes([1, 2, 3], 1234567890123123123, null);
 let expected2 = Hex.toArrayUnsafe "1a69632d726571756573742d617574682d64656c65676174696f6ede1a11ae8abd061420577a3432df95c57ef9c1731247b2a62253503e9688a835";
 assert (unsigned2 == expected2);
 
@@ -61,13 +61,13 @@ let _authentication = {
 };
 
 let derSessionKey = Ed25519.DERencodePubKey(secondKeys.publicKey);
-let _unsigned3 = Delegation.getUnsignedBytes(derSessionKey, 1);
+let _unsigned3 = Delegation.getUnsignedBytes(derSessionKey, 1, null);
 //print("unsigned.. " # debug_show unsigned3);
 //print("> expected " # debug_show signed_bytes);
 
 //print("-------------------------");
 
-let authResponse = Delegation.getDelegation(derSessionKey, firstKeys, 1);
+let authResponse = Delegation.getDelegation(derSessionKey, firstKeys, 1, null);
 let actualDelegation = authResponse.delegations[0];
 //print("authResponse " # debug_show authResponse);
 //print("auth delegation " # debug_show actualDelegation);
@@ -95,9 +95,9 @@ let data : {
   };
   lastSession = [48, 89, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 66, 0, 4, 106, 201, 130, 188, 45, 33, 244, 169, 159, 231, 224, 29, 164, 52, 170, 38, 65, 131, 81, 193, 183, 58, 132, 49, 24, 255, 9, 168, 26, 6, 187, 13, 140, 28, 98, 236, 240, 131, 246, 106, 243, 24, 172, 247, 30, 81, 72, 230, 169, 54, 119, 66, 128, 50, 138, 0, 158, 242, 76, 15, 208, 253, 52, 225];
 };
-let delegation = Delegation.getDelegation(data.lastSession, data.lastKey, data.lastExpiration);
+let delegation = Delegation.getDelegation(data.lastSession, data.lastKey, data.lastExpiration, null);
 
-let unsigned4 = Delegation.getUnsignedBytes(data.lastSession, data.lastExpiration);
+let unsigned4 = Delegation.getUnsignedBytes(data.lastSession, data.lastExpiration, null);
 
 // chekc that signature is same as from gateway error
 assert delegation.delegations[0].signature == fromHex "0b4825dcf027f92a3953fe4b5e55d2ea97278c7d92bf65e89491143d1ad621a74b19653c8fa778d367747fa0eef729d9b49f4216d5956f7832009f2e1357f908";
@@ -118,7 +118,7 @@ let key2 : Ed25519.KeyPair = {
 };
 let expiration = +1620328630000000000;
 
-let response = Delegation.getDelegation(Ed25519.DERencodePubKey(key2.publicKey), key1, expiration);
+let response = Delegation.getDelegation(Ed25519.DERencodePubKey(key2.publicKey), key1, expiration, null);
 print(debug_show response);
 
 let expectedDelegation2 : Delegation.Delegation = {

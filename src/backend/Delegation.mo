@@ -4,6 +4,7 @@ import Int "mo:base/Int";
 import Blob "mo:base/Blob";
 import Array "mo:base/Array";
 import Time "mo:base/Time";
+import Principal "mo:base/Principal";
 import Sha256 "mo:sha2/Sha256";
 module {
   public type Delegation = {
@@ -26,12 +27,11 @@ module {
   let authnMethod = "gsi"; // II uses "passkey"
 
   /// sessionKey: DER encoded session key as provided by the auth-client, including a domain separator
-  public func getUnsignedBytes(sessionKey : [Nat8], expiration : Int) : [Nat8] {
-
-    let expirationBytes = ULEB128.encode(Int.abs(expiration));
+  public func getUnsignedBytes(sessionKey : [Nat8], expiration : Int, targetsOpt : ?[Principal]) : [Nat8] {
 
     // SHA256("expiration") = "2EEA88AC2BAA11E3A7468126879609105E6DB78F210978EE00BDDB13FCD8CC4C"
     let expHash : [Nat8] = [0x2E, 0xEA, 0x88, 0xAC, 0x2B, 0xAA, 0x11, 0xE3, 0xA7, 0x46, 0x81, 0x26, 0x87, 0x96, 0x09, 0x10, 0x5E, 0x6D, 0xB7, 0x8F, 0x21, 0x09, 0x78, 0xEE, 0x00, 0xBD, 0xDB, 0x13, 0xFC, 0xD8, 0xCC, 0x4C];
+    let expirationBytes = ULEB128.encode(Int.abs(expiration));
     let expirationHash : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, expirationBytes));
 
     // SHA256("pubkey") = "B84B25628F800E36925811AA24AAF28C9F827333D2DF990762B5C3A86EFF7C9B"
@@ -39,8 +39,21 @@ module {
     let pubkeyHash : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, sessionKey));
 
     // concat and hash
-    let concatenated = Array.flatten([expHash, expirationHash, pubHash, pubkeyHash]);
-    //Debug.print("hashes: " # debug_show [expHash, expirationHash, pubHash, pubkeyHash]);
+    let concatenated : [Nat8] = switch (targetsOpt) {
+      case (?targets) {
+        // SHA256("targets") = 26CAFB94003A654827F52047A9368C0821F01F4512828A68F7BD4B44E6A0AFCF
+        let targetsHash : [Nat8] = [0x26, 0xCA, 0xFB, 0x94, 0x00, 0x3A, 0x65, 0x48, 0x27, 0xF5, 0x20, 0x47, 0xA9, 0x36, 0x8C, 0x08, 0x21, 0xF0, 0x1F, 0x45, 0x12, 0x82, 0x8A, 0x68, 0xF7, 0xBD, 0x4B, 0x44, 0xE6, 0xA0, 0xAF, 0xCF];
+        let targetsArrayHash = principalArrayHash(targets);
+
+        //Debug.print("hashes: " # debug_show [targetsHash, targetsArrayHash, expHash, expirationHash, pubHash, pubkeyHash]);
+        Array.flatten([targetsHash, targetsArrayHash, expHash, expirationHash, pubHash, pubkeyHash]);
+      };
+
+      case (null) {
+        //Debug.print("hashes: " # debug_show [expHash, expirationHash, pubHash, pubkeyHash]);
+        Array.flatten([expHash, expirationHash, pubHash, pubkeyHash]);
+      };
+    };
     let concatHash = Blob.toArray(Sha256.fromArray(#sha256, concatenated));
     //Debug.print("hashed: " # debug_show concatHash);
 
@@ -50,9 +63,22 @@ module {
     return Array.flatten<Nat8>([domainSeparator, concatHash]);
   };
 
+  private func principalArrayHash(targets : [Principal]) : [Nat8] {
+    // https://github.com/dfinity/response-verification/blob/88f144ce1e32498adeb8a81872146c64ca587a7d/packages/ic-representation-independent-hash/src/representation_independent_hash.rs#L52
+    let hashes = Array.tabulate(
+      targets.size(),
+      func(i : Nat) : [Nat8] {
+        Blob.toArray(Sha256.fromBlob(#sha256, Principal.toBlob(targets[i])));
+      },
+    );
+    let arrayHash = Blob.toArray(Sha256.fromArray(#sha256, Array.flatten(hashes)));
+
+    return arrayHash;
+  };
+
   /// Get sha256 hash of representation independend map of public key and expiration, including the domain saparator
-  public func getUnsignedHash(sessionKey : [Nat8], expiration : Int) : [Nat8] {
-    let unsigned = getUnsignedBytes(sessionKey, expiration);
+  public func getUnsignedHash(sessionKey : [Nat8], expiration : Int, targets : ?[Principal]) : [Nat8] {
+    let unsigned = getUnsignedBytes(sessionKey, expiration, targets);
     let hash : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, unsigned));
     return hash;
   };
@@ -62,12 +88,12 @@ module {
   /// identityKeyPair is handing the delegation to the sessionKey
   /// the princial is determined by the identityKeyPair
   /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
-  public func getDelegation(sessionKey : [Nat8], identityKeyPair : Ed25519.KeyPair, expiration : Time.Time) : AuthResponse {
+  public func getDelegation(sessionKey : [Nat8], identityKeyPair : Ed25519.KeyPair, expiration : Time.Time, targets : ?[Principal]) : AuthResponse {
     assert expiration > 0;
 
     // DER encode session key
     let pubkey = sessionKey;
-    let unsigned = getUnsignedBytes(sessionKey, expiration);
+    let unsigned = getUnsignedBytes(sessionKey, expiration, targets);
 
     //Debug.print("signing with: " # debug_show identityKeyPair);
 

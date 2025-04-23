@@ -168,7 +168,7 @@ actor class Main() = this {
     let signingCanisterID = Principal.fromActor(this);
     let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
-    let hash = Delegation.getUnsignedHash(sessionKey, expireAt);
+    let hash = Delegation.getUnsignedHash(sessionKey, expireAt, null);
     sigTree := HashTree.addSig(#Empty, hashedSeed, hash, Time.now());
     //TODO: sigTree := HashTree.addSig(sigTree, hashedSeed, hash, Time.now());
     CertifiedData.set(Blob.fromArray(HashTree.hash(sigTree)));
