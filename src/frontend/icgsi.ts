@@ -1,5 +1,5 @@
 import { canisterId, createActor } from "../declarations/backend";
-import { AuthResponse } from "../declarations/backend/backend.did";
+import { AuthResponse, Delegation } from "../declarations/backend/backend.did";
 
 declare global {
   interface Window {
@@ -7,8 +7,18 @@ declare global {
   }
 }
 
-var authRequest: any = null;
+const DEFAULT_TTL = 30n * 60n * 1_000_000_000n;
+
+var authRequest: {
+  sessionPublicKey: Uint8Array;
+  maxTimeToLive: bigint;
+} | null = null;
 var origin: string | null = null;
+var mode: "authorize-client" | "jsonrpc";
+
+const responder = (msg: any) => {
+  window.opener.postMessage(msg, "*");
+};
 
 export function initICgsi(clientID: string) {
   const status = document.getElementById("login-status")!;
@@ -16,47 +26,71 @@ export function initICgsi(clientID: string) {
   icgsi.style.display = "block";
   status.innerText = "Waiting for session key...";
 
-  window.addEventListener("message", (event) => {
+  window.addEventListener("message", async (event) => {
     if (
       event.source === window.opener &&
       event.data.kind === "authorize-client"
     ) {
+      mode = "authorize-client";
       console.log("setting data", event.data);
       authRequest = event.data;
+      if (!authRequest) {
+        console.error("missing auth data");
+        return;
+      }
       origin = event.origin;
       const appOrigin = document.getElementById("app-origin")!;
       appOrigin.innerText = origin;
       const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
-      initGsi(clientID, nonce);
       status.innerText = "";
+      const auth = await initGsi(clientID, nonce);
+      const msg = await handleCredentialResponse(
+        auth,
+        authRequest.sessionPublicKey,
+        authRequest.maxTimeToLive,
+      );
+      responder(msg);
+    } else if (event.source === window.opener && event.data.jsonrpc === "2.0") {
+      origin = event.origin;
+      const appOrigin = document.getElementById("app-origin")!;
+      appOrigin.innerText = origin;
+      await handleJSONRPC(event.data, clientID);
     } else {
       console.log("unhandled message (ignore)", event);
     }
   });
 
-  const msg = { kind: "authorize-ready" };
-  window.opener.postMessage(msg, "*");
+  responder({ kind: "authorize-ready" });
 
   const appOrigin = document.getElementById("app-origin")!;
   appOrigin.innerText = "-";
 }
 
-async function initGsi(clientId: string, nonce: string) {
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: handleCredentialResponse,
-    nonce: nonce,
+async function initGsi(
+  clientId: string,
+  nonce: string,
+): Promise<{ credential: string }> {
+  return new Promise((resolve, _reject) => {
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: resolve,
+      nonce: nonce,
+    });
+
+    window.google.accounts.id.renderButton(
+      document.getElementById("icgsi-google-btn")!,
+      { theme: "outline", size: "large" },
+    );
+
+    window.google.accounts.id.prompt();
   });
-
-  window.google.accounts.id.renderButton(
-    document.getElementById("icgsi-google-btn")!,
-    { theme: "outline", size: "large" },
-  );
-
-  window.google.accounts.id.prompt();
 }
 
-async function handleCredentialResponse(response: any) {
+async function handleCredentialResponse(
+  response: { credential: string },
+  sessionPublicKey: Uint8Array,
+  maxTimeToLive: bigint,
+): Promise<AuthResponseUnwrapped> {
   const status = document.getElementById("login-status")!;
   try {
     const idToken = response.credential;
@@ -80,8 +114,8 @@ async function handleCredentialResponse(response: any) {
     let prepRes = await backend.prepareDelegation(
       idToken,
       origin,
-      authRequest.sessionPublicKey,
-      authRequest.maxTimeToLive,
+      sessionPublicKey,
+      maxTimeToLive,
     );
     if ("ok" in prepRes) {
       console.log("prepareDelegation response:", prepRes.ok);
@@ -90,14 +124,10 @@ async function handleCredentialResponse(response: any) {
     }
     status.innerText = "Google sign in succeeded. Get client authorization...";
 
-    if (!authRequest?.sessionPublicKey)
-      throw "Sign in failed: Session key was not set.";
-    console.log("authRequest data from auth-client:", authRequest);
-
     let authRes = await backend.getDelegation(
       idToken,
       origin,
-      authRequest.sessionPublicKey,
+      sessionPublicKey,
       prepRes.ok.expireAt,
     );
 
@@ -108,14 +138,71 @@ async function handleCredentialResponse(response: any) {
       debugger;
       // send response; window will be closed by opener
       const msg = unwrapTargets(authRes.ok.auth);
-      window.opener.postMessage(msg, "*");
+      return msg;
     } else {
       throw "Could not sign in: " + authRes.err;
     }
   } catch (err: any) {
     status.innerText = err.toString();
+    throw err;
   }
 }
+
+type DelegationParams = {
+  publicKey: string;
+  targets?: string[];
+  maxTimeToLive?: string;
+};
+
+const handleJSONRPC = async (
+  data: {
+    method: string;
+    id: string;
+    params?: DelegationParams;
+  },
+  clientID: string,
+) => {
+  switch (data.method) {
+    case "icrc29_status":
+      const ready = { jsonrpc: "2.0", id: data.id, result: "ready" };
+      responder(ready);
+      break;
+
+    case "icrc34_delegation":
+      if (!data.params) {
+        console.error("missing params in icrc34_delegation");
+        return;
+      }
+      mode = "jsonrpc";
+      const publicKey = base64decode(data.params?.publicKey);
+      const maxTimeToLive = BigInt(data.params.maxTimeToLive || DEFAULT_TTL);
+      const targets = data.params.targets;
+      const nonce = uint8ArrayToHex(publicKey);
+      const status = document.getElementById("login-status")!;
+      status.innerText = "";
+      const auth = await initGsi(clientID, nonce);
+      const msg = await handleCredentialResponse(
+        auth,
+        publicKey,
+        maxTimeToLive,
+      );
+
+      const jsonrpcRes = {
+        jsonrpc: "2.0",
+        id: data.id,
+        result: {
+          publicKey: base64encode(msg.userPublicKey),
+          signerDelegations: msg.delegations.map(delegationToJsonRPC),
+        },
+      };
+      debugger;
+      responder(jsonrpcRes);
+      break;
+    default: {
+      console.warn("unhandled JSONRPC call", data);
+    }
+  }
+};
 
 export interface AuthResponseUnwrapped {
   kind: string;
@@ -146,4 +233,36 @@ function uint8ArrayToHex(array: Uint8Array): string {
   return Array.from(array)
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function base64decode(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  return bytes;
+}
+
+function base64encode(bytes: Uint8Array | number[]): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function delegationToJsonRPC(delegation: DelegationUnwrapped): {
+  delegation: {
+    pubkey: string;
+    expiration: string;
+    targets?: string[];
+  };
+  signature: string;
+} {
+  return {
+    delegation: {
+      pubkey: base64encode(delegation.delegation.pubkey),
+      targets: delegation.delegation.targets?.map((p) => p.toString()), // TODO: check if toString is doing the correct encoding
+      expiration: delegation.delegation.expiration.toString(),
+    },
+    signature: base64encode(delegation.signature),
+  };
 }

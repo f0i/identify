@@ -31,3 +31,21 @@ window.onload = () => {
   document.getElementById("info")!.style.display = "block";
   document.getElementById(sectionId)!.style.display = active ? "none" : "block";
 };
+
+(function pipeAllConsoleToOpener() {
+  if (!window.opener) return;
+
+  const methods = ["log", "info", "warn", "error", "debug"] as const;
+
+  for (const method of methods) {
+    const original = console[method];
+    console[method] = (...args: unknown[]) => {
+      try {
+        window.opener?.postMessage({ type: `popup-${method}`, args }, "*");
+      } catch (err) {
+        original("Failed to postMessage to opener:", err);
+      }
+      original.apply(console, args);
+    };
+  }
+})();
