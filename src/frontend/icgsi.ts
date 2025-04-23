@@ -42,6 +42,8 @@ export function initICgsi(clientID: string) {
       origin = event.origin;
       const appOrigin = document.getElementById("app-origin")!;
       appOrigin.innerText = origin;
+      const appTargets = document.getElementById("app-targets")!;
+      appTargets.innerText = "Unrestricted";
       const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
       status.innerText = "";
       const auth = await initGsi(clientID, nonce);
@@ -142,6 +144,7 @@ async function handleCredentialResponse(
       debugger;
       // send response; window will be closed by opener
       const msg = unwrapTargets(authRes.ok.auth);
+      console.log("getDelegation response unwrapped:", msg);
       return msg;
     } else {
       throw "Could not sign in: " + authRes.err;
@@ -181,9 +184,12 @@ const handleJSONRPC = async (
       const publicKey = base64decode(data.params?.publicKey);
       const maxTimeToLive = BigInt(data.params.maxTimeToLive || DEFAULT_TTL);
       const targets = data.params.targets?.map((p) => Principal.fromText(p));
-      const nonce = uint8ArrayToHex(publicKey);
       const status = document.getElementById("login-status")!;
       status.innerText = "";
+      const appTargets = document.getElementById("app-targets")!;
+      appTargets.innerText =
+        data.params.targets?.slice()?.join(",\n") || "Unrestricted";
+      const nonce = uint8ArrayToHex(publicKey);
       const auth = await initGsi(clientID, nonce);
       const msg = await handleCredentialResponse(
         auth,
@@ -223,13 +229,16 @@ export interface DelegationUnwrapped {
     expiration: bigint;
   };
 }
+
 function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
   return {
     ...authRes,
     delegations: authRes.delegations.map((d): DelegationUnwrapped => {
-      if (d.delegation.targets.length > 0) return d;
-      const { targets: _, ...delegation } = d.delegation;
-      return { ...d, delegation };
+      const { targets, ...delegation } = d.delegation;
+
+      if (targets.length > 0)
+        return { ...d, delegation: { ...delegation, targets: targets[0] } };
+      else return { ...d, delegation };
     }),
   };
 }
@@ -270,7 +279,7 @@ function delegationToJsonRPC(delegation: DelegationUnwrapped): {
   return {
     delegation: {
       pubkey: base64encode(delegation.delegation.pubkey),
-      targets: delegation.delegation.targets?.map((p) => p.toString()), // TODO: check if toString is doing the correct encoding
+      targets: delegation.delegation.targets?.map((p) => p.toString()),
       expiration: delegation.delegation.expiration.toString(),
     },
     signature: base64encode(delegation.signature),
