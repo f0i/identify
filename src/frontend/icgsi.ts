@@ -1,5 +1,6 @@
 import { canisterId, createActor } from "../declarations/backend";
 import { AuthResponse, Delegation } from "../declarations/backend/backend.did";
+import { Principal } from "@dfinity/principal";
 
 declare global {
   interface Window {
@@ -90,6 +91,7 @@ async function handleCredentialResponse(
   response: { credential: string },
   sessionPublicKey: Uint8Array,
   maxTimeToLive: bigint,
+  targets?: Principal[],
 ): Promise<AuthResponseUnwrapped> {
   const status = document.getElementById("login-status")!;
   try {
@@ -116,6 +118,7 @@ async function handleCredentialResponse(
       origin,
       sessionPublicKey,
       maxTimeToLive,
+      wrapOpt(targets),
     );
     if ("ok" in prepRes) {
       console.log("prepareDelegation response:", prepRes.ok);
@@ -129,6 +132,7 @@ async function handleCredentialResponse(
       origin,
       sessionPublicKey,
       prepRes.ok.expireAt,
+      wrapOpt(targets),
     );
 
     console.log("getDelegation response:", authRes);
@@ -176,7 +180,7 @@ const handleJSONRPC = async (
       mode = "jsonrpc";
       const publicKey = base64decode(data.params?.publicKey);
       const maxTimeToLive = BigInt(data.params.maxTimeToLive || DEFAULT_TTL);
-      const targets = data.params.targets;
+      const targets = data.params.targets?.map((p) => Principal.fromText(p));
       const nonce = uint8ArrayToHex(publicKey);
       const status = document.getElementById("login-status")!;
       status.innerText = "";
@@ -185,6 +189,7 @@ const handleJSONRPC = async (
         auth,
         publicKey,
         maxTimeToLive,
+        targets,
       );
 
       const jsonrpcRes = {
@@ -192,10 +197,10 @@ const handleJSONRPC = async (
         id: data.id,
         result: {
           publicKey: base64encode(msg.userPublicKey),
-          signerDelegations: msg.delegations.map(delegationToJsonRPC),
+          signerDelegation: msg.delegations.map(delegationToJsonRPC),
         },
       };
-      debugger;
+      console.log("jsonrpcRes", jsonrpcRes);
       responder(jsonrpcRes);
       break;
     default: {
@@ -227,6 +232,11 @@ function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
       return { ...d, delegation };
     }),
   };
+}
+
+function wrapOpt(val?: any): [] | [any] {
+  if (val === undefined) return [];
+  return [val];
 }
 
 function uint8ArrayToHex(array: Uint8Array): string {

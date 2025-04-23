@@ -71,6 +71,7 @@ module {
         Blob.toArray(Sha256.fromBlob(#sha256, Principal.toBlob(targets[i])));
       },
     );
+    // TODO: performance optimize Array.flatten becaus size is know. Also consider concating Blobs
     let arrayHash = Blob.toArray(Sha256.fromArray(#sha256, Array.flatten(hashes)));
 
     return arrayHash;
@@ -103,7 +104,7 @@ module {
       delegation = {
         pubkey;
         expiration;
-        targets = null;
+        targets;
       };
       signature;
     };
@@ -120,14 +121,14 @@ module {
   /// usePublicKey is already DER encoded and used as is.
   /// signature is a cbor encoded signature.
   /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
-  public func getDelegationExternalSig(sessionKey : [Nat8], userPublicKey : [Nat8], signature : [Nat8], expiration : Time.Time) : AuthResponse {
+  public func getDelegationExternalSig(sessionKey : [Nat8], userPublicKey : [Nat8], signature : [Nat8], expiration : Time.Time, targets : ?[Principal]) : AuthResponse {
     let pubkey = sessionKey;
 
     let delegation = {
       delegation = {
         pubkey;
         expiration;
-        targets = null;
+        targets;
       };
       signature;
     };

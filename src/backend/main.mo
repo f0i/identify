@@ -144,7 +144,7 @@ actor class Main() = this {
   type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
 
   var sigTree : HashTree = #Empty;
-  public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat) : async PrepRes {
+  public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
     Stats.logBalance(stats, "prepareDelegationSig");
 
     // verify token
@@ -168,7 +168,7 @@ actor class Main() = this {
     let signingCanisterID = Principal.fromActor(this);
     let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
-    let hash = Delegation.getUnsignedHash(sessionKey, expireAt, null);
+    let hash = Delegation.getUnsignedHash(sessionKey, expireAt, targets);
     sigTree := HashTree.addSig(#Empty, hashedSeed, hash, Time.now());
     //TODO: sigTree := HashTree.addSig(sigTree, hashedSeed, hash, Time.now());
     CertifiedData.set(Blob.fromArray(HashTree.hash(sigTree)));
@@ -199,7 +199,7 @@ actor class Main() = this {
     });
   };
 
-  public shared query func getDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireAt : Time) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
+  public shared query func getDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
     // The log statements will only show up if this function is called as an update call
     Stats.logBalance(stats, "getDelegations");
 
@@ -227,7 +227,7 @@ actor class Main() = this {
 
     //sign delegation
     let signature = HashTree.getSignature(sigTree, hashedSeed, cert);
-    let authResponse = Delegation.getDelegationExternalSig(sessionKey, pubKey, signature, expireAt);
+    let authResponse = Delegation.getDelegationExternalSig(sessionKey, pubKey, signature, expireAt, targets);
 
     return #ok({
       auth = authResponse;
