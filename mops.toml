@@ -1,7 +1,7 @@
 [dependencies]
-base = "0.13.5"
+base = "0.14.9"
 serde = "3.2.2"
-sha2 = "0.1.0"
+sha2 = "0.1.4"
 tweetnacl = "1.1.1"
 map = "9.0.1"
 prng = "0.0.5"
@@ -9,4 +9,9 @@ hash = "1.0.0"
 
 [toolchain]
 wasmtime = "25.0.1"
-moc = "0.13.5"
+moc = "0.14.9"
+
+[dev-dependencies]
+bench = "1.0.0"
+base64 = "1.0.0"
+base-x-encoder = "0.0.1"
