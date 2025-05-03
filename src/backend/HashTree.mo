@@ -148,6 +148,7 @@ module {
     let n = Nat64.fromIntWrap(t);
     func toNat8(x : Nat64) : Nat8 = Nat8.fromNat(Nat64.toNat(x));
 
+    // TODO: update to use explodeNat64
     let bytes : [Nat8] = [
       toNat8((n >> 56) & 0xFF),
       toNat8((n >> 48) & 0xFF),

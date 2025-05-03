@@ -27,6 +27,7 @@ module Base64 {
   // Helper function to decode a block of 4 base64 characters into 3 bytes
   func decodeBlock(block : [var Nat32], output : [var Nat8], index : Nat) {
     let buffer : Nat32 = (block[0] << 18) + (block[1] << 12) + (block[2] << 6) + block[3];
+    // TODO: use explodeNat32, compare performance
     output[index] := Nat8.fromNat16(Nat16.fromNat32((buffer >> 16) & 0xFF));
     output[index + 1] := Nat8.fromNat16(Nat16.fromNat32((buffer >> 8) & 0xFF));
     output[index + 2] := Nat8.fromNat16(Nat16.fromNat32(buffer & 0xFF));
