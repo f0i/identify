@@ -3,6 +3,8 @@ import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
 import Buffer "mo:base/Buffer";
 import Array "mo:base/Array";
+import Result "mo:base/Result";
+import Debug "mo:base/Debug";
 import Base64 "../src/backend/Base64";
 import MopsBase64 "mo:base64";
 import BaseXEncoder "mo:base-x-encoder";
@@ -12,35 +14,43 @@ module {
     let bench = Bench.Bench();
 
     bench.name("Base64 implementations");
-    bench.description("Decode base46 strings");
+    bench.description("Decode a base46 string that decodes to [0, 1, 2, ..., 255] n times");
 
-    bench.rows(["f0i:identify", "mops:base-x-encoder", "mops:base64"]);
+    bench.rows(["f0i:identify", "f0i:identify old", "mops:base-x-encoder", "mops:base64"]);
     bench.cols(["1", "100", "10000"]);
 
     bench.runner(
       func(row, col) {
-        let ?n = Nat.fromText(col);
+        let ?n = Nat.fromText(col) else Debug.trap("Cols must only contain numbers: " # col);
 
-        // Vector
         if (row == "f0i:identify") {
           for (i in Iter.range(1, n)) {
-            let data = Base64.decodeText(testData);
-            ignore data;
+            let data = Base64.decode(testData);
+            //Debug.trap(debug_show data);
+            assert Result.isOk(data);
           };
         };
 
-        // Buffer
+        // Manual decoding (without explode)
+        if (row == "f0i:identify old") {
+          for (i in Iter.range(1, n)) {
+            let data = Base64.decodeOld(testData);
+            assert Result.isOk(data);
+          };
+        };
+
         if (row == "mops:base-x-encoder") {
           for (i in Iter.range(1, n)) {
             let data = BaseXEncoder.fromBase64(testData);
-            ignore data;
+            assert Result.isOk(data);
           };
         };
 
         if (row == "mops:base64") {
           let base64 = MopsBase64.Base64(#version(MopsBase64.V2), ?true);
           for (i in Iter.range(1, n)) {
-            ignore base64.decode(testData);
+            let data = base64.decode(testData);
+            assert data != [];
           };
         };
       }
