@@ -32,6 +32,7 @@ window.onload = () => {
   document.getElementById(sectionId)!.style.display = active ? "none" : "block";
 };
 
+/*
 (function pipeAllConsoleToOpener() {
   if (!window.opener) return;
 
@@ -49,3 +50,4 @@ window.onload = () => {
     };
   }
 })();
+*/
