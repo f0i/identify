@@ -20,6 +20,7 @@ import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
 import Ed25519 "Ed25519";
 import Hex "Hex";
+import { setTimer; recurringTimer } = "mo:base/Timer";
 
 actor class Main() = this {
   let TIME_MINUTE = 60 * 1_000_000_000;
@@ -48,14 +49,6 @@ actor class Main() = this {
   var googleKeys : [RSA.PubKey] = [];
   var googleClientIds : [Text] = ["376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com"];
 
-  // init values
-  let initKeys = "";
-  switch (RSA.pubKeysFromJSON(initKeys)) {
-    case (#ok keys) googleKeys := keys;
-    case (#err err) {
-      Stats.log(stats, "initial set google keys failed: " # err);
-    };
-  };
   // Reset trusted apps on each deployment
   trustedApps := Map.new();
   let btcGiftCards = {
@@ -87,6 +80,10 @@ actor class Main() = this {
   // Transform http request and remove third key if 3 keys are present
   public query func transform3(raw : Http.TransformArgs) : async Http.TransformResult {
     Http.transform(raw, #ignoreNofM(2, 3));
+  };
+
+  private func fetchKeys() : async () {
+    ignore await fetchGoogleKeys();
   };
 
   var lastFetchaAttempt : Time = 0;
@@ -304,5 +301,9 @@ actor class Main() = this {
     if (Set.has(mods, phash, user)) return true;
     return false;
   };
+
+  // Update keys now and every 2 days
+  ignore setTimer<system>(#seconds(1), fetchKeys);
+  ignore recurringTimer<system>(#seconds(60 * 60 * 48), fetchKeys);
 
 };

@@ -57,8 +57,7 @@ module {
     let balance1 = Cycles.balance();
 
     try {
-      Cycles.add<system>(maxCost);
-      let http_response = await IC.http_request(http_request);
+      let http_response = await (with cycles = maxCost) IC.http_request(http_request);
       let balance2 = Cycles.balance();
 
       let response_body : Blob = http_response.body;
