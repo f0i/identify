@@ -251,6 +251,20 @@ actor class Main() = this {
     Debug.trap("Permission denied for origin " # origin);
   };
 
+  /// Get an email address for a principal
+  public shared query ({ caller }) func getUser(principal : Principal, origin : Text) : async ?User {
+    Stats.logBalance(stats, "getUser");
+    let ?appInfo = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for caller " # Principal.toText(caller));
+    for (o in appInfo.origins.vals()) {
+      if (o == origin) {
+        let ?user = Map.get(users, phash, principal) else return null;
+        if (user.origin == origin) return ?user;
+      };
+    };
+    // origin was not in appInfo.origions
+    Debug.trap("Permission denied for origin " # origin);
+  };
+
   public shared query ({ caller }) func getPrincipal() : async Text {
     Stats.logBalance(stats, "getPrincipal");
     let hasEmail = if (Map.has(emails, phash, caller)) " email set" else " no email set";

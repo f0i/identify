@@ -1,6 +1,22 @@
 import { canisterId, createActor } from "../declarations/backend";
-import { AuthResponse, Delegation } from "../declarations/backend/backend.did";
+import {
+  AuthResponse,
+  Delegation,
+  init,
+} from "../declarations/backend/backend.did";
 import { Principal } from "@dfinity/principal";
+import type {
+  HttpAgent,
+  ActorSubclass,
+  HttpAgentOptions,
+  ActorConfig,
+  Agent,
+} from "@dfinity/agent";
+import { setText } from "./identify/dom";
+import { AuthResponseUnwrapped, uint8ArrayToHex } from "./identify/utils";
+import { getDelegation } from "./identify/delegation";
+import { Context, handleJSONRPC } from "./identify/icrc";
+import { initGsi } from "./identify/google";
 
 declare global {
   interface Window {
@@ -21,11 +37,20 @@ const responder = (msg: any) => {
   window.opener.postMessage(msg, "*");
 };
 
+// DOM mainpulation
+const setOriginText = (origin: string) => setText("app-origin", origin);
+const setTargetsText = (targets: string) => setText("app-targets", targets);
+const setStatusText = (status: string) => setText("login-status", status);
+
+let context: Context = {};
+function setContext(newContext: Context): void {
+  context = newContext;
+}
+
 export function initICgsi(clientID: string) {
-  const status = document.getElementById("login-status")!;
   const icgsi = document.getElementById("icgsi")!;
   icgsi.style.display = "block";
-  status.innerText = "Waiting for session key...";
+  setStatusText("Waiting for session key...");
 
   window.addEventListener("message", async (event) => {
     if (
@@ -40,12 +65,10 @@ export function initICgsi(clientID: string) {
         return;
       }
       origin = event.origin;
-      const appOrigin = document.getElementById("app-origin")!;
-      appOrigin.innerText = origin;
-      const appTargets = document.getElementById("app-targets")!;
-      appTargets.innerText = "Unrestricted";
+      setOriginText(origin);
+      setTargetsText("Unrestricted");
       const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
-      status.innerText = "";
+      setStatusText("");
       const auth = await initGsi(clientID, nonce);
       const msg = await handleCredentialResponse(
         auth,
@@ -55,38 +78,40 @@ export function initICgsi(clientID: string) {
       responder(msg);
     } else if (event.source === window.opener && event.data.jsonrpc === "2.0") {
       origin = event.origin;
-      const appOrigin = document.getElementById("app-origin")!;
-      appOrigin.innerText = origin;
-      await handleJSONRPC(event.data, clientID);
+      setOriginText(origin);
+      await handleJSONRPC(
+        event.data,
+        responder,
+        setStatusText,
+        setTargetsText,
+        async (nonce: string) => {
+          let auth = await initGsi(clientID, nonce);
+          return auth.credential;
+        },
+        context,
+        setContext,
+      );
     } else {
+      // Messages are probably not relevant, e.g. from browser plugins
       console.log("unhandled message (ignore)", event);
     }
   });
 
   responder({ kind: "authorize-ready" });
 
-  const appOrigin = document.getElementById("app-origin")!;
-  appOrigin.innerText = "-";
+  setOriginText("-");
 }
 
-async function initGsi(
-  clientId: string,
-  nonce: string,
-): Promise<{ credential: string }> {
-  return new Promise((resolve, _reject) => {
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: resolve,
-      nonce: nonce,
+let authResponse: { credential: string } | null = null;
+let authCallback: (response: { credential: string }) => void;
+async function getAuthToken() {
+  if (authResponse) {
+    return authResponse.credential;
+  } else {
+    return new Promise((resolve) => {
+      authCallback = resolve;
     });
-
-    window.google.accounts.id.renderButton(
-      document.getElementById("icgsi-google-btn")!,
-      { theme: "outline", size: "large" },
-    );
-
-    window.google.accounts.id.prompt();
-  });
+  }
 }
 
 async function handleCredentialResponse(
@@ -95,193 +120,23 @@ async function handleCredentialResponse(
   maxTimeToLive: bigint,
   targets?: Principal[],
 ): Promise<AuthResponseUnwrapped> {
-  const status = document.getElementById("login-status")!;
   try {
-    const idToken = response.credential;
-    console.log(response);
-
-    // decode payload
-    const payload = JSON.parse(atob(idToken.split(".")[1]));
-
-    const isDev = process.env.DFX_NETWORK !== "ic";
-    const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
-
-    const backend = createActor(canisterId, { agentOptions: { host } });
-
-    status.innerText = "Google sign in succeeded. Authorizing client...";
-
     if (!origin) {
       throw "Could not determine app origin.";
     }
 
-    console.log("payload:", payload, payload.sub);
-    let prepRes = await backend.prepareDelegation(
-      idToken,
-      origin,
+    return await getDelegation(
+      response.credential,
+      origin!,
       sessionPublicKey,
       maxTimeToLive,
-      wrapOpt(targets),
-    );
-    if ("ok" in prepRes) {
-      console.log("prepareDelegation response:", prepRes.ok);
-    } else {
-      throw prepRes.err;
-    }
-    status.innerText = "Google sign in succeeded. Get client authorization...";
-
-    let authRes = await backend.getDelegation(
-      idToken,
-      origin,
-      sessionPublicKey,
-      prepRes.ok.expireAt,
-      wrapOpt(targets),
+      targets,
+      setStatusText,
     );
 
-    console.log("getDelegation response:", authRes);
-    if ("ok" in authRes) {
-      console.log("authRes", authRes.ok);
-      status.innerText = "Login completed";
-      debugger;
-      // send response; window will be closed by opener
-      const msg = unwrapTargets(authRes.ok.auth);
-      console.log("getDelegation response unwrapped:", msg);
-      return msg;
-    } else {
-      throw "Could not sign in: " + authRes.err;
-    }
+    // decode payload
   } catch (err: any) {
-    status.innerText = err.toString();
+    setStatusText(err.toString());
     throw err;
   }
-}
-
-type DelegationParams = {
-  publicKey: string;
-  targets?: string[];
-  maxTimeToLive?: string;
-};
-
-const handleJSONRPC = async (
-  data: {
-    method: string;
-    id: string;
-    params?: DelegationParams;
-  },
-  clientID: string,
-) => {
-  switch (data.method) {
-    case "icrc29_status":
-      const ready = { jsonrpc: "2.0", id: data.id, result: "ready" };
-      responder(ready);
-      break;
-
-    case "icrc34_delegation":
-      if (!data.params) {
-        console.error("missing params in icrc34_delegation");
-        return;
-      }
-      mode = "jsonrpc";
-      const publicKey = base64decode(data.params?.publicKey);
-      const maxTimeToLive = BigInt(data.params.maxTimeToLive || DEFAULT_TTL);
-      const targets = data.params.targets?.map((p) => Principal.fromText(p));
-      const status = document.getElementById("login-status")!;
-      status.innerText = "";
-      const appTargets = document.getElementById("app-targets")!;
-      appTargets.innerText =
-        data.params.targets?.slice()?.join(",\n") || "Unrestricted";
-      const nonce = uint8ArrayToHex(publicKey);
-      const auth = await initGsi(clientID, nonce);
-      const msg = await handleCredentialResponse(
-        auth,
-        publicKey,
-        maxTimeToLive,
-        targets,
-      );
-
-      const jsonrpcRes = {
-        jsonrpc: "2.0",
-        id: data.id,
-        result: {
-          publicKey: base64encode(msg.userPublicKey),
-          signerDelegation: msg.delegations.map(delegationToJsonRPC),
-        },
-      };
-      console.log("jsonrpcRes", jsonrpcRes);
-      responder(jsonrpcRes);
-      break;
-    default: {
-      console.warn("unhandled JSONRPC call", data);
-    }
-  }
-};
-
-export interface AuthResponseUnwrapped {
-  kind: string;
-  delegations: Array<DelegationUnwrapped>;
-  authnMethod: string;
-  userPublicKey: Uint8Array | number[];
-}
-export interface DelegationUnwrapped {
-  signature: Uint8Array | number[];
-  delegation: {
-    pubkey: Uint8Array | number[];
-    targets?: Array<any>;
-    expiration: bigint;
-  };
-}
-
-function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
-  return {
-    ...authRes,
-    delegations: authRes.delegations.map((d): DelegationUnwrapped => {
-      const { targets, ...delegation } = d.delegation;
-
-      if (targets.length > 0)
-        return { ...d, delegation: { ...delegation, targets: targets[0] } };
-      else return { ...d, delegation };
-    }),
-  };
-}
-
-function wrapOpt(val?: any): [] | [any] {
-  if (val === undefined) return [];
-  return [val];
-}
-
-function uint8ArrayToHex(array: Uint8Array): string {
-  return Array.from(array)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function base64decode(base64: string): Uint8Array {
-  const bin = atob(base64);
-  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-  return bytes;
-}
-
-function base64encode(bytes: Uint8Array | number[]): string {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-function delegationToJsonRPC(delegation: DelegationUnwrapped): {
-  delegation: {
-    pubkey: string;
-    expiration: string;
-    targets?: string[];
-  };
-  signature: string;
-} {
-  return {
-    delegation: {
-      pubkey: base64encode(delegation.delegation.pubkey),
-      targets: delegation.delegation.targets?.map((p) => p.toString()),
-      expiration: delegation.delegation.expiration.toString(),
-    },
-    signature: base64encode(delegation.signature),
-  };
 }
