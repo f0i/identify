@@ -34,6 +34,26 @@ export const setError = (
   return { jsonrpc: "2.0", id: req.id, error: { code, message } };
 };
 
+/// Error responses according to the JSON-RPC 2.0 specification
+export const parseError = (req: JsonRpcRequest): JsonRpcResponse => {
+  return setError(req, -32700, "Parse error");
+};
+export const invalidRequest = (req: JsonRpcRequest): JsonRpcResponse => {
+  return setError(req, -32600, "Invalid request");
+};
+export const methodNotFound = (req: JsonRpcRequest): JsonRpcResponse => {
+  return setError(req, -32601, "Method not found");
+};
+export const invalidParams = (req: JsonRpcRequest): JsonRpcResponse => {
+  return setError(req, -32602, "Invalid params");
+};
+export const internalError = (req: JsonRpcRequest): JsonRpcResponse => {
+  return setError(req, -32603, "Internal error");
+};
+export const serverError = (req: JsonRpcRequest): JsonRpcResponse => {
+  return setError(req, -32000, "Server error");
+};
+
 /// Send a JSON-RPC response
 export const respond = (
   req: JsonRpcRequest,

@@ -13,8 +13,20 @@ import {
 } from "./utils";
 import { getDelegation } from "./delegation";
 import { Context } from "./icrc";
+import { Scope } from "./icrc25_signer_integration";
 
 const DEFAULT_TTL = 30n * 60n * 1_000_000_000n;
+
+export const STANDARD = {
+  name: "ICRC-34",
+  url: "https://github.com/dfinity/ICRC/blob/main/ICRCs/ICRC-34/ICRC-34.md",
+};
+export const SCOPES: Scope[] = [
+  {
+    method: "icrc34_delegation",
+    state: "granted",
+  },
+];
 
 export const delegation = async (
   req: JsonRpcRequest,

@@ -1,19 +1,19 @@
-import {
-  JsonRpcRequest,
-  JsonRpcResponse,
-  setError,
-  setResult,
-} from "./jsonrpc";
-import { Principal } from "@dfinity/principal";
-import {
-  base64decode,
-  base64encode,
-  delegationToJsonRPC,
-  uint8ArrayToHex,
-} from "./utils";
-import { getDelegation } from "./delegation";
+import { JsonRpcRequest, JsonRpcResponse, setError } from "./jsonrpc";
+import { base64decode } from "./utils";
 import { Context } from "./icrc";
 import { HttpAgent } from "@dfinity/agent";
+import { Scope } from "./icrc25_signer_integration";
+
+export const STANDARD = {
+  name: "ICRC-49",
+  url: "https://github.com/dfinity/ICRC/blob/main/ICRCs/ICRC-49/ICRC-49.md",
+};
+export const SCOPES: Scope[] = [
+  {
+    method: "icrc49_call_canister",
+    state: "ask_on_use",
+  },
+];
 
 export const callCanister = async (
   req: JsonRpcRequest,
@@ -26,6 +26,9 @@ export const callCanister = async (
     console.error("missing params in icrc49_call_canister");
     return setError(req, -32602, "Invalid params for icrc49_call_canister");
   }
+
+  // TODO: use identity from context
+  // TODO: if identity is not avaliable: request sign in?
 
   let agent = new HttpAgent({});
   let params = req.params as any;

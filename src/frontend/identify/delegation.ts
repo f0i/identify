@@ -8,6 +8,22 @@ export type DelegationParams = {
   maxTimeToLive?: string;
 };
 
+async function handleCredentialResponse(
+  response: { credential: string },
+  sessionPublicKey: Uint8Array,
+  maxTimeToLive: bigint,
+  targets?: Principal[],
+): Promise<AuthResponseUnwrapped> {
+  return await getDelegation(
+    response.credential,
+    origin!,
+    sessionPublicKey,
+    maxTimeToLive,
+    targets,
+    statusCallback,
+  );
+}
+
 export const getDelegation = async (
   idToken: string,
   origin: string,

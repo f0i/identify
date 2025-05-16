@@ -1,17 +1,4 @@
-import { canisterId, createActor } from "../declarations/backend";
-import {
-  AuthResponse,
-  Delegation,
-  init,
-} from "../declarations/backend/backend.did";
 import { Principal } from "@dfinity/principal";
-import type {
-  HttpAgent,
-  ActorSubclass,
-  HttpAgentOptions,
-  ActorConfig,
-  Agent,
-} from "@dfinity/agent";
 import { setText } from "./identify/dom";
 import { AuthResponseUnwrapped, uint8ArrayToHex } from "./identify/utils";
 import { getDelegation } from "./identify/delegation";
@@ -24,14 +11,11 @@ declare global {
   }
 }
 
-const DEFAULT_TTL = 30n * 60n * 1_000_000_000n;
-
 var authRequest: {
   sessionPublicKey: Uint8Array;
   maxTimeToLive: bigint;
 } | null = null;
 var origin: string | null = null;
-var mode: "authorize-client" | "jsonrpc";
 
 const responder = (msg: any) => {
   window.opener.postMessage(msg, "*");
@@ -57,7 +41,6 @@ export function initICgsi(clientID: string) {
       event.source === window.opener &&
       event.data.kind === "authorize-client"
     ) {
-      mode = "authorize-client";
       console.log("setting data", event.data);
       authRequest = event.data;
       if (!authRequest) {
@@ -79,6 +62,7 @@ export function initICgsi(clientID: string) {
     } else if (event.source === window.opener && event.data.jsonrpc === "2.0") {
       origin = event.origin;
       setOriginText(origin);
+
       await handleJSONRPC(
         event.data,
         responder,

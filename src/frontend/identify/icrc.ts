@@ -1,10 +1,11 @@
 import { AuthResponseUnwrapped } from "./utils";
 import { JsonRpcRequest, JsonRpcResponse } from "./jsonrpc";
+import * as icrc25 from "./icrc25_signer_integration";
 import * as icrc29 from "./icrc29_status";
 import * as icrc34 from "./icrc34_delegation";
 import * as icrc27 from "./icrc27_accounts";
 import * as icrc49 from "./icrc49_call_canister";
-import { setError } from "./jsonrpc";
+import * as jsonrpc from "./jsonrpc";
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
@@ -20,13 +21,27 @@ export const handleJSONRPC = async (
   setContext: (context: Context) => void,
 ) => {
   switch (data.method) {
+    case "icrc25_request_permissions": {
+      responder(await icrc25.requestPermissions(data));
+      break;
+    }
+
+    case "icrc25_permissions": {
+      responder(await icrc25.permissions(data));
+      break;
+    }
+
+    case "icrc25_supported_standards": {
+      responder(await icrc25.supportedStandards(data));
+      break;
+    }
+
     case "icrc29_status": {
       responder(icrc29.ready(data));
       break;
     }
 
     case "icrc34_delegation": {
-      // TODO: set auth response in context
       responder(
         await icrc34.delegation(
           data,
@@ -56,9 +71,10 @@ export const handleJSONRPC = async (
       );
       break;
     }
+
     default: {
       console.warn("unhandled JSONRPC call", data);
-      responder(setError(data, -32601, "Method not found"));
+      responder(jsonrpc.methodNotFound(data));
     }
   }
 };
