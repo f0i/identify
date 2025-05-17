@@ -1,6 +1,6 @@
-# `ICgsi`
+# Identify
 
-ICgsi is an authentication provider for the Internet Computer, providing an endpoint for the standard authentication client to request Sign In with Google.
+Identic is an authentication provider for the Internet Computer, providing an endpoint for the standard authentication client to request Sign In with Google.
 
 It also lets whitelisted apps look up the email address for a specific principal.
 
@@ -8,10 +8,10 @@ It also lets whitelisted apps look up the email address for a specific principal
 
 ## Managed setup
 
-To integrate ICgsi into your own app, you just have to point the auth-client to one of the supported login urls.
+To integrate Identify into your own app, you just have to point the auth-client to one of the supported login urls.
 
 - Integrate the auth-client into your app.
-- Instead of "identity.ic0.app" point the auth client to one of the public instances of ICgsi (e.g. "https://login.f0i.de").
+- Instead of "identity.ic0.app" point the auth client to one of the public instances of Identify (e.g. "https://login.f0i.de").
 
 ## Self deployed
 
@@ -23,7 +23,7 @@ Follow this steps if you want full control over the login process.
 - Periodically update the google public keys
 - Follow the same steps as for the section [Managed Setup](#Managed-Setup) to configure the auth-client
 
-# Apps that use ICgsi
+# Apps that use Identify
 
 ## Bitcoin Gift Cards
 
@@ -31,7 +31,7 @@ https://btc-gift-cards.com
 
 ## login.f0i.de
 
-This app shows some basic statistics about how many apps are connected and how many users signed in with ICgsi.
+This app shows some basic statistics about how many apps are connected and how many users signed in with Identify.
 
 # Development
 
@@ -50,19 +50,83 @@ mops test --mode wasi base64 jwt leb128 stats
 mops test --mode interpreter delegation ed25519
 ```
 
-# Roadmap / Ideas
+# Authentication flow
 
-Ideas for further work, roughly ordered by importance, starting with the most important one.
+1. **Identify Backend** pre-fetches OAuth2 keys from **Google server**
+2. **User** clicks "Sign In" button inside the dApp
+3. **dApp** generates a session key pair
+4. **dApp** opens **Identify Frontend**
+5. **Identify Frontend** sends `authorize-ready` message to **dApp**
+6. **dApp** sends `authorize-client` message to **Identify Frontend**
+   - Passes the session key from **dApp**
+7. **Identify Frontend** prompts **User** to authenticate via **Google**
+   - The session key is encoded in the nonce to prevent replay attacks
+8. **User** authenticates using **Google Sign-In**
+9. **Google** returns an ID token to **Identify Frontend**
+10. **Identify Backend** validates the ID token using OAuth2 keys
+11. **Identify Backend** extracts the `sub` (user identifier) from the ID token
+12. **Identify Backend** creates a delegation for **User**
+    - **User** principal is derived from the `sub` and the application's origin (host name)
+    - The delegation is granted to the session key
+13. **Identify Backend** signs the delegation
+14. **Identify Backend** sends the signed delegation to **Identify Frontend**
+15. **Identify Frontend** sends `authorize-client-success` message to **dApp**
+   - Includes the signed delegation
 
-- Provide more documentation about how it works
-- Create tutorial to showcase integration options
-- Use timer to automatically update googlke keys
-- Support other login providers (X, GitHub, Apple, Microsoft, Auth0)
-- Derive mops packages for JWT, RSA, HashTree, Email validation, ULEB128, etc.
-- provide dummy version for local development where email addresses can be manually set per principal.
-- Make auth work with local development by falling back to self contained ED25519 signatures instead of canister signatures.
-- Provide an option to integrate the sign in button directly into the app, eliminating the extra step of redirecting to the auth provider.
-- Run performance test and reduce cycle usage
-- Support other algorithms than just RS256 for JWT tokens
-- Implement with threshold ECDSA or shreshold Schnorr signatures, just to showcase them.
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as dApp
+    participant F as Identify Frontend
+    participant B as Identify Backend
+    participant G as Google
+
+    B->>G: Prefetch OAuth2 keys
+
+    U->>A: Click "Sign In" button
+    A->>A: Generate session key pair
+    A->>F: Open Identify Frontend
+
+    F->>A: Send `authorize-ready` message
+    A->>F: Send `authorize-client` message
+    note over A, F: Passes the session key from dApp
+
+    F->>U: Prompt authentication via Google
+    note over F: Session key is encoded in the nonce to prevent replay attacks
+
+    U->>G: Authenticate via Google Sign-In
+    G->>F: Return ID token
+
+    F->>B: Request prepare delegation with ID token
+    B->>B: Validate ID token using OAuth2 keys
+    B->>B: Extract `sub` (user identifier)
+
+    B->>B: Create delegation for User
+    note over B: User principal is derived from `sub` and application's origin <br/> Delegation is granted to the session key
+
+    B->>B: Sign delegation
+    F->>B: Get signed delegation
+
+    F->>A: Send `authorize-client-success` message
+    note over F, A: Includes the signed delegation
+    note over U, A: User is now signed in
+```
+
+# Resources and Related projects
+
+- IC interface spec
+  - https://internetcomputer.org/docs/references/ic-interface-spec/#authentication
+  - https://internetcomputer.org/docs/references/ic-interface-spec/#signatures
+- II Spec
+  - https://internetcomputer.org/docs/references/ii-spec#client-authentication-protocol
+- PoC JWT Authentication in Rust
+  - https://github.com/ilbertt/ic-react-native-jwt-auth
+- Sign in with Ethereum
+  - https://github.com/spruceid/siwe
+- Internet Identity
+  - https://github.com/dfinity/internet-identity
+- NFID
+  - https://github.com/internet-identity-labs/nfid
+- IC replica
+  - https://github.com/dfinity/ic
 
