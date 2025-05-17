@@ -1,6 +1,6 @@
 # Identify
 
-Identic is an authentication provider for the Internet Computer, providing an endpoint for the standard authentication client to request Sign In with Google.
+Identify is an authentication provider for the Internet Computer, providing an endpoint for the standard authentication client to request Sign In with Google.
 
 It also lets whitelisted apps look up the email address for a specific principal.
 
