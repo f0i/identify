@@ -9,6 +9,9 @@ import * as jsonrpc from "./jsonrpc";
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
+  gsiClientID?: string;
+  origin?: string;
+  statusCallback?: (msg: string) => void;
 };
 
 export const handleJSONRPC = async (

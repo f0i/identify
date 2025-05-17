@@ -15,7 +15,7 @@ import { getDelegation } from "./delegation";
 import { Context } from "./icrc";
 import { Scope } from "./icrc25_signer_integration";
 
-const DEFAULT_TTL = 30n * 60n * 1_000_000_000n;
+export const DEFAULT_TTL = 30n * 60n * 1_000_000_000n;
 
 export const STANDARD = {
   name: "ICRC-34",
