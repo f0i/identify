@@ -15,7 +15,7 @@ import { getDelegation } from "./delegation";
 import { Context } from "./icrc";
 import { Scope } from "./icrc25_signer_integration";
 
-export const DEFAULT_TTL = 30n * 60n * 1_000_000_000n;
+export const DEFAULT_TTL = 30n * 60n * 1_000_000_000n; // 30 minutes in nanoseconds
 
 export const STANDARD = {
   name: "ICRC-34",
@@ -30,10 +30,7 @@ export const SCOPES: Scope[] = [
 
 export const delegation = async (
   req: JsonRpcRequest,
-  statusCallback: (msg: string) => void,
-  targetsCallback: (msg: string) => void,
-  getAuthToken: (nonce: string) => Promise<string>,
-  setContext: (context: Context) => void,
+  context: Context,
 ): Promise<JsonRpcResponse> => {
   if (!req.params) {
     console.error("missing params in icrc34_delegation");
@@ -44,20 +41,20 @@ export const delegation = async (
   const targets = req.params.targets?.map(
     (p: string): Principal => Principal.fromText(p),
   );
-  statusCallback("");
-  targetsCallback(req.params.targets?.slice()?.join(",\n") || "Unrestricted");
+  context.statusCallback("");
+  context.targetsCallback(
+    req.params.targets?.slice()?.join(",\n") || "Unrestricted",
+  );
   const nonce = uint8ArrayToHex(publicKey);
-  const token = await getAuthToken(nonce);
+  const token = await context.getAuthToken(nonce);
   const msg = await getDelegation(
     token,
     origin,
     publicKey,
     maxTimeToLive,
     targets,
-    statusCallback,
+    context.statusCallback,
   );
-
-  setContext({ authResponse: msg });
 
   return setResult(req, {
     publicKey: base64encode(msg.userPublicKey),

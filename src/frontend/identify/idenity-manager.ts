@@ -11,7 +11,6 @@ import {
   Delegation,
   DelegationChain,
   DelegationIdentity,
-  JsonnableDelegationChain,
   SignedDelegation,
 } from "@dfinity/identity";
 import {
@@ -21,8 +20,7 @@ import {
   SignIdentity,
 } from "@dfinity/agent";
 import { Principal } from "@dfinity/principal";
-import { AuthResponseUnwrapped, DelegationUnwrapped } from "./utils";
-import { DelegationParams } from "./delegation";
+import { AuthResponseUnwrapped } from "./utils";
 
 // Utility functions for IndexedDB storage
 const DB_NAME = "f0i-identify-db";
@@ -115,6 +113,7 @@ export class IdentityManager {
   private keyPair: CryptoKeyPair | null = null;
   private publicKeyDer: Uint8Array | null = null;
   private identity: DelegationIdentity | null = null;
+  private delegation: DelegationChain | null = null;
 
   /**
    * Generates a new session key pair and stores it.
@@ -161,7 +160,11 @@ export class IdentityManager {
    * Sets the delegation chain and persists it.
    * @param delegation The delegation object from an auth provider.
    */
-  async setDelegation(authRes: AuthResponseUnwrapped): Promise<void> {
+  async setDelegation(
+    authRes: AuthResponseUnwrapped,
+    origin: string,
+  ): Promise<void> {
+    console.log("Setting delegation:", authRes);
     if (!this.keyPair || !this.publicKeyDer)
       throw new Error("Session key not initialized");
 
@@ -184,7 +187,7 @@ export class IdentityManager {
     );
     this.identity = DelegationIdentity.fromDelegation(identity, chain);
 
-    await saveToStore("delegation", chain);
+    await saveToStore("delegation-" + origin, chain);
   }
 
   /**
@@ -193,14 +196,26 @@ export class IdentityManager {
    * @returns True if the delegation is valid for at least the given time.
    */
   async isDelegationValid(minValiditySec = 60): Promise<boolean> {
-    const delegation = await getFromStore<any>("delegation");
-    if (!delegation) return false;
-
     const now = BigInt(Date.now()) * 1_000_000n;
     const minValidityNs = BigInt(minValiditySec) * 1_000_000_000n;
-    return delegation.delegations.some(
-      (d: any) => BigInt(d.delegation.expiration) > now + minValidityNs,
+    if (!this.delegation || !this.delegation.delegations) {
+      console.warn("No delegation found");
+      console.trace();
+      return false;
+    }
+    const expiration = this.delegation.delegations[0].delegation.expiration;
+    const isValid: boolean = expiration > now + minValidityNs;
+    console.log(
+      "delegation expiration:",
+      expiration,
+      "now:",
+      now,
+      "minValidityNs:",
+      minValidityNs,
+      "validity:",
+      isValid,
     );
+    return isValid;
   }
 
   /**
@@ -208,28 +223,65 @@ export class IdentityManager {
    * Will not load if the delegation is about to expire.
    * @returns Whether loading was successful.
    */
-  async loadDelegation(): Promise<boolean> {
-    const delegation = await getFromStore<any>("delegation");
-    if (!delegation || !this.keyPair || !this.publicKeyDer) return false;
+  async loadDelegation(origin: string): Promise<boolean> {
+    this.delegation = await getFromStore<any>("delegation-" + origin);
+    const keysLoaded = await this.loadSessionKey();
+    console.log(
+      "Loading delegation:",
+      this.delegation,
+      this.keyPair,
+      this.publicKeyDer,
+    );
+    if (
+      !keysLoaded ||
+      !this.delegation ||
+      !this.keyPair ||
+      !this.publicKeyDer
+    ) {
+      console.warn("Could not load delegation or session key");
+      await this.resetDelegation(origin);
+      return false;
+    }
 
     const isValid = await this.isDelegationValid();
     if (!isValid) {
-      await saveToStore("delegation", null);
-      this.identity = null;
+      console.warn("Delegation is not valid or about to expire");
+      await this.resetDelegation(origin);
       return false;
     }
 
     const identity = new WebCryptoIdentity(this.keyPair, this.publicKeyDer);
-    this.identity = DelegationIdentity.fromDelegation(identity, delegation);
+    this.identity = DelegationIdentity.fromDelegation(
+      identity,
+      this.delegation,
+    );
     return true;
   }
 
   /**
-   * Gets the current DelegationIdentity.
-   * @returns The active DelegationIdentity.
+   * Resets the delegation and identity, clearing stored values.
    */
-  getIdentity(): DelegationIdentity {
+  async resetDelegation(origin: string): Promise<void> {
+    console.log("Resetting delegation and identity");
+    this.delegation = null;
+    this.identity = null;
+    await saveToStore("delegation-" + origin, null);
+  }
+
+  /**
+   * Gets the current DelegationIdentity.
+   */
+  async getIdentity(origin: string): Promise<DelegationIdentity> {
+    await this.loadDelegation(origin);
     if (!this.identity) throw new Error("Delegation identity not set");
     return this.identity;
+  }
+
+  /**
+   * Gets the principal for the current identity.
+   */
+  async getPrincipal(origin: string): Promise<Principal> {
+    const identity = await this.getIdentity(origin);
+    return identity.getPrincipal();
   }
 }

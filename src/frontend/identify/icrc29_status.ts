@@ -5,6 +5,7 @@ export const STANDARD = {
   name: "ICRC-29",
   url: "https://github.com/dfinity/ICRC/blob/main/ICRCs/ICRC-29/ICRC-29.md",
 };
+
 export const SCOPES: Scope[] = [
   {
     method: "icrc29_ready",

@@ -2,7 +2,7 @@ import { Principal } from "@dfinity/principal";
 import { setText } from "./identify/dom";
 import { AuthResponseUnwrapped, uint8ArrayToHex } from "./identify/utils";
 import { getDelegation } from "./identify/delegation";
-import { Context, handleJSONRPC } from "./identify/icrc";
+import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { initGsi } from "./identify/google";
 
 declare global {
@@ -26,15 +26,19 @@ const setOriginText = (origin: string) => setText("app-origin", origin);
 const setTargetsText = (targets: string) => setText("app-targets", targets);
 const setStatusText = (status: string) => setText("login-status", status);
 
-let context: Context = {};
-function setContext(newContext: Context): void {
-  context = newContext;
-}
+let context: Context = DEFAULT_CONTEXT;
 
 export function initICgsi(clientID: string) {
   const icgsi = document.getElementById("icgsi")!;
   icgsi.style.display = "block";
   setStatusText("Waiting for session key...");
+
+  context.getAuthToken = async (nonce: string) => {
+    let auth = await initGsi(clientID, nonce);
+    return auth.credential;
+  };
+  context.gsiClientID = clientID;
+  console.log("context:", context);
 
   window.addEventListener("message", async (event) => {
     if (
@@ -58,25 +62,16 @@ export function initICgsi(clientID: string) {
         authRequest.sessionPublicKey,
         authRequest.maxTimeToLive,
       );
+      // send response; window will be closed by opener
       responder(msg);
     } else if (event.source === window.opener && event.data.jsonrpc === "2.0") {
       origin = event.origin;
       setOriginText(origin);
+      context.origin = origin;
 
-      await handleJSONRPC(
-        event.data,
-        responder,
-        setStatusText,
-        setTargetsText,
-        async (nonce: string) => {
-          let auth = await initGsi(clientID, nonce);
-          return auth.credential;
-        },
-        context,
-        setContext,
-      );
+      await handleJSONRPC(event.data, responder, context);
     } else {
-      // Messages are probably not relevant, e.g. from browser plugins
+      // Other messages are probably not relevant, e.g. from browser plugins
       console.log("unhandled message (ignore)", event);
     }
   });
@@ -84,18 +79,6 @@ export function initICgsi(clientID: string) {
   responder({ kind: "authorize-ready" });
 
   setOriginText("-");
-}
-
-let authResponse: { credential: string } | null = null;
-let authCallback: (response: { credential: string }) => void;
-async function getAuthToken() {
-  if (authResponse) {
-    return authResponse.credential;
-  } else {
-    return new Promise((resolve) => {
-      authCallback = resolve;
-    });
-  }
 }
 
 async function handleCredentialResponse(

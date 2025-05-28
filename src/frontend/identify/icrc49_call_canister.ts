@@ -1,8 +1,16 @@
-import { JsonRpcRequest, JsonRpcResponse, setError } from "./jsonrpc";
+import {
+  JsonRpcRequest,
+  JsonRpcResponse,
+  setError,
+  setResult,
+} from "./jsonrpc";
 import { base64decode } from "./utils";
-import { Context } from "./icrc";
-import { HttpAgent } from "@dfinity/agent";
+import { Context, loadDelegation } from "./icrc";
+import { HttpAgent, polling } from "@dfinity/agent";
+import { Principal } from "@dfinity/principal";
 import { Scope } from "./icrc25_signer_integration";
+import { IdentityManager } from "./idenity-manager";
+import { canister_call } from "./canister_caller";
 
 export const STANDARD = {
   name: "ICRC-49",
@@ -17,25 +25,85 @@ export const SCOPES: Scope[] = [
 
 export const callCanister = async (
   req: JsonRpcRequest,
-  statusCallback: (msg: string) => void,
-  targetsCallback: (msg: string) => void,
-  getAuthToken: (nonce: string) => Promise<string>,
-  setContext: (context: Context) => void,
+  context: Context,
 ): Promise<JsonRpcResponse> => {
   if (!req.params) {
     console.error("missing params in icrc49_call_canister");
     return setError(req, -32602, "Invalid params for icrc49_call_canister");
   }
 
-  // TODO: use identity from context
-  // TODO: if identity is not avaliable: request sign in?
+  const origin = context.origin;
+  if (!origin) throw "App origin is not set";
 
-  let agent = new HttpAgent({});
+  const idManager = new IdentityManager();
+  loadDelegation(idManager, context);
+
+  let agent = await HttpAgent.create({
+    identity: idManager.getIdentity(origin),
+  });
+
+  const callResponse = await canister_call({
+    canisterId: req.params.canisterId,
+    calledMethodName: req.params.method,
+    parameters: req.params.arg,
+    agent,
+  });
+
+  console.log("icrc49_call_canister WIP: calling canister", callResponse);
+  throw "WIP: success";
+
   let params = req.params as any;
-  let canisterId = params.canisterId;
+  let canisterId = Principal.fromText(params.canisterId);
   let sender = params.sender;
+  if (sender !== (await idManager.getPrincipal(origin)).toString()) {
+    return setError(
+      req,
+      -32602,
+      "Invalid sender for icrc49_call_canister " +
+        sender +
+        " != " +
+        (await idManager.getPrincipal(origin)).toString(),
+    );
+  }
   let methodName = params.method;
   let arg = base64decode(params.arg);
 
-  return setError(req, 2000, "WIP");
+  console.log(
+    "icrc49_call_canister calling canister",
+    canisterId,
+    methodName,
+    arg,
+    req.params,
+  );
+  // For an update call:
+  const { requestId } = await agent.call(canisterId, {
+    methodName,
+    arg,
+    effectiveCanisterId: canisterId,
+  });
+
+  // All callse are update calls:
+  // const queryResult = await agent.query(canisterId, {
+  //  methodName,
+  //  arg,
+  //  // effectiveCanisterId (optional)
+  //});
+  console.log(
+    "icrc49_call_canister polling for reponse",
+    canisterId,
+    requestId,
+  );
+
+  // Wait for the reply
+  const response = await polling.pollForResponse(
+    agent,
+    canisterId,
+    requestId,
+    polling.defaultStrategy(),
+  );
+
+  return setResult(req, {
+    contentMap: response.reply,
+    certificate: response.certificate,
+  });
 };
