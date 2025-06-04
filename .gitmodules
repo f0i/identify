@@ -1,0 +1,3 @@
+[submodule "src/frontend/agent-js"]
+	path = src/frontend/agent-js
+	url = git@github.com:f0i/agent-js

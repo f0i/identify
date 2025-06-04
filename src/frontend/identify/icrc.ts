@@ -9,6 +9,11 @@ import * as jsonrpc from "./jsonrpc";
 import { IdentityManager } from "./idenity-manager";
 import { initGsi } from "./google";
 import { getDelegation } from "./delegation";
+import {
+  AuthClient,
+  InternetIdentityAuthResponseSuccess,
+} from "../agent-js/packages/auth-client/src";
+import { Principal } from "../agent-js/packages/principal/src";
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
@@ -27,23 +32,20 @@ export const DEFAULT_CONTEXT: Context = {
   },
 };
 
-export const loadDelegation = async (
-  idManager: IdentityManager,
-  context: Context,
-) => {
+export const loadOrFetchDelegation = async (context: Context) => {
   const origin = context.origin;
   if (!origin) throw "App origin not set";
-  await idManager.loadDelegation(origin);
-  if (!(await idManager.isDelegationValid())) {
+  let idManager = new IdentityManager();
+  let authRes = await idManager.getDelegation(origin);
+  if (!authRes) {
     if (!context.gsiClientID) throw "Internal error: gsiClientID not set";
-    await idManager.generateSessionKey();
-    const sessionKey = idManager.getPublicKeyDer();
+    const sessionKey = await idManager.getPublicKeyDer();
     const maxTimeToLive = icrc34.DEFAULT_TTL;
     const targets = undefined;
     const nonce = uint8ArrayToHex(sessionKey);
     const auth = await initGsi(context.gsiClientID, nonce);
     console.log("requesting delegation from backend");
-    let authRes = await getDelegation(
+    authRes = await getDelegation(
       auth.credential,
       origin,
       sessionKey,
@@ -51,11 +53,25 @@ export const loadDelegation = async (
       targets,
       context.statusCallback,
     );
-    console.log("setting delegation:", authRes);
-    idManager.setDelegation(authRes, origin);
-  } else {
-    console.log("Delegation already valid");
+    await idManager.setDelegation(authRes, origin);
   }
+
+  const signIdentity = await idManager.getSignIdentity();
+  console.log(signIdentity.getPrincipal().toString());
+  const authClient = await AuthClient.create({
+    identity: signIdentity,
+  });
+
+  const iiauthRes: InternetIdentityAuthResponseSuccess = {
+    kind: "authorize-client-success",
+    delegations: authRes.delegations,
+    userPublicKey: authRes.userPublicKey,
+    authnMethod: authRes.authnMethod as "pin",
+  };
+
+  authClient.handleSuccess(iiauthRes);
+  console.log("setting delegation:", authRes);
+  return authClient;
 };
 
 export const handleJSONRPC = async (

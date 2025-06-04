@@ -1,6 +1,6 @@
 import { Scope } from "./icrc25_signer_integration";
 import { JsonRpcRequest, setResult } from "./jsonrpc";
-import { Context, loadDelegation } from "./icrc";
+import { Context, loadOrFetchDelegation } from "./icrc";
 import { IdentityManager } from "./idenity-manager";
 import { getDelegation } from "./delegation";
 
@@ -17,11 +17,10 @@ export const SCOPES: Scope[] = [
 ];
 
 export const accounts = async (req: JsonRpcRequest, context: Context) => {
-  let idManager = new IdentityManager();
-  await loadDelegation(idManager, context);
+  const authClient = await loadOrFetchDelegation(context);
   const origin = context.origin;
   if (!origin) throw "App origin is not set";
-  const id = await idManager.getIdentity(origin);
+  const id = authClient.getIdentity();
   const principal = id.getPrincipal();
 
   const accounts = [

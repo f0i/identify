@@ -4,12 +4,12 @@ export interface AuthResponseUnwrapped {
   kind: string;
   delegations: Array<DelegationUnwrapped>;
   authnMethod: string;
-  userPublicKey: Uint8Array | number[];
+  userPublicKey: Uint8Array;
 }
 export interface DelegationUnwrapped {
-  signature: Uint8Array | number[];
+  signature: Uint8Array;
   delegation: {
-    pubkey: Uint8Array | number[];
+    pubkey: Uint8Array;
     targets?: Array<any>;
     expiration: bigint;
   };

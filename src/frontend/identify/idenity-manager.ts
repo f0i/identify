@@ -112,13 +112,26 @@ class WebCryptoIdentity extends SignIdentity {
 export class IdentityManager {
   private keyPair: CryptoKeyPair | null = null;
   private publicKeyDer: Uint8Array | null = null;
-  private identity: DelegationIdentity | null = null;
-  private delegation: DelegationChain | null = null;
+  private authRes: AuthResponseUnwrapped | null = null;
 
   /**
-   * Generates a new session key pair and stores it.
+   * Restores a new session key pair or generates and stores it.
    */
-  async generateSessionKey(): Promise<void> {
+  async loadSessionKey(recreate: boolean): Promise<void> {
+    console.log("Loading session key...");
+    const keyPair = await getFromStore<CryptoKeyPair>("keyPair");
+    const publicKeyDer = await getFromStore<Uint8Array>("publicKeyDer");
+
+    if (!recreate && keyPair && publicKeyDer) {
+      this.keyPair = keyPair;
+      this.publicKeyDer = publicKeyDer;
+      console.log(
+        "Loaded existing session key pair from store:",
+        keyPair.publicKey,
+      );
+      return;
+    }
+
     this.keyPair = await crypto.subtle.generateKey(
       { name: "ECDSA", namedCurve: "P-256" },
       false,
@@ -130,30 +143,24 @@ export class IdentityManager {
 
     await saveToStore("keyPair", this.keyPair);
     await saveToStore("publicKeyDer", this.publicKeyDer);
+    console.log(
+      "Created new session key pair and stored it:",
+      this.keyPair.publicKey,
+    );
   }
 
-  /**
-   * Loads the session key pair from storage if available.
-   * @returns Whether loading was successful.
-   */
-  async loadSessionKey(): Promise<boolean> {
-    const keyPair = await getFromStore<CryptoKeyPair>("keyPair");
-    const publicKeyDer = await getFromStore<Uint8Array>("publicKeyDer");
-
-    if (!keyPair || !publicKeyDer) return false;
-
-    this.keyPair = keyPair;
-    this.publicKeyDer = publicKeyDer;
-    return true;
+  async getSignIdentity(): Promise<SignIdentity> {
+    await this.loadSessionKey(false);
+    return new WebCryptoIdentity(this.keyPair!, this.publicKeyDer!);
   }
 
   /**
    * Gets the DER-encoded public key.
    * @returns DER-encoded public key as Uint8Array.
    */
-  getPublicKeyDer(): Uint8Array {
-    if (!this.publicKeyDer) throw new Error("Key not generated yet");
-    return this.publicKeyDer;
+  async getPublicKeyDer(): Promise<Uint8Array> {
+    await this.loadSessionKey(false);
+    return this.publicKeyDer!;
   }
 
   /**
@@ -164,46 +171,31 @@ export class IdentityManager {
     authRes: AuthResponseUnwrapped,
     origin: string,
   ): Promise<void> {
-    console.log("Setting delegation:", authRes);
-    if (!this.keyPair || !this.publicKeyDer)
-      throw new Error("Session key not initialized");
-
-    const identity = new WebCryptoIdentity(this.keyPair, this.publicKeyDer);
-
-    const signedDelegations: SignedDelegation[] = authRes.delegations.map(
-      (d): SignedDelegation => ({
-        delegation: new Delegation(
-          new Uint8Array(d.delegation.pubkey).buffer,
-          d.delegation.expiration,
-          d.delegation.targets,
-        ),
-        signature: new Uint8Array(d.signature).buffer as Signature,
-      }),
-    );
-
-    const chain = DelegationChain.fromDelegations(
-      signedDelegations,
-      new Uint8Array(authRes.userPublicKey).buffer as DerEncodedPublicKey,
-    );
-    this.identity = DelegationIdentity.fromDelegation(identity, chain);
-
-    await saveToStore("delegation-" + origin, chain);
+    console.log("Setting delegation for", origin, "to", authRes);
+    await saveToStore("delegation-" + origin, authRes);
   }
 
   /**
-   * Checks if the stored delegation is valid for at least the given time.
-   * @param minValiditySec Minimum validity in seconds (default: 60).
-   * @returns True if the delegation is valid for at least the given time.
+   * Return a valid delegation if it exists
    */
-  async isDelegationValid(minValiditySec = 60): Promise<boolean> {
+  async getDelegation(
+    origin: string,
+    minValiditySec = 60,
+  ): Promise<AuthResponseUnwrapped | null> {
     const now = BigInt(Date.now()) * 1_000_000n;
     const minValidityNs = BigInt(minValiditySec) * 1_000_000_000n;
-    if (!this.delegation || !this.delegation.delegations) {
-      console.warn("No delegation found");
+
+    const authRes = await getFromStore<AuthResponseUnwrapped>(
+      "delegation-" + origin,
+    );
+
+    if (!authRes || !authRes.delegations || authRes.delegations.length === 0) {
+      console.warn("No delegation found for", origin, authRes);
       console.trace();
-      return false;
+      return null;
     }
-    const expiration = this.delegation.delegations[0].delegation.expiration;
+
+    const expiration = authRes.delegations[0].delegation.expiration;
     const isValid: boolean = expiration > now + minValidityNs;
     console.log(
       "delegation expiration:",
@@ -215,47 +207,8 @@ export class IdentityManager {
       "validity:",
       isValid,
     );
-    return isValid;
-  }
-
-  /**
-   * Loads the persisted delegation and builds the identity.
-   * Will not load if the delegation is about to expire.
-   * @returns Whether loading was successful.
-   */
-  async loadDelegation(origin: string): Promise<boolean> {
-    this.delegation = await getFromStore<any>("delegation-" + origin);
-    const keysLoaded = await this.loadSessionKey();
-    console.log(
-      "Loading delegation:",
-      this.delegation,
-      this.keyPair,
-      this.publicKeyDer,
-    );
-    if (
-      !keysLoaded ||
-      !this.delegation ||
-      !this.keyPair ||
-      !this.publicKeyDer
-    ) {
-      console.warn("Could not load delegation or session key");
-      await this.resetDelegation(origin);
-      return false;
-    }
-
-    const isValid = await this.isDelegationValid();
-    if (!isValid) {
-      console.warn("Delegation is not valid or about to expire");
-      await this.resetDelegation(origin);
-      return false;
-    }
-
-    const identity = new WebCryptoIdentity(this.keyPair, this.publicKeyDer);
-    this.identity = DelegationIdentity.fromDelegation(
-      identity,
-      this.delegation,
-    );
-    return true;
+    // TODO: check if the public key matches the stored delegation
+    return authRes;
   }
 
   /**
@@ -263,25 +216,6 @@ export class IdentityManager {
    */
   async resetDelegation(origin: string): Promise<void> {
     console.log("Resetting delegation and identity");
-    this.delegation = null;
-    this.identity = null;
     await saveToStore("delegation-" + origin, null);
-  }
-
-  /**
-   * Gets the current DelegationIdentity.
-   */
-  async getIdentity(origin: string): Promise<DelegationIdentity> {
-    await this.loadDelegation(origin);
-    if (!this.identity) throw new Error("Delegation identity not set");
-    return this.identity;
-  }
-
-  /**
-   * Gets the principal for the current identity.
-   */
-  async getPrincipal(origin: string): Promise<Principal> {
-    const identity = await this.getIdentity(origin);
-    return identity.getPrincipal();
   }
 }

@@ -4,12 +4,9 @@ import {
   setError,
   setResult,
 } from "./jsonrpc";
-import { base64decode } from "./utils";
-import { Context, loadDelegation } from "./icrc";
-import { HttpAgent, polling } from "@dfinity/agent";
-import { Principal } from "@dfinity/principal";
+import { Context, loadOrFetchDelegation } from "./icrc";
+import { HttpAgent } from "@dfinity/agent";
 import { Scope } from "./icrc25_signer_integration";
-import { IdentityManager } from "./idenity-manager";
 import { canister_call } from "./canister_caller";
 
 export const STANDARD = {
@@ -35,12 +32,17 @@ export const callCanister = async (
   const origin = context.origin;
   if (!origin) throw "App origin is not set";
 
-  const idManager = new IdentityManager();
-  loadDelegation(idManager, context);
+  const authClient = await loadOrFetchDelegation(context);
 
   let agent = await HttpAgent.create({
-    identity: idManager.getIdentity(origin),
+    identity: authClient.getIdentity(),
   });
+
+  console.log(
+    "calling canister with agent id",
+    authClient.getIdentity().getPrincipal().toString(),
+    (await agent.getPrincipal()).toString(),
+  );
 
   const callResponse = await canister_call({
     canisterId: req.params.canisterId,
@@ -50,60 +52,8 @@ export const callCanister = async (
   });
 
   console.log("icrc49_call_canister WIP: calling canister", callResponse);
-  throw "WIP: success";
-
-  let params = req.params as any;
-  let canisterId = Principal.fromText(params.canisterId);
-  let sender = params.sender;
-  if (sender !== (await idManager.getPrincipal(origin)).toString()) {
-    return setError(
-      req,
-      -32602,
-      "Invalid sender for icrc49_call_canister " +
-        sender +
-        " != " +
-        (await idManager.getPrincipal(origin)).toString(),
-    );
-  }
-  let methodName = params.method;
-  let arg = base64decode(params.arg);
-
-  console.log(
-    "icrc49_call_canister calling canister",
-    canisterId,
-    methodName,
-    arg,
-    req.params,
-  );
-  // For an update call:
-  const { requestId } = await agent.call(canisterId, {
-    methodName,
-    arg,
-    effectiveCanisterId: canisterId,
-  });
-
-  // All callse are update calls:
-  // const queryResult = await agent.query(canisterId, {
-  //  methodName,
-  //  arg,
-  //  // effectiveCanisterId (optional)
-  //});
-  console.log(
-    "icrc49_call_canister polling for reponse",
-    canisterId,
-    requestId,
-  );
-
-  // Wait for the reply
-  const response = await polling.pollForResponse(
-    agent,
-    canisterId,
-    requestId,
-    polling.defaultStrategy(),
-  );
-
   return setResult(req, {
-    contentMap: response.reply,
-    certificate: response.certificate,
+    contentMap: callResponse.contentMap,
+    certificate: callResponse.certificate,
   });
 };

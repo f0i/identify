@@ -1,6 +1,7 @@
 import { Principal } from "@dfinity/principal";
 import { canisterId, createActor } from "../../declarations/backend";
 import { AuthResponseUnwrapped, unwrapTargets, wrapOpt } from "./utils";
+import { AuthClient } from "../agent-js/packages/auth-client/src/index";
 
 export type DelegationParams = {
   publicKey: string;
