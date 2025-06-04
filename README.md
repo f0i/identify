@@ -50,7 +50,31 @@ mops test --mode wasi base64 jwt leb128 stats
 mops test --mode interpreter delegation ed25519
 ```
 
+# JSON-RPC
+
+Identify supports [ICRC-25: Signer Interaction](https://github.com/dfinity/wg-identity-authentication/blob/main/topics/icrc_25_signer_interaction_standard.md).
+This interface is used by [IdentityKit](http://identitykit.xyz/).
+
+## Implementation status
+
+Currently the following ICRCs are implemented:
+
+- [x] ICRC-25: Signer Interaction
+- [x] ICRC-27: Accounts
+- [x] ICRC-29: ICRC-29: Browser Post Message Transport
+- [ ] ICRC-32: Sign Challenge
+- [x] ICRC-34: Delegation
+- [ ] ICRC-38: Trusted Origins
+- [ ] ICRC-39: Batch Calling
+- [x] ICRC-49: Call Canister
+- [ ] ICRC-95: Derivation Origin
+- [ ] ICRC-112: Batch Call Canister
+- [ ] ICRC-114: Validate Batch Call
+
+
 # Authentication flow
+
+Asside from JSON-RPC calls, Identify supports the authentication flow currently used by [Internet Identity](https://identity.ic0.app/) and the [@dfinity/auth-client](https://www.npmjs.com/package/@dfinity/auth-client) (v2.x.x)
 
 1. **Identify Backend** pre-fetches OAuth2 keys from **Google server**
 2. **User** clicks "Sign In" button inside the dApp
