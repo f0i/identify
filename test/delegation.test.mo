@@ -104,7 +104,7 @@ assert delegation.delegations[0].signature == fromHex "0b4825dcf027f92a3953fe4b5
 // chekc that pubkey is same as from gateway error
 assert data.lastKey.publicKey == fromHex "c536d5fdb9c8d102b5c1327f210565abed46dabe91f30082e09bdabc5e5bac50";
 assert Ed25519.verify(unsigned4, delegation.delegations[0].signature, data.lastKey.publicKey);
-print(debug_show delegation);
+//print(debug_show delegation);
 
 print("- request test");
 
@@ -119,7 +119,7 @@ let key2 : Ed25519.KeyPair = {
 let expiration = +1620328630000000000;
 
 let response = Delegation.getDelegation(Ed25519.DERencodePubKey(key2.publicKey), key1, expiration, null);
-print(debug_show response);
+//print(debug_show response);
 
 let expectedDelegation2 : Delegation.Delegation = {
   delegation = {

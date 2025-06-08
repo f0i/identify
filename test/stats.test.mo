@@ -11,6 +11,7 @@ let stats : Stats.Stats = {
   var logIndex = 0;
   var lastBalance = 123;
   var lastFn = "none";
+  costs = Map.new();
 };
 
 print("- empty log");

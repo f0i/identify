@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "build": "node build.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./test/run.sh",
+    "test:fast": "./test/run.sh --fast",
+    "bench": "mops bench"
   },
   "keywords": [],
   "author": "",

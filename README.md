@@ -42,12 +42,11 @@ For PRs, please contact me in advance.
 
 ## Testing
 
-Unfortunately the test require some differnt features that cause them to require different execution modes.
-You can run all of them using the following commands.
+You can run all of the tests using the following commands:
 
 ```
-mops test --mode wasi base64 jwt leb128 stats
-mops test --mode interpreter delegation ed25519
+npm run test
+npm run bench
 ```
 
 # JSON-RPC
@@ -57,16 +56,18 @@ This interface is used by [IdentityKit](http://identitykit.xyz/).
 
 ## Implementation status
 
-Currently the following ICRCs are implemented:
+Currently the following ICRCs are implemented or will be considered for implementation:
 
 - [x] ICRC-25: Signer Interaction
 - [x] ICRC-27: Accounts
+- [ ] ICRC-28: Trusted Origins
 - [x] ICRC-29: ICRC-29: Browser Post Message Transport
 - [ ] ICRC-32: Sign Challenge
 - [x] ICRC-34: Delegation
-- [ ] ICRC-38: Trusted Origins
+- [ ] ICRC-35: Browser-Based Interoperability Framework
 - [ ] ICRC-39: Batch Calling
 - [x] ICRC-49: Call Canister
+- [ ] ICRC-96: Browser Extension Discovery and Transport
 - [ ] ICRC-95: Derivation Origin
 - [ ] ICRC-112: Batch Call Canister
 - [ ] ICRC-114: Validate Batch Call
