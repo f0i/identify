@@ -1,7 +1,6 @@
 import { Principal } from "@dfinity/principal";
 import { canisterId, createActor } from "../../declarations/backend";
 import { AuthResponseUnwrapped, unwrapTargets, wrapOpt } from "./utils";
-import { AuthClient } from "../agent-js/packages/auth-client/src/index";
 
 export type DelegationParams = {
   publicKey: string;
@@ -9,6 +8,12 @@ export type DelegationParams = {
   maxTimeToLive?: string;
 };
 
+/// Get delegation from backend using the auth token
+/// @param idToken The ID token from Google sign-in
+/// @param origin The origin of the request
+/// @param sessionPublicKey The public key of the browser session
+/// @param maxTimeToLive The maximum time the delegation is valid for
+/// @param targets Optional list of target canisters which the delegation is valid for
 export const getDelegation = async (
   idToken: string,
   origin: string,

@@ -13,7 +13,6 @@ import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
 } from "../agent-js/packages/auth-client/src";
-import { Principal } from "../agent-js/packages/principal/src";
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
@@ -21,20 +20,30 @@ export type Context = {
   origin?: string;
   statusCallback: (msg: string) => void;
   targetsCallback: (msg: string) => void;
+  originCallback: (msg: string) => void;
+  confirm: (msg: string) => Promise<boolean>;
   getAuthToken: (nonce: string) => Promise<string>;
 };
 export const DEFAULT_CONTEXT: Context = {
-  statusCallback: (msg: string) => console.log(msg),
-  targetsCallback: (msg: string) => console.log(msg),
+  // Callbacks can be sued to update the UI.
+  statusCallback: (msg: string) => console.log("status", msg),
+  targetsCallback: (msg: string) => console.log("targets", msg),
+  originCallback: (msg: string) => console.log("origin", msg),
+  // Default confirmation function allows all requests.
+  // This is ok, because each origin gets its own identity.
+  confirm: async (msg: string) => true,
   getAuthToken: async (nonce: string) => {
     console.error("getAuthToken not set in context (nonce:", nonce, ")");
     throw "Authentication mechanism not set";
   },
 };
 
-export const loadOrFetchDelegation = async (context: Context) => {
+// Restore a delegation or fetch a new one if it does not exist.
+export const loadOrFetchDelegation = async (
+  context: Context,
+): Promise<AuthClient> => {
   const origin = context.origin;
-  if (!origin) throw "App origin not set";
+  if (!origin) throw "Internea error: app origin not set";
   let idManager = new IdentityManager();
   let authRes = await idManager.getDelegation(origin);
   if (!authRes) {
@@ -57,7 +66,6 @@ export const loadOrFetchDelegation = async (context: Context) => {
   }
 
   const signIdentity = await idManager.getSignIdentity();
-  console.log(signIdentity.getPrincipal().toString());
   const authClient = await AuthClient.create({
     identity: signIdentity,
   });
@@ -74,6 +82,9 @@ export const loadOrFetchDelegation = async (context: Context) => {
   return authClient;
 };
 
+const sleep = async (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 export const handleJSONRPC = async (
   data: JsonRpcRequest,
   responder: (res: JsonRpcResponse) => void,
@@ -81,19 +92,17 @@ export const handleJSONRPC = async (
 ) => {
   switch (data.method) {
     case "icrc25_request_permissions": {
-      alert("ICRC " + data.method);
+      context.statusCallback("Loading permissions...");
       responder(await icrc25.requestPermissions(data));
       break;
     }
 
     case "icrc25_permissions": {
-      alert("ICRC " + data.method);
       responder(await icrc25.permissions(data));
       break;
     }
 
     case "icrc25_supported_standards": {
-      alert("ICRC " + data.method);
       responder(await icrc25.supportedStandards(data));
       break;
     }
@@ -104,13 +113,11 @@ export const handleJSONRPC = async (
     }
 
     case "icrc34_delegation": {
-      alert("ICRC " + data.method);
       responder(await icrc34.delegation(data, context));
       break;
     }
 
     case "icrc27_accounts": {
-      alert("ICRC " + data.method);
       responder(await icrc27.accounts(data, context));
       break;
     }
@@ -121,8 +128,9 @@ export const handleJSONRPC = async (
     }
 
     default: {
-      alert("ICRC " + data.method);
       console.warn("unhandled JSONRPC call", data);
+      context.statusCallback("Unhandled request: " + data.method);
+      await sleep(1000);
       responder(jsonrpc.methodNotFound(data));
     }
   }

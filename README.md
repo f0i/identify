@@ -144,6 +144,8 @@ sequenceDiagram
   - https://internetcomputer.org/docs/references/ic-interface-spec/#signatures
 - II Spec
   - https://internetcomputer.org/docs/references/ii-spec#client-authentication-protocol
+- ICRC-25 and other JSON-RPC
+  - https://github.com/dfinity/wg-identity-authentication/blob/main/topics/icrc_25_signer_interaction_standard.md
 - PoC JWT Authentication in Rust
   - https://github.com/ilbertt/ic-react-native-jwt-auth
 - Sign in with Ethereum
