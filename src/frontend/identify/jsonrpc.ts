@@ -47,8 +47,11 @@ export const methodNotFound = (req: JsonRpcRequest): JsonRpcResponse => {
 export const invalidParams = (req: JsonRpcRequest): JsonRpcResponse => {
   return setError(req, -32602, "Invalid params");
 };
-export const internalError = (req: JsonRpcRequest): JsonRpcResponse => {
-  return setError(req, -32603, "Internal error");
+export const internalError = (
+  req: JsonRpcRequest,
+  msg?: string,
+): JsonRpcResponse => {
+  return setError(req, -32603, "Internal error" + (msg ? ": " + msg : ""));
 };
 export const serverError = (req: JsonRpcRequest): JsonRpcResponse => {
   return setError(req, -32000, "Server error");

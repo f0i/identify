@@ -48,10 +48,12 @@ export const loadOrFetchDelegation = async (
   let authRes = await idManager.getDelegation(origin);
   if (!authRes) {
     if (!context.gsiClientID) throw "Internal error: gsiClientID not set";
+    context.statusCallback("Starting a new session...");
     const sessionKey = await idManager.getPublicKeyDer();
     const maxTimeToLive = icrc34.DEFAULT_TTL;
     const targets = undefined;
     const nonce = uint8ArrayToHex(sessionKey);
+    context.statusCallback("");
     const auth = await initGsi(context.gsiClientID, nonce);
     console.log("requesting delegation from backend");
     authRes = await getDelegation(
@@ -90,48 +92,59 @@ export const handleJSONRPC = async (
   responder: (res: JsonRpcResponse) => void,
   context: Context,
 ) => {
-  switch (data.method) {
-    case "icrc25_request_permissions": {
-      context.statusCallback("Loading permissions...");
-      responder(await icrc25.requestPermissions(data));
-      break;
-    }
+  try {
+    switch (data.method) {
+      case "icrc25_request_permissions": {
+        context.statusCallback("Requesting permission...");
+        responder(await icrc25.requestPermissions(data));
+        break;
+      }
 
-    case "icrc25_permissions": {
-      responder(await icrc25.permissions(data));
-      break;
-    }
+      case "icrc25_permissions": {
+        context.statusCallback("Loading permissions...");
+        responder(await icrc25.permissions(data));
+        break;
+      }
 
-    case "icrc25_supported_standards": {
-      responder(await icrc25.supportedStandards(data));
-      break;
-    }
+      case "icrc25_supported_standards": {
+        context.statusCallback("Loading supported standards...");
+        responder(await icrc25.supportedStandards(data));
+        break;
+      }
 
-    case "icrc29_status": {
-      responder(icrc29.ready(data));
-      break;
-    }
+      case "icrc29_status": {
+        // This is happening in the background, so no status callback needed.
+        responder(icrc29.ready(data));
+        break;
+      }
 
-    case "icrc34_delegation": {
-      responder(await icrc34.delegation(data, context));
-      break;
-    }
+      case "icrc34_delegation": {
+        responder(await icrc34.delegation(data, context));
+        break;
+      }
 
-    case "icrc27_accounts": {
-      responder(await icrc27.accounts(data, context));
-      break;
-    }
+      case "icrc27_accounts": {
+        context.statusCallback("Calling canister...");
+        responder(await icrc27.accounts(data, context));
+        break;
+      }
 
-    case "icrc49_call_canister": {
-      responder(await icrc49.callCanister(data, context));
-      break;
-    }
+      case "icrc49_call_canister": {
+        context.statusCallback("Calling canister...");
+        responder(await icrc49.callCanister(data, context));
+        break;
+      }
 
-    default: {
-      console.warn("unhandled JSONRPC call", data);
-      context.statusCallback("Unhandled request: " + data.method);
-      await sleep(1000);
-      responder(jsonrpc.methodNotFound(data));
+      default: {
+        console.warn("unhandled JSONRPC call", data);
+        context.statusCallback("Unhandled request: " + data.method);
+        await sleep(1000);
+        responder(jsonrpc.methodNotFound(data));
+      }
     }
+  } catch (e: any) {
+    console.error("Error handling JSONRPC request", data, e);
+    context.statusCallback("Error: " + e);
+    responder(jsonrpc.internalError(data, e.toString()));
   }
 };
