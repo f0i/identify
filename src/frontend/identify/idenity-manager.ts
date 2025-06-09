@@ -207,6 +207,8 @@ export class IdentityManager {
       "validity:",
       isValid,
     );
+    if (!isValid) return null;
+
     // TODO: check if the public key matches the stored delegation
     return authRes;
   }

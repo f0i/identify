@@ -124,7 +124,7 @@ export const handleJSONRPC = async (
       }
 
       case "icrc27_accounts": {
-        context.statusCallback("Calling canister...");
+        context.statusCallback("Loading accounts...");
         responder(await icrc27.accounts(data, context));
         break;
       }

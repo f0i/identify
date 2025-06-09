@@ -24,7 +24,9 @@ let context: Context = DEFAULT_CONTEXT;
 export function initICgsi(clientID: string) {
   const icgsi = document.getElementById("icgsi")!;
   icgsi.style.display = "block";
-  setStatusText("Waiting for session key...");
+  console.log("Waiting for message from opener");
+  setStatusText("Connecting to application...");
+  let init = true;
 
   context.getAuthToken = async (nonce: string) => {
     let auth = await initGsi(clientID, nonce);
@@ -41,6 +43,13 @@ export function initICgsi(clientID: string) {
       origin = event.origin;
       setOriginText(origin);
       context.origin = origin;
+
+      // first message from opener
+      if (init) {
+        console.log("Received message from opener:", event);
+        setStatusText("Connected to " + origin);
+        init = false;
+      }
 
       if (event.data.jsonrpc === "2.0") {
         //
