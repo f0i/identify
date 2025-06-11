@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Candid Decoder & Hex Converter</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom font for Inter */
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+      }
+    </style>
+  </head>
+  <body
+    class="p-5 min-h-screen flex flex-col items-center bg-gray-100 text-gray-800"
+  >
+    <!-- Main content container -->
+    <div class="w-full max-w-4xl bg-white p-8 rounded-xl shadow-lg">
+      <h1
+        class="text-4xl font-extrabold text-center text-blue-700 mb-6 tracking-tight"
+      >
+        Candid Decoder & Hex Converter
+      </h1>
+
+      <!-- String to Hex Converter Section -->
+      <div class="mb-10 pb-8 border-b-2 border-gray-200">
+        <h2
+          class="text-3xl font-bold text-center text-purple-700 mb-6 tracking-tight"
+        >
+          String to Hex Converter
+        </h2>
+        <p class="text-lg text-gray-600 mb-6 text-center leading-relaxed">
+          Enter a string with byte escape sequences (e.g., `\02`, `\6b`). The
+          converter will transform it into its pure hexadecimal representation.
+        </p>
+
+        <!-- Input Textarea for String -->
+        <label
+          for="stringInput"
+          class="block text-lg font-semibold text-gray-700 mb-2"
+          >Input String:</label
+        >
+        <textarea
+          id="stringInput"
+          placeholder="Example: DIDL\02\6b\02\d1\a7\cf\02\7f\f1\f3\92\8e\04\01\6c\02\a0\d2\ac\a8\04\7c\90\ed\da\e7\04\00\01\00\01\01\01\02\00"
+          rows="6"
+          class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
+          style="resize: vertical"
+        ></textarea>
+
+        <!-- Convert Button -->
+        <button
+          id="convertButton"
+          class="mt-6 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+        >
+          Convert to Hex
+        </button>
+
+        <!-- Output Textarea for Hex -->
+        <div class="mt-8">
+          <label
+            for="hexOutput"
+            class="block text-lg font-semibold text-gray-700 mb-2"
+            >Hex Output:</label
+          >
+          <textarea
+            id="hexOutput"
+            rows="6"
+            readonly
+            class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
+            style="resize: vertical"
+          ></textarea>
+          <button
+            id="copyButton"
+            class="mt-4 w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
+          >
+            Copy to Clipboard
+          </button>
+          <p
+            id="copyStatus"
+            class="text-sm text-green-600 mt-2 text-center"
+          ></p>
+        </div>
+      </div>
+
+      <!-- Candid Decoder Section -->
+      <div>
+        <h2
+          class="text-3xl font-bold text-center text-blue-700 mb-6 tracking-tight"
+        >
+          Candid Decoder
+        </h2>
+        <p class="text-lg text-gray-600 mb-6 text-center leading-relaxed">
+          Paste your Candid binary data as a hex string below. The decoder will
+          parse the Candid IDL header and data, and display the result as a JSON
+          object.
+        </p>
+
+        <!-- Textarea for Candid Hex Input -->
+        <label
+          for="candidHexInput"
+          class="block text-lg font-semibold text-gray-700 mb-2"
+          >Candid Hex Input:</label
+        >
+        <textarea
+          id="candidHexInput"
+          placeholder="Example: 4449444C00017101000100 (DIDL + 0 types + 1 arg (nat8) + value 0)"
+          rows="8"
+          class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
+          style="resize: vertical"
+        ></textarea>
+
+        <!-- Decode Button -->
+        <button
+          id="decodeButton"
+          class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+        >
+          Decode Candid Data
+        </button>
+
+        <!-- Display area for Candid decoding results -->
+        <div id="resultContainer" class="mt-8 pt-8 border-t border-gray-200">
+          <!-- Results will be injected here by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Link to the combined JavaScript file as a module -->
+    <script src="./candid.js" type="module"></script>
+  </body>
+</html>

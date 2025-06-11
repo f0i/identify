@@ -8,6 +8,8 @@ import { Context, loadOrFetchDelegation } from "./icrc";
 import { HttpAgent } from "@dfinity/agent";
 import { Scope } from "./icrc25_signer_integration";
 import { canister_call } from "./canister_caller";
+import { base64decode } from "./utils";
+import { decode } from "@dfinity/candid/lib/cjs/idl";
 
 export const STANDARD = {
   name: "ICRC-49",
@@ -42,6 +44,17 @@ export const callCanister = async (
     "calling canister with agent id",
     authClient.getIdentity().getPrincipal().toString(),
     (await agent.getPrincipal()).toString(),
+  );
+
+  await new Promise<void>((resolve, reject) => setTimeout(resolve, 5000)); // wait for the agent to be ready
+  debugger;
+  context.statusCallback(
+    "Calling canister " +
+      req.params.canisterId.toString() +
+      "\nmethod: " +
+      req.params.method +
+      "\narg: " +
+      JSON.stringify(decode([], base64decode(req.params.arg))),
   );
 
   const callResponse = await canister_call({
