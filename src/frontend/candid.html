@@ -33,15 +33,15 @@
           String to Hex Converter
         </h2>
         <p class="text-lg text-gray-600 mb-6 text-center leading-relaxed">
-          Enter a string with byte escape sequences (e.g., `\02`, `\6b`). The
-          converter will transform it into its pure hexadecimal representation.
+          Enter a string with byte escape sequences (e.g., `DIDL\02\6b`). It
+          will be automatically converted to hex below.
         </p>
 
         <!-- Input Textarea for String -->
         <label
           for="stringInput"
           class="block text-lg font-semibold text-gray-700 mb-2"
-          >Input String:</label
+          >Input String (with `\xx` escapes):</label
         >
         <textarea
           id="stringInput"
@@ -50,43 +50,9 @@
           class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
           style="resize: vertical"
         ></textarea>
-
-        <!-- Convert Button -->
-        <button
-          id="convertButton"
-          class="mt-6 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
-        >
-          Convert to Hex
-        </button>
-
-        <!-- Output Textarea for Hex -->
-        <div class="mt-8">
-          <label
-            for="hexOutput"
-            class="block text-lg font-semibold text-gray-700 mb-2"
-            >Hex Output:</label
-          >
-          <textarea
-            id="hexOutput"
-            rows="6"
-            readonly
-            class="w-full p-4 border border-gray-300 rounded-lg bg-gray-50 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
-            style="resize: vertical"
-          ></textarea>
-          <button
-            id="copyButton"
-            class="mt-4 w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
-          >
-            Copy to Clipboard
-          </button>
-          <p
-            id="copyStatus"
-            class="text-sm text-green-600 mt-2 text-center"
-          ></p>
-        </div>
       </div>
 
-      <!-- Candid Decoder Section -->
+      <!-- Candid Decoder Section (now uses the same input field) -->
       <div>
         <h2
           class="text-3xl font-bold text-center text-blue-700 mb-6 tracking-tight"
@@ -94,32 +60,30 @@
           Candid Decoder
         </h2>
         <p class="text-lg text-gray-600 mb-6 text-center leading-relaxed">
-          Paste your Candid binary data as a hex string below. The decoder will
-          parse the Candid IDL header and data, and display the result as a JSON
-          object.
+          The hex output from above or any custom hex string you paste here will
+          be automatically decoded.
         </p>
 
-        <!-- Textarea for Candid Hex Input -->
+        <!-- Common Textarea for Hex Input/Output -->
         <label
-          for="candidHexInput"
+          for="combinedHexInput"
           class="block text-lg font-semibold text-gray-700 mb-2"
-          >Candid Hex Input:</label
+          >Hex Input (for Candid Decoding):</label
         >
         <textarea
-          id="candidHexInput"
-          placeholder="Example: 4449444C00017101000100 (DIDL + 0 types + 1 arg (nat8) + value 0)"
+          id="combinedHexInput"
+          placeholder="Paste hex string here, e.g., 4449444C00017101000100 (DIDL + 0 types + 1 arg (nat8) + value 0)"
           rows="8"
-          class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
+          class="w-full p-4 border border-gray-300 rounded-lg bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
           style="resize: vertical"
         ></textarea>
-
-        <!-- Decode Button -->
         <button
-          id="decodeButton"
-          class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75"
+          id="copyButton"
+          class="mt-4 w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
         >
-          Decode Candid Data
+          Copy Hex to Clipboard
         </button>
+        <p id="copyStatus" class="text-sm text-green-600 mt-2 text-center"></p>
 
         <!-- Display area for Candid decoding results -->
         <div id="resultContainer" class="mt-8 pt-8 border-t border-gray-200">
@@ -129,6 +93,6 @@
     </div>
 
     <!-- Link to the combined JavaScript file as a module -->
-    <script src="./candid.js" type="module"></script>
+    <script type="module" src="./candid.js"></script>
   </body>
 </html>

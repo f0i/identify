@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node build.js",
     "test": "./test/run.sh",
+    "test:frontend": "jest --config ./src/frontend/jest.config.js",
     "test:fast": "./test/run.sh --fast",
     "bench": "mops bench"
   },
@@ -15,8 +16,11 @@
   "devDependencies": {
     "@types/gapi": "^0.0.47",
     "@types/gapi.auth2": "^0.0.61",
+    "@types/jest": "^29.5.14",
     "@types/node": "^22.5.5",
     "esbuild": "^0.24.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
   },

@@ -1,28 +1,23 @@
 // candid.ts
 // Import the decodeCandid function from candidDecoder.ts.
 // Make sure candidDecoder.ts is in the same directory or accessible via this path.
-import { decodeCandid, DecodeResult } from "./identify/candidDecoder"; // No .js extension needed for TS imports
+import {
+  createFieldNameLookup,
+  decodeCandid,
+  DecodeResult,
+} from "./identify/candidDecoder"; // No .js extension needed for TS imports
 
 document.addEventListener("DOMContentLoaded", () => {
-  // --- DOM Elements for Candid Decoder ---
-  const candidHexInput = document.getElementById(
-    "candidHexInput",
-  ) as HTMLTextAreaElement;
-  const decodeButton = document.getElementById(
-    "decodeButton",
-  ) as HTMLButtonElement;
-  const resultContainer = document.getElementById(
-    "resultContainer",
-  ) as HTMLDivElement;
-
-  // --- DOM Elements for Hex Converter ---
+  // --- DOM Elements for Combined Functionality ---
   const stringInput = document.getElementById(
     "stringInput",
   ) as HTMLTextAreaElement;
-  const convertButton = document.getElementById(
-    "convertButton",
-  ) as HTMLButtonElement;
-  const hexOutput = document.getElementById("hexOutput") as HTMLTextAreaElement;
+  const combinedHexInput = document.getElementById(
+    "combinedHexInput",
+  ) as HTMLTextAreaElement;
+  const resultContainer = document.getElementById(
+    "resultContainer",
+  ) as HTMLDivElement;
   const copyButton = document.getElementById("copyButton") as HTMLButtonElement;
   const copyStatus = document.getElementById(
     "copyStatus",
@@ -68,51 +63,27 @@ document.addEventListener("DOMContentLoaded", () => {
     return hexResult;
   }
 
-  // --- Event Listener for String to Hex Converter ---
-  convertButton.addEventListener("click", () => {
-    const inputString = stringInput.value;
-    const hex = convertStringToHex(inputString);
-    hexOutput.value = hex;
-    copyStatus.textContent = ""; // Clear previous copy status
-  });
-
-  // --- Event Listener for Copy to Clipboard ---
-  copyButton.addEventListener("click", () => {
-    hexOutput.select();
-    hexOutput.setSelectionRange(0, 99999); // For mobile devices
-
-    try {
-      // document.execCommand is used for broader compatibility in iframes
-      const success = document.execCommand("copy");
-      if (success) {
-        copyStatus.textContent = "Copied to clipboard!";
-      } else {
-        copyStatus.textContent = "Failed to copy.";
-      }
-    } catch (err) {
-      console.error("Failed to copy text:", err);
-      copyStatus.textContent = "Failed to copy (browser issue).";
-    }
-
-    // Briefly show status then clear
-    setTimeout(() => {
-      copyStatus.textContent = "";
-    }, 3000);
-  });
-
-  // --- Event Listener for Candid Decoder ---
-  decodeButton.addEventListener("click", () => {
+  /**
+   * Performs the Candid decoding given a hex string and displays the result.
+   * @param hexString The hex string to decode.
+   */
+  function performCandidDecode(hexString: string) {
     let decodedResult: DecodeResult | null = null;
     try {
-      const hexString = candidHexInput.value;
       const cleanHex = hexString.replace(/\s/g, "");
+
+      if (cleanHex.length === 0) {
+        // Clear results if input is empty
+        resultContainer.innerHTML = "";
+        return;
+      }
 
       if (cleanHex.length % 2 !== 0) {
         decodedResult = {
-          data: null,
-          error:
-            "Hex string has an odd number of characters. Each byte requires two hex characters.",
-          errorIndex: null,
+          error: {
+            msg: "Hex string has an odd number of characters. Each byte requires two hex characters.",
+            index: Math.floor(cleanHex.length / 2),
+          },
         };
         displayResult(decodedResult);
         return;
@@ -123,9 +94,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const byteValue = parseInt(cleanHex.substring(i, i + 2), 16);
         if (isNaN(byteValue)) {
           decodedResult = {
-            data: null,
-            error: `Invalid hex character sequence at position ${i}. Please use only 0-9, a-f, A-F.`,
-            errorIndex: i / 2,
+            error: {
+              msg: `Invalid hex character sequence at position ${i}. Please use only 0-9, a-f, A-F.`,
+              index: i / 2,
+            },
           };
           displayResult(decodedResult);
           return;
@@ -133,7 +105,30 @@ document.addEventListener("DOMContentLoaded", () => {
         bytes[i / 2] = byteValue;
       }
 
-      decodedResult = decodeCandid(bytes);
+      decodedResult = decodeCandid(
+        bytes,
+        createFieldNameLookup([
+          "foo",
+          "bar",
+          "baz",
+          "name",
+          "age",
+          "isActive",
+          "balance",
+          "items",
+          "address",
+          "standard",
+          "metadata",
+          "timestamp",
+          "owner",
+          "permissions",
+          "delegation",
+          "subaccount",
+          "principal",
+          "transaction",
+          "signature",
+        ]),
+      );
       displayResult(decodedResult);
     } catch (e: any) {
       const error =
@@ -141,13 +136,14 @@ document.addEventListener("DOMContentLoaded", () => {
           ? e.message
           : "An unknown error occurred in the UI logic.";
       decodedResult = {
-        data: null,
-        error: `An unexpected JavaScript error occurred in the UI: ${error}`,
-        errorIndex: null,
+        error: {
+          msg: `An unexpected JavaScript error occurred in the UI: ${error}`,
+          index: null,
+        },
       };
       displayResult(decodedResult);
     }
-  });
+  }
 
   /**
    * Renders the decoding result (decoded data or error) into the DOM.
@@ -156,21 +152,24 @@ document.addEventListener("DOMContentLoaded", () => {
   function displayResult(result: DecodeResult) {
     resultContainer.innerHTML = ""; // Clear previous results
 
-    const h2 = document.createElement("h2");
-    h2.className = "text-2xl font-bold text-gray-800 mb-4";
-    h2.textContent = "Decoding Result:";
-    resultContainer.appendChild(h2);
+    // Only display "Decoding Result" header if there's an actual result (not just empty input)
+    if ("ok" in result || "error" in result) {
+      const h2 = document.createElement("h2");
+      h2.className = "text-2xl font-bold text-gray-800 mb-4";
+      h2.textContent = "Decoding Result:";
+      resultContainer.appendChild(h2);
+    }
 
-    if (result.error) {
+    if ("error" in result) {
       const errorDiv = document.createElement("div");
       errorDiv.className =
         "bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg relative shadow-inner";
       errorDiv.innerHTML = `
                 <strong class="font-bold">Error!</strong>
-                <span class="block sm:inline ml-2">${result.error}</span>
-                ${result.errorIndex !== null ? `<p class="mt-3 text-sm">Error occurred at byte index: <code class="font-mono bg-red-200 px-2 py-1 rounded-md text-red-800">${result.errorIndex}</code></p>` : ""}
+                <span class="block sm:inline ml-2">${result.error.msg}</span>
+                ${result.error.index !== null ? `<p class="mt-3 text-sm">Error occurred at byte index: <code class="font-mono bg-red-200 px-2 py-1 rounded-md text-red-800">${result.error.index}</code></p>` : ""}
             `;
-      if (result.data !== null) {
+      if (result.error.data !== undefined) {
         const partialDataP = document.createElement("p");
         partialDataP.className = "mt-4 font-semibold text-red-800";
         partialDataP.textContent = "Partial Decoded Data (if any):";
@@ -179,11 +178,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const pre = document.createElement("pre");
         pre.className =
           "bg-red-50 p-4 rounded-lg mt-2 text-sm overflow-auto max-h-60 border border-red-200";
-        pre.textContent = JSON.stringify(result.data, null, 2);
+        pre.textContent = JSON.stringify(result.error.data, null, 2);
         errorDiv.appendChild(pre);
       }
       resultContainer.appendChild(errorDiv);
-    } else {
+    } else if ("ok" in result) {
+      // Only display success if data is not null
       const successDiv = document.createElement("div");
       successDiv.className =
         "bg-green-100 border border-green-400 text-green-700 px-6 py-4 rounded-lg relative shadow-inner";
@@ -195,9 +195,53 @@ document.addEventListener("DOMContentLoaded", () => {
       const pre = document.createElement("pre");
       pre.className =
         "bg-green-50 p-4 rounded-lg mt-2 text-sm overflow-auto max-h-96 border border-green-200";
-      pre.textContent = JSON.stringify(result.data, null, 2);
+      pre.textContent = JSON.stringify(result.ok, null, 2);
       successDiv.appendChild(pre);
       resultContainer.appendChild(successDiv);
     }
+  }
+
+  // --- Event Listener for String Input (Automatic Hex Conversion) ---
+  stringInput.addEventListener("input", () => {
+    const inputString = stringInput.value;
+    const hex = convertStringToHex(inputString);
+    combinedHexInput.value = hex;
+    // Trigger Candid decoding automatically when string input changes
+    performCandidDecode(hex);
+    copyStatus.textContent = ""; // Clear previous copy status
+  });
+
+  // --- Event Listener for Combined Hex Input (Automatic Candid Decoding) ---
+  combinedHexInput.addEventListener("input", () => {
+    const hexString = combinedHexInput.value;
+    performCandidDecode(hexString);
+    copyStatus.textContent = ""; // Clear previous copy status
+  });
+
+  // --- Event Listener for Copy to Clipboard ---
+  copyButton.addEventListener("click", () => {
+    combinedHexInput.select();
+    combinedHexInput.setSelectionRange(0, 99999); // For mobile devices
+
+    try {
+      const success = document.execCommand("copy");
+      if (success) {
+        copyStatus.textContent = "Copied to clipboard!";
+      } else {
+        copyStatus.textContent = "Failed to copy.";
+      }
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+      copyStatus.textContent = "Failed to copy (browser issue).";
+    }
+
+    setTimeout(() => {
+      copyStatus.textContent = "";
+    }, 3000);
+  });
+
+  // Initial decode if there's any pre-filled value
+  if (combinedHexInput.value) {
+    performCandidDecode(combinedHexInput.value);
   }
 });

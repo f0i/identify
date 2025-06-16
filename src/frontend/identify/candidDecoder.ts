@@ -17,11 +17,10 @@ export class CandidError extends Error {
 /**
  * Interface for the result returned by the decodeCandid function.
  */
-export interface DecodeResult {
-  data: any | null; // The decoded JSON object or partial data on error
-  error: string | null; // Error message if decoding failed
-  errorIndex: number | null; // Byte index in the input where the error occurred
-}
+export type DecodeResult =
+  | { ok: any }
+  | { warning: { data: any; msg: string; index: number } }
+  | { error: { data?: any; msg: string; index: number } };
 
 /**
  * A utility class for reading bytes from a Uint8Array buffer.
@@ -129,7 +128,7 @@ class ByteReader {
    */
   readUtf8String(length: number): string {
     const bytes = this.readBytes(length);
-    const decoder = new TextDecoder("utf-8");
+    const decoder = new TextDecoder("utf-8", { fatal: true });
     return decoder.decode(bytes);
   }
 
@@ -290,19 +289,85 @@ interface ServiceTypeDefinition extends CandidTypeDefinition {
   methods: { name: string; funcTypeIdx: bigint }[];
 }
 
+// Pre-computed CRC32 lookup table for efficiency.
+// This table is specific to the IEEE 802.3 polynomial (0x04C11DB7) and its reflected form (0xEDB88320).
+const crcTable: Uint32Array = new Uint32Array(256);
+(function () {
+  const poly = 0xedb88320; // Reflected polynomial
+  for (let i = 0; i < 256; i++) {
+    let crc = i;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 1) !== 0) {
+        crc = (crc >>> 1) ^ poly;
+      } else {
+        crc = crc >>> 1;
+      }
+    }
+    crcTable[i] = crc;
+  }
+})();
+
+/**
+ * Computes the CRC32 hash of a given string using the Candid-specific algorithm.
+ * This function implements the IEEE 802.3 CRC32 polynomial with initial value 0 and no final XOR.
+ * It processes the UTF-8 bytes of the string.
+ * @param str The input string.
+ * @returns The CRC32 hash as a 32-bit unsigned integer.
+ */
+export function computeCrc32(str: string): number {
+  const encoder = new TextEncoder();
+  const utf8Bytes = encoder.encode(str);
+
+  let crc = 0x00000000; // Initial value is 0 (as per Candid spec)
+
+  for (let i = 0; i < utf8Bytes.length; i++) {
+    const byte = utf8Bytes[i];
+    // XOR with the current byte, then use lookup table for next step
+    crc = (crc >>> 8) ^ crcTable[(crc & 0xff) ^ byte];
+  }
+
+  return crc; // No final XOR (as per Candid spec)
+}
+
+/**
+ * Creates a lookup map from an array of string field names.
+ * Each string name is converted to its CRC32 hash (as BigInt) and used as the key.
+ * @param names An array of string field names.
+ * @returns A Map where keys are CRC32 hashes (BigInt) and values are the original field names.
+ */
+export function createFieldNameLookup(names: string[]): Map<bigint, string> {
+  const lookupMap = new Map<bigint, string>();
+  for (const name of names) {
+    // Compute CRC32 and convert to BigInt for consistent key type with decoded IDs
+    const crc32Id = BigInt(computeCrc32(name) >>> 0); // Use >>> 0 to ensure unsigned 32-bit number
+    if (lookupMap.has(crc32Id)) {
+      const old = lookupMap.get(crc32Id);
+      lookupMap.set(crc32Id, old + "|" + name);
+    } else {
+      lookupMap.set(crc32Id, name);
+    }
+  }
+  return lookupMap;
+}
+
 /**
  * Main function to decode Candid binary data.
  * It parses the Candid header (magic, type table, argument types)
  * and then decodes the actual values.
  *
  * @param buffer The Uint8Array containing the Candid binary data.
+ * @param fieldNamesMap Optional map of field IDs (bigint) to human-readable names (string).
+ * Used to resolve numeric field IDs in records/variants to actual names.
  * @returns A DecodeResult object containing the decoded data, or error details.
  */
-export function decodeCandid(buffer: Uint8Array): DecodeResult {
+export function decodeCandid(
+  buffer: Uint8Array,
+  fieldNamesMap?: Map<bigint, string>,
+): DecodeResult {
   const reader = new ByteReader(buffer);
   let decodedData: any = null;
-  let error: string | null = null;
-  let errorIndex: number | null = null;
+  let errorMsg: string | null = null;
+  let errorIdx: number | null = null;
   // Stores parsed type definitions, accessible by their index (0-based)
   const typeTable: CandidTypeDefinition[] = [];
 
@@ -439,7 +504,9 @@ export function decodeCandid(buffer: Uint8Array): DecodeResult {
     const decodedValues: any[] = [];
     for (let i = 0; i < argTypeIndices.length; i++) {
       const typeOrIndex = argTypeIndices[i];
-      decodedValues.push(decodeValue(reader, typeOrIndex, typeTable));
+      decodedValues.push(
+        decodeValue(reader, typeOrIndex, typeTable, fieldNamesMap),
+      );
     }
 
     // --- 5. Check for trailing bytes ---
@@ -451,27 +518,30 @@ export function decodeCandid(buffer: Uint8Array): DecodeResult {
     }
 
     // If there's only one value, return it directly; otherwise, return an array.
-    decodedData = decodedValues.length === 1 ? decodedValues[0] : decodedValues;
+    decodedData = decodedValues; // decodedValues.length === 1 ? decodedValues[0] : decodedValues;
+    return { ok: decodedData };
   } catch (e) {
     // Centralized error handling
     if (e instanceof CandidError) {
-      error = e.message;
-      errorIndex = e.index;
+      errorMsg = e.message;
+      errorIdx = e.index;
     } else if (e instanceof Error) {
-      error = `An unexpected JavaScript error occurred: ${e.message}`;
-      errorIndex = reader.getCurrentOffset(); // Best guess for location
+      errorMsg = `An unexpected JavaScript error occurred: ${e.message}`;
+      errorIdx = reader.getCurrentOffset(); // Best guess for location
     } else {
-      error = "An unknown error occurred during decoding.";
-      errorIndex = reader.getCurrentOffset();
+      errorMsg = "An unknown error occurred during decoding.";
+      errorIdx = reader.getCurrentOffset();
     }
-    decodedData = null; // Clear any partial data on error for a clean result
+    // If an error occurs, decodedData might be null or contain partial data.
+    // If it's null, we omit it as per the 'data?:' in the error type.
+    return {
+      error: {
+        msg: errorMsg,
+        index: errorIdx,
+        data: decodedData !== null ? decodedData : undefined,
+      },
+    };
   }
-
-  return {
-    data: decodedData,
-    error: error,
-    errorIndex: errorIndex,
-  };
 }
 
 /**
@@ -479,6 +549,8 @@ export function decodeCandid(buffer: Uint8Array): DecodeResult {
  * @param reader The ByteReader instance to read from.
  * @param typeOrIndex The CandidTypeTag (for primitive) or index into the typeTable (for composite).
  * @param typeTable The parsed type definitions from the Candid header.
+ * @param fieldNamesMap Optional map of field IDs (bigint) to human-readable names (string).
+ * Used to resolve numeric field IDs in records/variants to actual names.
  * @returns The decoded JavaScript value.
  * @throws CandidError if an unsupported type is encountered or decoding fails.
  */
@@ -486,6 +558,7 @@ function decodeValue(
   reader: ByteReader,
   typeOrIndex: bigint,
   typeTable: CandidTypeDefinition[],
+  fieldNamesMap?: Map<bigint, string>,
 ): any {
   let currentTypeTag: number;
   let typeDef: CandidTypeDefinition | undefined;
@@ -518,10 +591,10 @@ function decodeValue(
       );
     case CandidTypeTag.Nat:
       // Convert BigInt to string for JSON serialization compatibility
-      return reader.readULEB128().toString();
+      return reader.readULEB128();
     case CandidTypeTag.Int:
       // Convert BigInt to string for JSON serialization compatibility
-      return reader.readSLEB128().toString();
+      return reader.readSLEB128();
     case CandidTypeTag.Nat8:
       return reader.readByte();
     case CandidTypeTag.Nat16:
@@ -530,7 +603,7 @@ function decodeValue(
       return Number(reader.readLittleEndian(4, false)); // Max ~4.29e9, fits JS number
     case CandidTypeTag.Nat64:
       // Convert BigInt to string for JSON serialization compatibility
-      return reader.readLittleEndian(8, false).toString();
+      return reader.readLittleEndian(8, false);
     case CandidTypeTag.Int8:
       return Number(reader.readLittleEndian(1, true)); // -128 to 127, fits JS number
     case CandidTypeTag.Int16:
@@ -540,7 +613,7 @@ function decodeValue(
       return reader.readLittleEndian(4, true).toString();
     case CandidTypeTag.Int64:
       // Convert BigInt to string for JSON serialization compatibility
-      return reader.readLittleEndian(8, true).toString();
+      return reader.readLittleEndian(8, true);
     case CandidTypeTag.Float32:
       return reader.readFloat(4);
     case CandidTypeTag.Float64:
@@ -584,7 +657,12 @@ function decodeValue(
         return null;
       } else if (presentByte === 1) {
         // Recursively decode the inner value using its type index from the type definition
-        return decodeValue(reader, optDef.innerTypeIdx, typeTable);
+        return decodeValue(
+          reader,
+          optDef.innerTypeIdx,
+          typeTable,
+          fieldNamesMap,
+        );
       } else {
         throw new CandidError(
           `Invalid option tag: ${presentByte}. Expected 0 or 1.`,
@@ -597,7 +675,9 @@ function decodeValue(
       const elements: any[] = [];
       for (let i = 0; i < vectorLength; i++) {
         // Recursively decode each element using its type index from the type definition
-        elements.push(decodeValue(reader, vecDef.elementTypeIdx, typeTable));
+        elements.push(
+          decodeValue(reader, vecDef.elementTypeIdx, typeTable, fieldNamesMap),
+        );
       }
       return elements;
     case CandidTypeTag.Record:
@@ -605,9 +685,15 @@ function decodeValue(
       const record: { [key: string]: any } = {};
       // Iterate through fields in canonical order (sorted by ID)
       for (const field of recordDef.fields) {
-        // Without the IDL, we use the field ID as the key (prefixed for clarity)
-        const fieldKey = `_${field.id.toString()}`;
-        record[fieldKey] = decodeValue(reader, field.typeIdx, typeTable);
+        // Try to resolve the field name using the provided map, fallback to _ID format
+        const fieldKey =
+          fieldNamesMap?.get(field.id) || `_${field.id.toString()}`;
+        record[fieldKey] = decodeValue(
+          reader,
+          field.typeIdx,
+          typeTable,
+          fieldNamesMap,
+        );
       }
       return record;
     case CandidTypeTag.Variant:
@@ -624,9 +710,12 @@ function decodeValue(
         reader,
         selectedOption.typeIdx,
         typeTable,
+        fieldNamesMap,
       );
-      // Without the IDL, we use the option ID as the key (prefixed for clarity)
-      const optionKey = `_${selectedOption.id.toString()}`;
+      // Try to resolve the option name using the provided map, fallback to _ID format
+      const optionKey =
+        fieldNamesMap?.get(selectedOption.id) ||
+        `_${selectedOption.id.toString()}`;
       return { [optionKey]: variantValue }; // Return a single-key object for the variant
     case CandidTypeTag.Func:
       const funcPrincipalLen = Number(reader.readULEB128());
@@ -634,6 +723,7 @@ function decodeValue(
       if (funcPrincipalLen > 0) {
         if (funcPrincipalLen <= 29) {
           const bytes = reader.readBytes(funcPrincipalLen);
+          // For simplicity, returning hex string. Proper Principal decoding involves CRC-32 and base32 encoding.
           funcPrincipalId =
             "0x" +
             Array.from(bytes)
@@ -655,6 +745,7 @@ function decodeValue(
       if (servicePrincipalLen > 0) {
         if (servicePrincipalLen <= 29) {
           const bytes = reader.readBytes(servicePrincipalLen);
+          // For simplicity, returning hex string. Proper Principal decoding involves CRC-32 and base32 encoding.
           servicePrincipalId =
             "0x" +
             Array.from(bytes)
