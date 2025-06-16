@@ -289,65 +289,39 @@ interface ServiceTypeDefinition extends CandidTypeDefinition {
   methods: { name: string; funcTypeIdx: bigint }[];
 }
 
-// Pre-computed CRC32 lookup table for efficiency.
-// This table is specific to the IEEE 802.3 polynomial (0x04C11DB7) and its reflected form (0xEDB88320).
-const crcTable: Uint32Array = new Uint32Array(256);
-(function () {
-  const poly = 0xedb88320; // Reflected polynomial
-  for (let i = 0; i < 256; i++) {
-    let crc = i;
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 1) !== 0) {
-        crc = (crc >>> 1) ^ poly;
-      } else {
-        crc = crc >>> 1;
-      }
-    }
-    crcTable[i] = crc;
-  }
-})();
-
-/**
- * Computes the CRC32 hash of a given string using the Candid-specific algorithm.
- * This function implements the IEEE 802.3 CRC32 polynomial with initial value 0 and no final XOR.
- * It processes the UTF-8 bytes of the string.
- * @param str The input string.
- * @returns The CRC32 hash as a 32-bit unsigned integer.
- */
-export function computeCrc32(str: string): number {
-  const encoder = new TextEncoder();
-  const utf8Bytes = encoder.encode(str);
-
-  let crc = 0x00000000; // Initial value is 0 (as per Candid spec)
-
-  for (let i = 0; i < utf8Bytes.length; i++) {
-    const byte = utf8Bytes[i];
-    // XOR with the current byte, then use lookup table for next step
-    crc = (crc >>> 8) ^ crcTable[(crc & 0xff) ^ byte];
-  }
-
-  return crc; // No final XOR (as per Candid spec)
-}
-
 /**
  * Creates a lookup map from an array of string field names.
- * Each string name is converted to its CRC32 hash (as BigInt) and used as the key.
+ * Each string name is converted to its hash and used as the key.
  * @param names An array of string field names.
- * @returns A Map where keys are CRC32 hashes (BigInt) and values are the original field names.
+ * @returns A Record where keys are hashes and values are the original field names.
  */
-export function createFieldNameLookup(names: string[]): Map<bigint, string> {
-  const lookupMap = new Map<bigint, string>();
+export function createNameLookup(names: string[]): Record<number, string> {
+  const map: Record<number, string> = {};
   for (const name of names) {
-    // Compute CRC32 and convert to BigInt for consistent key type with decoded IDs
-    const crc32Id = BigInt(computeCrc32(name) >>> 0); // Use >>> 0 to ensure unsigned 32-bit number
-    if (lookupMap.has(crc32Id)) {
-      const old = lookupMap.get(crc32Id);
-      lookupMap.set(crc32Id, old + "|" + name);
+    const hash = fieldHash(name);
+    if (map[hash]) {
+      map[hash] += `|${name}`;
     } else {
-      lookupMap.set(crc32Id, name);
+      map[hash] = name;
     }
   }
-  return lookupMap;
+  return map;
+}
+
+function fieldHash(name: string): number {
+  const utf8 = new TextEncoder().encode(name);
+  const p = 223;
+  const mod = 2 ** 32;
+
+  let hash = 0;
+  const k = utf8.length - 1;
+
+  for (let i = 0; i < utf8.length; i++) {
+    hash += utf8[i] * Math.pow(p, k - i);
+    hash = hash >>> 0; // keep as 32-bit unsigned int after each addition
+  }
+
+  return hash >>> 0;
 }
 
 /**
@@ -362,7 +336,7 @@ export function createFieldNameLookup(names: string[]): Map<bigint, string> {
  */
 export function decodeCandid(
   buffer: Uint8Array,
-  fieldNamesMap?: Map<bigint, string>,
+  fieldNamesMap?: Record<number, string>,
 ): DecodeResult {
   const reader = new ByteReader(buffer);
   let decodedData: any = null;
@@ -558,7 +532,7 @@ function decodeValue(
   reader: ByteReader,
   typeOrIndex: bigint,
   typeTable: CandidTypeDefinition[],
-  fieldNamesMap?: Map<bigint, string>,
+  fieldNamesMap?: Record<number, string>,
 ): any {
   let currentTypeTag: number;
   let typeDef: CandidTypeDefinition | undefined;
@@ -687,7 +661,7 @@ function decodeValue(
       for (const field of recordDef.fields) {
         // Try to resolve the field name using the provided map, fallback to _ID format
         const fieldKey =
-          fieldNamesMap?.get(field.id) || `_${field.id.toString()}`;
+          fieldNamesMap?.[Number(field.id)] || `_${field.id.toString()}`;
         record[fieldKey] = decodeValue(
           reader,
           field.typeIdx,
@@ -714,7 +688,7 @@ function decodeValue(
       );
       // Try to resolve the option name using the provided map, fallback to _ID format
       const optionKey =
-        fieldNamesMap?.get(selectedOption.id) ||
+        fieldNamesMap?.[Number(selectedOption.id)] ||
         `_${selectedOption.id.toString()}`;
       return { [optionKey]: variantValue }; // Return a single-key object for the variant
     case CandidTypeTag.Func:

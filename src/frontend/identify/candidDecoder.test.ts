@@ -1,4 +1,4 @@
-import { decodeCandid, DecodeResult } from "./candidDecoder";
+import { createNameLookup, decodeCandid } from "./candidDecoder";
 
 const raw = String.raw;
 
@@ -24,6 +24,21 @@ function fromEscapedString(str: string): Uint8Array {
   });
   return new Uint8Array(bytes);
 }
+
+const lookupTable = createNameLookup([
+  "",
+  "Ok",
+  "Err",
+  "foo",
+  "bar",
+  "baz",
+  "qux",
+  "quux",
+  "corge",
+  "head",
+  "tail",
+]);
+console.log("Lookup table:", lookupTable);
 
 describe("prim.test.did", () => {
   test("fundamentally wrong", () => {
@@ -334,6 +349,32 @@ describe("prim.test.did", () => {
       ),
     ).toEqual({
       ok: [null, true, 42n, 42n, null, null, null, 42, 42, 42],
+    });
+  });
+});
+
+describe("construct.test.did", () => {
+  // TODO add other tests from construct.test.did
+  test("record", () => {
+    // assert blob "DIDL\02\6e\01\6c\02\a0\d2\ac\a8\04\7c\90\ed\da\e7\04\00\01\00\01\01\01\02\01\03\01\04\00"
+    //             == "(opt record { head = 1; tail = opt record { head = 2; tail = opt record { head = 3; tail = opt record { head = 4; tail = null }}}})" : (List) "record: list";
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\02\6e\01\6c\02\a0\d2\ac\a8\04\7c\90\ed\da\e7\04\00\01\00\01\01\01\02\01\03\01\04\00`,
+        ),
+        lookupTable,
+      ),
+    ).toEqual({
+      ok: [
+        {
+          head: 1n,
+          tail: {
+            head: 2n,
+            tail: { head: 3n, tail: { head: 4n, tail: null } },
+          },
+        },
+      ],
     });
   });
 });
