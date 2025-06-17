@@ -301,6 +301,10 @@ export function createNameLookup(names: string[]): Record<number, string> {
     const hash = fieldHash(name);
     if (map[hash]) {
       map[hash] += `|${name}`;
+      console.warn(
+        "Hash collision or duplicate between field names:",
+        map[hash],
+      );
     } else {
       map[hash] = name;
     }

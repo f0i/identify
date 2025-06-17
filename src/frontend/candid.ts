@@ -2,7 +2,7 @@
 // Import the decodeCandid function from candidDecoder.ts.
 // Make sure candidDecoder.ts is in the same directory or accessible via this path.
 import {
-  createFieldNameLookup,
+  createNameLookup,
   decodeCandid,
   DecodeResult,
 } from "./identify/candidDecoder"; // No .js extension needed for TS imports
@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       decodedResult = decodeCandid(
         bytes,
-        createFieldNameLookup([
+        createNameLookup([
           "foo",
           "bar",
           "baz",
@@ -127,6 +127,20 @@ document.addEventListener("DOMContentLoaded", () => {
           "principal",
           "transaction",
           "signature",
+          "publicKey",
+          "expiration",
+          "targets",
+          "delegations",
+          "head",
+          "tail",
+          "next",
+          "previous",
+          "value",
+          "data",
+          "error",
+          "result",
+          "status",
+          "message",
         ]),
       );
       displayResult(decodedResult);
@@ -138,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
       decodedResult = {
         error: {
           msg: `An unexpected JavaScript error occurred in the UI: ${error}`,
-          index: null,
+          index: 0,
         },
       };
       displayResult(decodedResult);
