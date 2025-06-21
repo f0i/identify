@@ -22,10 +22,13 @@ export function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
       const { targets, ...delegation } = d.delegation;
 
       if (targets.length > 0)
-        return { ...d, delegation: { ...delegation, targets: targets[0] } };
-      else return { ...d, delegation };
+        return {
+          ...d,
+          delegation: { ...delegation, targets: targets[0] },
+        } as DelegationUnwrapped;
+      else return { ...d, delegation } as DelegationUnwrapped;
     }),
-  };
+  } as AuthResponseUnwrapped;
 }
 
 export function wrapOpt(val?: any): [] | [any] {
@@ -70,3 +73,14 @@ export function delegationToJsonRPC(delegation: DelegationUnwrapped): {
     signature: base64encode(delegation.signature),
   };
 }
+
+export const JSONstringify = (obj: any, indent?: number): string => {
+  return JSON.stringify(obj, jsonBigintReplacer, indent);
+};
+
+export const jsonBigintReplacer = (key: string, value: any): any => {
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+  return value;
+};

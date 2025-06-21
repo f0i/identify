@@ -1,4 +1,5 @@
 import { createNameLookup, decodeCandid } from "./candidDecoder";
+import { Principal } from "@dfinity/principal";
 
 const raw = String.raw;
 
@@ -25,6 +26,17 @@ function fromEscapedString(str: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
+function fromHexString(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0) {
+    throw new Error("Hex string must have an even length");
+  }
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+
 const lookupTable = createNameLookup([
   "",
   "Ok",
@@ -32,13 +44,37 @@ const lookupTable = createNameLookup([
   "foo",
   "bar",
   "baz",
-  "qux",
-  "quux",
-  "corge",
   "head",
   "tail",
+  "method",
+  "params",
+  "canisterId",
+  "sender",
+  "arg",
+  "from_subaccount",
+  "to",
+  "owner",
+  "memo",
+  "amount",
+  "fee",
+  "subaccount",
+  "created_at_time",
 ]);
 console.log("Lookup table:", lookupTable);
+
+describe("candidDecoder", () => {
+  test("icrc1_transfer", () => {
+    // test 4449444c066d7b6e006c02b3b0dac30368ad86ca8305016e7d6e786c06fbca0102c6fcb60203ba89e5c20401a2de94eb060182f3f3910c04d8a38ca80d7d0105011d5dd64083ce6039cdece839138afec5067f510c748f4faae09a5b011a020000000000808080f5ddb8ebe4b56c
+    expect(
+      decodeCandid(
+        fromHexString(
+          "4449444c066d7b6e006c02b3b0dac30368ad86ca8305016e7d6e786c06fbca0102c6fcb60203ba89e5c20401a2de94eb060182f3f3910c04d8a38ca80d7d0105011d5dd64083ce6039cdece839138afec5067f510c748f4faae09a5b011a020000000000808080f5ddb8ebe4b56c",
+        ),
+        lookupTable,
+      ),
+    ).toEqual({ ok: {} });
+  });
+});
 
 describe("prim.test.did", () => {
   test("fundamentally wrong", () => {
@@ -376,5 +412,153 @@ describe("construct.test.did", () => {
         },
       ],
     });
+  });
+});
+
+// Helper to create a Principal for expected values.
+const principal = Principal.fromHex("01");
+
+describe("reference.test.did", () => {
+  test("reference types: opt", () => {
+    // assert blob "DIDL\01\6e\00" == "(null)" : (opt nat);
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\00`))).toEqual({
+      ok: [[]],
+    });
+    // assert blob "DIDL\01\6e\01\2a" == "(opt 42)" : (opt nat);
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\01\2a`))).toEqual({
+      ok: [[42n]],
+    });
+    // assert blob "DIDL\01\6e\01" !: (opt nat) "opt nat: too short";
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\01`))).toHaveProperty(
+      "error",
+    );
+    // assert blob "DIDL\01\6e\02\2a" !: (opt nat) "opt nat: invalid tag";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6e\02\2a`)),
+    ).toHaveProperty("error");
+  });
+
+  test("reference types: vec", () => {
+    // assert blob "DIDL\01\6d\7c\00" == "(vec {})" : (vec int);
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\00`))).toEqual({
+      ok: [[]],
+    });
+    // assert blob "DIDL\01\6d\7c\03\01\02\03" == "(vec {1; 2; 3})" : (vec int);
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\03\01\02\03`)),
+    ).toEqual({ ok: [[1n, 2n, 3n]] });
+    // assert blob "DIDL\01\6d\7c\83\00\01\02\03" == "(vec {1; 2; 3})" : (vec int) "vec int: overlong length";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\83\00\01\02\03`)),
+    ).toEqual({ ok: [[1n, 2n, 3n]] });
+    // assert blob "DIDL\01\6d\7c" !: (vec int) "vec int: too short";
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c`))).toHaveProperty(
+      "error",
+    );
+    // assert blob "DIDL\01\6d\7c\03\01\02" !: (vec int) "vec int: too short content";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\03\01\02`)),
+    ).toHaveProperty("error");
+  });
+
+  test("reference types: record", () => {
+    // assert blob "DIDL\01\6c\00\00" == "(record {})" : (record {});
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6c\00\00`))).toEqual({
+      ok: [{}],
+    });
+    // assert blob "DIDL\01\6c\02\01\7d\02\7c\2a\2a" == "(record { 42; 42 })" : (record { nat; int });
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6c\02\01\7d\02\7c\2a\2a`)),
+    ).toEqual({ ok: [{ "1": 42n, "2": -21n }] });
+    // assert blob "DIDL\01\6c\02\d4\e2\98\02\7c\f0\ddd\01\7d\2a" == "(record { _42_ = 42; _43_ = 43 })" : (record { _42_ : nat; _43_ : int });
+    const recordResult = decodeCandid(
+      fromEscapedString(raw`DIDL\01\6c\02\d4\e2\98\02\7c\f0\ddd\01\7d\2a`),
+    );
+    expect(recordResult).toHaveProperty("ok");
+    // assert blob "DIDL\01\6c\01\01\7c\01" == "(record { 1 })" : (record { int });
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6c\01\01\7c\01`)),
+    ).toEqual({ ok: [{ "1": 1n }] });
+  });
+
+  test("reference types: variant", () => {
+    // assert blob "DIDL\01\6b\01\00\7c\2a" == "(variant { 0 = 42 })" : (variant { int });
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\00\7c\2a`)),
+    ).toEqual({ ok: [{ "0": 42n }] });
+    // assert blob "DIDL\01\6b\01\f0\ddd\01\7d\2a" == "(variant { _42_ = 42 })" : (variant { _42_ : nat });
+    const variantResult = decodeCandid(
+      fromEscapedString(raw`DIDL\01\6b\01\f0\ddd\01\7d\2a`),
+    );
+    expect(variantResult).toHaveProperty("ok");
+    // assert blob "DIDL\01\6b\01\00\7c" !: (variant { int }) "variant: too short";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\00\7c`)),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\01\6b\01\01\7c\2a" !: (variant { int }) "variant: invalid tag";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\01\7c\2a`)),
+    ).toHaveProperty("error");
+  });
+
+  test("reference types: func", () => {
+    // assert blob "DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01" == "(func \"aaaaa-aa\")" : (func () -> ());
+    expect(
+      decodeCandid(
+        fromEscapedString(raw`DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01`),
+      ),
+    ).toEqual({ ok: [[principal, ""]] });
+    // assert blob "DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01\04_az_" == "(func \"_az_\")" : (func () -> ());
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01\04_az_`,
+        ),
+      ),
+    ).toEqual({ ok: [[principal, "_az_"]] });
+    // assert blob "DIDL\01\6a\00" !: (func () -> ());
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6a\00`))).toHaveProperty(
+      "error",
+    );
+  });
+
+  test("reference types: service", () => {
+    // assert blob "DIDL\01\69\01\0a\00\00\00\00\00\00\00\01\01" == "(service \"aaaaa-aa\")" : (service {});
+    expect(
+      decodeCandid(
+        fromEscapedString(raw`DIDL\01\69\01\0a\00\00\00\00\00\00\00\01\01`),
+      ),
+    ).toEqual({ ok: [principal] });
+    // assert blob "DIDL\01\69\00" !: (service {});
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\69\00`))).toHaveProperty(
+      "error",
+    );
+  });
+
+  test("subtyping", () => {
+    // assert blob "DIDL\00\01\7f" == "(null)" : (opt nat) "subtyping null";
+    expect(decodeCandid(fromEscapedString(raw`DIDL\00\01\7f`))).toEqual({
+      ok: [[]],
+    });
+    // assert blob "DIDL\01\6e\00" == "(null)" : (opt nat) "subtyping opt empty";
+    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\00`))).toEqual({
+      ok: [[]],
+    });
+    // assert blob "DIDL\01\6c\02\01\7d\02\7c\2a\2a" == "(record { 42; 42 })" : (record { int; nat }) "subtyping record";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6c\02\01\7d\02\7c\2a\2a`)),
+    ).toEqual({ ok: [{ "1": 42n, "2": -21n }] });
+    // assert blob "DIDL\01\6b\01\00\7c\2a" == "(variant { 0 = 42 })" : (variant { nat; int }) "subtyping variant";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\00\7c\2a`)),
+    ).toEqual({ ok: [{ "0": 42n }] });
+  });
+
+  test("recursive types", () => {
+    // assert blob "DIDL\02\6e\00\01\00" == "(null)" : (t) where t = opt t;
+    const recursiveResult = decodeCandid(
+      fromEscapedString(raw`DIDL\02\6e\00\01\00`),
+    );
+    expect(recursiveResult).toEqual({ ok: [[]] });
   });
 });

@@ -1,4 +1,5 @@
 // candidDecoder.ts
+import { uint8ArrayToHex } from "./utils";
 
 /**
  * Custom error class for Candid decoding issues.
@@ -59,6 +60,7 @@ class ByteReader {
       );
     }
     const byte = this.buffer[this.offset];
+    console.log(`Read byte: ${byte} at offset: ${this.offset}`);
     this.offset++;
     return byte;
   }
@@ -77,6 +79,9 @@ class ByteReader {
       );
     }
     const bytes = this.buffer.slice(this.offset, this.offset + length);
+    console.log(
+      `Read ${length} bytes: ${uint8ArrayToHex(bytes)} at offset: ${this.offset}`,
+    );
     this.offset += length;
     return bytes;
   }
@@ -364,10 +369,14 @@ export function decodeCandid(
     // --- 2. Parse Type Table ---
     // This section defines all custom (composite) types used in the message.
     const numberOfTypes = reader.readULEB128();
+    console.log("Number of types in type table:", numberOfTypes);
     for (let i = 0; i < numberOfTypes; i++) {
       const currentParseOffset = reader.getCurrentOffset(); // Keep track for error reporting
       const typeCode = reader.readSLEB128(); // Reads the type tag for the current type definition
       let typeDef: CandidTypeDefinition;
+      console.log(
+        `Parsing type ${i} with code: ${typeCode} at offset ${currentParseOffset}`,
+      );
 
       switch (Number(typeCode)) {
         case CandidTypeTag.Opt:
@@ -556,6 +565,13 @@ function decodeValue(
     currentTypeTag = Number(typeOrIndex); // It's a primitive type tag
   }
 
+  console.log(
+    "Decoding value with type tag:",
+    currentTypeTag,
+    "at offset:",
+    reader.getCurrentOffset(),
+  );
+
   switch (currentTypeTag) {
     case CandidTypeTag.Null:
       return null;
@@ -666,11 +682,26 @@ function decodeValue(
         // Try to resolve the field name using the provided map, fallback to _ID format
         const fieldKey =
           fieldNamesMap?.[Number(field.id)] || `_${field.id.toString()}`;
+        console.log(
+          "found field:",
+          fieldKey,
+          "at offset:",
+          reader.getCurrentOffset(),
+          "next byte:",
+        );
         record[fieldKey] = decodeValue(
           reader,
           field.typeIdx,
           typeTable,
           fieldNamesMap,
+        );
+        console.log(
+          "decoded field:",
+          fieldKey,
+          "with value:",
+          record[fieldKey],
+          "at offset:",
+          reader.getCurrentOffset(),
         );
       }
       return record;
