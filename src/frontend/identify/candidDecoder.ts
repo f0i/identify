@@ -61,7 +61,6 @@ class ByteReader {
       );
     }
     const byte = this.buffer[this.offset];
-    console.log(`Read byte: ${byte} at offset: ${this.offset}`);
     this.offset++;
     return byte;
   }
@@ -80,9 +79,6 @@ class ByteReader {
       );
     }
     const bytes = this.buffer.slice(this.offset, this.offset + length);
-    console.log(
-      `Read ${length} bytes: ${uint8ArrayToHex(bytes)} at offset: ${this.offset}`,
-    );
     this.offset += length;
     return bytes;
   }
@@ -283,7 +279,7 @@ interface FuncTypeDefinition extends CandidTypeDefinition {
   tag: CandidTypeTag.Func;
   argTypeIdxs: bigint[]; // Type indices of function arguments
   retTypeIdxs: bigint[]; // Type indices of function return values
-  modes: string[]; // e.g., ['query'], ['oneway'], ['update']
+  modes: string[]; // e.g., ['query'], ['oneway']
 }
 
 /**
@@ -370,14 +366,10 @@ export function decodeCandid(
     // --- 2. Parse Type Table ---
     // This section defines all custom (composite) types used in the message.
     const numberOfTypes = reader.readULEB128();
-    console.log("Number of types in type table:", numberOfTypes);
     for (let i = 0; i < numberOfTypes; i++) {
       const currentParseOffset = reader.getCurrentOffset(); // Keep track for error reporting
       const typeCode = reader.readSLEB128(); // Reads the type tag for the current type definition
       let typeDef: CandidTypeDefinition;
-      console.log(
-        `Parsing type ${i} with code: ${typeCode} at offset ${currentParseOffset}`,
-      );
 
       switch (Number(typeCode)) {
         case CandidTypeTag.Opt:
@@ -437,13 +429,12 @@ export function decodeCandid(
           const funcModes: string[] = [];
           for (let j = 0; j < numFuncModes; j++) {
             const modeByte = reader.readByte();
-            // 0: query, 1: oneway, 2: update
+            // 1: oneway, 2: query
             if (modeByte === 1) funcModes.push("oneway");
-            else if (modeByte === 2)
-              funcModes.push("query"); // Note: query is 2 in some versions
+            else if (modeByte === 2) funcModes.push("query");
             else
               throw new CandidError(
-                `Invalid function mode byte: ${modeByte}.`,
+                `Invalid function mode byte: ${modeByte}. Expected 1 or 2.`,
                 reader.getCurrentOffset() - 1,
               );
           }
@@ -469,10 +460,8 @@ export function decodeCandid(
           } as ServiceTypeDefinition;
           break;
         default:
-          // If it's a primitive type tag here, it's unexpected, as only composite types are defined in the type table.
-          // Primitive type definitions are handled directly during value decoding.
           throw new CandidError(
-            `Unexpected primitive type code (${typeCode}) in type table definition at index ${i}. Type table should define composite types.`,
+            `Unexpected type code (${typeCode}) in type table definition at index ${i}.`,
             currentParseOffset,
           );
       }
@@ -480,15 +469,26 @@ export function decodeCandid(
     }
 
     // --- 3. Parse Message Argument Types ---
-    // This section specifies the types of the values that follow.
     const numberOfArgTypes = reader.readULEB128();
     const argTypeIndices: bigint[] = [];
     for (let i = 0; i < numberOfArgTypes; i++) {
-      argTypeIndices.push(reader.readSLEB128()); // These can be primitive tags or type table indices
+      const typeIdx = reader.readSLEB128();
+      const typeCode = Number(typeIdx);
+
+      // Reference types cannot be used directly as arguments.
+      if (
+        typeCode === CandidTypeTag.Service ||
+        typeCode === CandidTypeTag.Func
+      ) {
+        throw new CandidError(
+          `Reference type ${typeCode} cannot be used directly as an argument. It must be in the type table.`,
+          reader.getCurrentOffset() - 1,
+        );
+      }
+      argTypeIndices.push(typeIdx);
     }
 
     // --- 4. Decode Values ---
-    // Decode the actual message values based on the argument types.
     const decodedValues: any[] = [];
     for (let i = 0; i < argTypeIndices.length; i++) {
       const typeOrIndex = argTypeIndices[i];
@@ -505,8 +505,7 @@ export function decodeCandid(
       );
     }
 
-    // If there's only one value, return it directly; otherwise, return an array.
-    decodedData = decodedValues; // decodedValues.length === 1 ? decodedValues[0] : decodedValues;
+    decodedData = decodedValues;
     return { ok: decodedData };
   } catch (e) {
     // Centralized error handling
@@ -520,8 +519,6 @@ export function decodeCandid(
       errorMsg = "An unknown error occurred during decoding.";
       errorIdx = reader.getCurrentOffset();
     }
-    // If an error occurs, decodedData might be null or contain partial data.
-    // If it's null, we omit it as per the 'data?:' in the error type.
     return {
       error: {
         msg: errorMsg,
@@ -534,7 +531,6 @@ export function decodeCandid(
 
 /**
  * Helper function to decode a principal value from the byte stream.
- * A principal value is encoded as: (tag=1, len:uleb128, bytes)
  * @param reader The ByteReader instance.
  * @returns The decoded Principal object.
  */
@@ -559,13 +555,6 @@ function decodePrincipalValue(reader: ByteReader): Principal {
 
 /**
  * Recursively decodes a Candid value based on its type tag or type table index.
- * @param reader The ByteReader instance to read from.
- * @param typeOrIndex The CandidTypeTag (for primitive) or index into the typeTable (for composite).
- * @param typeTable The parsed type definitions from the Candid header.
- * @param fieldNamesMap Optional map of field IDs (bigint) to human-readable names (string).
- * Used to resolve numeric field IDs in records/variants to actual names.
- * @returns The decoded JavaScript value.
- * @throws CandidError if an unsupported type is encountered or decoding fails.
  */
 function decodeValue(
   reader: ByteReader,
@@ -576,8 +565,6 @@ function decodeValue(
   let currentTypeTag: number;
   let typeDef: CandidTypeDefinition | undefined;
 
-  // Resolve type if it's a positive index into the type table.
-  // Negative values are primitive type tags.
   if (typeOrIndex >= 0) {
     if (typeOrIndex >= typeTable.length) {
       throw new CandidError(
@@ -588,15 +575,8 @@ function decodeValue(
     typeDef = typeTable[Number(typeOrIndex)];
     currentTypeTag = Number(typeDef.tag);
   } else {
-    currentTypeTag = Number(typeOrIndex); // It's a primitive type tag
+    currentTypeTag = Number(typeOrIndex);
   }
-
-  console.log(
-    "Decoding value with type tag:",
-    currentTypeTag,
-    "at offset:",
-    reader.getCurrentOffset(),
-  );
 
   switch (currentTypeTag) {
     case CandidTypeTag.Null:
@@ -610,55 +590,48 @@ function decodeValue(
         reader.getCurrentOffset() - 1,
       );
     case CandidTypeTag.Nat:
-      // Convert BigInt to string for JSON serialization compatibility
       return reader.readULEB128();
     case CandidTypeTag.Int:
-      // Convert BigInt to string for JSON serialization compatibility
       return reader.readSLEB128();
     case CandidTypeTag.Nat8:
       return reader.readByte();
     case CandidTypeTag.Nat16:
-      return Number(reader.readLittleEndian(2, false)); // Max 65535, fits JS number
+      return Number(reader.readLittleEndian(2, false));
     case CandidTypeTag.Nat32:
-      return Number(reader.readLittleEndian(4, false)); // Max ~4.29e9, fits JS number
+      return Number(reader.readLittleEndian(4, false));
     case CandidTypeTag.Nat64:
-      // Convert BigInt to string for JSON serialization compatibility
       return reader.readLittleEndian(8, false);
     case CandidTypeTag.Int8:
-      return Number(reader.readLittleEndian(1, true)); // -128 to 127, fits JS number
+      return Number(reader.readLittleEndian(1, true));
     case CandidTypeTag.Int16:
-      return Number(reader.readLittleEndian(2, true)); // -32768 to 32767, fits JS number
+      return Number(reader.readLittleEndian(2, true));
     case CandidTypeTag.Int32:
-      return Number(reader.readLittleEndian(4, true)); // Fits JS number
+      return Number(reader.readLittleEndian(4, true));
     case CandidTypeTag.Int64:
-      // Convert BigInt to string for JSON serialization compatibility
       return reader.readLittleEndian(8, true);
     case CandidTypeTag.Float32:
       return reader.readFloat(4);
     case CandidTypeTag.Float64:
       return reader.readFloat(8);
     case CandidTypeTag.Text:
-      const textLength = Number(reader.readULEB128()); // Length of UTF-8 encoded string
+      const textLength = Number(reader.readULEB128());
       return reader.readUtf8String(textLength);
     case CandidTypeTag.Reserved:
-      return null; // The 'reserved' type deserializes to null.
+      return null;
     case CandidTypeTag.Empty:
-      // The 'empty' type has no encoded form in values. Encountering it here indicates an error in the binary format.
       throw new CandidError(
         "Attempted to decode 'empty' type as a value. This type has no encoded form.",
         reader.getCurrentOffset(),
       );
     case CandidTypeTag.Principal:
     case CandidTypeTag.Service:
-      // A Service value is encoded as a Principal value
       return decodePrincipalValue(reader);
     case CandidTypeTag.Opt: {
       const optDef = typeDef as OptTypeDefinition;
-      const presentByte = reader.readByte(); // 0 for null, 1 for present
+      const presentByte = reader.readByte();
       if (presentByte === 0) {
         return [];
       } else if (presentByte === 1) {
-        // Recursively decode the inner value using its type index from the type definition
         return [
           decodeValue(reader, optDef.innerTypeIdx, typeTable, fieldNamesMap),
         ];
@@ -671,10 +644,9 @@ function decodeValue(
     }
     case CandidTypeTag.Vec: {
       const vecDef = typeDef as VecTypeDefinition;
-      const vectorLength = Number(reader.readULEB128()); // Number of elements in the vector
+      const vectorLength = Number(reader.readULEB128());
       const elements: any[] = [];
       for (let i = 0; i < vectorLength; i++) {
-        // Recursively decode each element using its type index from the type definition
         elements.push(
           decodeValue(reader, vecDef.elementTypeIdx, typeTable, fieldNamesMap),
         );
@@ -684,38 +656,21 @@ function decodeValue(
     case CandidTypeTag.Record: {
       const recordDef = typeDef as RecordTypeDefinition;
       const record: { [key: string]: any } = {};
-      // Iterate through fields in canonical order (sorted by ID)
       for (const field of recordDef.fields) {
-        // Try to resolve the field name using the provided map, fallback to _ID format
         const fieldKey =
           fieldNamesMap?.[Number(field.id)] || `_${field.id.toString()}`;
-        console.log(
-          "found field:",
-          fieldKey,
-          "at offset:",
-          reader.getCurrentOffset(),
-          "next byte:",
-        );
         record[fieldKey] = decodeValue(
           reader,
           field.typeIdx,
           typeTable,
           fieldNamesMap,
         );
-        console.log(
-          "decoded field:",
-          fieldKey,
-          "with value:",
-          record[fieldKey],
-          "at offset:",
-          reader.getCurrentOffset(),
-        );
       }
       return record;
     }
     case CandidTypeTag.Variant: {
       const variantDef = typeDef as VariantTypeDefinition;
-      const variantIdx = Number(reader.readULEB128()); // Index of the chosen option within the variant's definition
+      const variantIdx = Number(reader.readULEB128());
       if (variantIdx >= variantDef.options.length) {
         throw new CandidError(
           `Variant option index ${variantIdx} out of bounds. Variant has ${variantDef.options.length} options.`,
@@ -729,11 +684,10 @@ function decodeValue(
         typeTable,
         fieldNamesMap,
       );
-      // Try to resolve the option name using the provided map, fallback to _ID format
       const optionKey =
         fieldNamesMap?.[Number(selectedOption.id)] ||
         `_${selectedOption.id.toString()}`;
-      return { [optionKey]: variantValue }; // Return a single-key object for the variant
+      return { [optionKey]: variantValue };
     }
     case CandidTypeTag.Func: {
       const funcTag = reader.readByte();
@@ -748,7 +702,6 @@ function decodeValue(
       const funcMethodName = reader.readUtf8String(funcMethodNameLen);
       return [principal, funcMethodName];
     }
-
     default:
       throw new CandidError(
         `Unsupported or unknown Candid type tag: ${currentTypeTag} (resolved from index ${typeOrIndex}).`,
