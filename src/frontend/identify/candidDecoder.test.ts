@@ -415,150 +415,186 @@ describe("construct.test.did", () => {
   });
 });
 
-// Helper to create a Principal for expected values.
-const principal = Principal.fromHex("01");
-
 describe("reference.test.did", () => {
-  test("reference types: opt", () => {
-    // assert blob "DIDL\01\6e\00" == "(null)" : (opt nat);
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\00`))).toEqual({
-      ok: [[]],
+  test("principal", () => {
+    // assert blob "DIDL\00\01\68\01\00" == "(principal \"aaaaa-aa\")" : (principal) "principal: ic0";
+    expect(decodeCandid(fromEscapedString(raw`DIDL\00\01\68\01\00`))).toEqual({
+      ok: [Principal.fromText("aaaaa-aa")],
     });
-    // assert blob "DIDL\01\6e\01\2a" == "(opt 42)" : (opt nat);
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\01\2a`))).toEqual({
-      ok: [[42n]],
-    });
-    // assert blob "DIDL\01\6e\01" !: (opt nat) "opt nat: too short";
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\01`))).toHaveProperty(
-      "error",
-    );
-    // assert blob "DIDL\01\6e\02\2a" !: (opt nat) "opt nat: invalid tag";
+    // assert blob "DIDL\00\01\68\01\03\ca\ff\ee" == "(principal \"w7x7r-cok77-xa\")" : (principal) "principal";
     expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6e\02\2a`)),
-    ).toHaveProperty("error");
-  });
-
-  test("reference types: vec", () => {
-    // assert blob "DIDL\01\6d\7c\00" == "(vec {})" : (vec int);
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\00`))).toEqual({
-      ok: [[]],
-    });
-    // assert blob "DIDL\01\6d\7c\03\01\02\03" == "(vec {1; 2; 3})" : (vec int);
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\03\01\02\03`)),
-    ).toEqual({ ok: [[1n, 2n, 3n]] });
-    // assert blob "DIDL\01\6d\7c\83\00\01\02\03" == "(vec {1; 2; 3})" : (vec int) "vec int: overlong length";
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\83\00\01\02\03`)),
-    ).toEqual({ ok: [[1n, 2n, 3n]] });
-    // assert blob "DIDL\01\6d\7c" !: (vec int) "vec int: too short";
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c`))).toHaveProperty(
-      "error",
-    );
-    // assert blob "DIDL\01\6d\7c\03\01\02" !: (vec int) "vec int: too short content";
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6d\7c\03\01\02`)),
-    ).toHaveProperty("error");
-  });
-
-  test("reference types: record", () => {
-    // assert blob "DIDL\01\6c\00\00" == "(record {})" : (record {});
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6c\00\00`))).toEqual({
-      ok: [{}],
-    });
-    // assert blob "DIDL\01\6c\02\01\7d\02\7c\2a\2a" == "(record { 42; 42 })" : (record { nat; int });
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6c\02\01\7d\02\7c\2a\2a`)),
-    ).toEqual({ ok: [{ "1": 42n, "2": -21n }] });
-    // assert blob "DIDL\01\6c\02\d4\e2\98\02\7c\f0\ddd\01\7d\2a" == "(record { _42_ = 42; _43_ = 43 })" : (record { _42_ : nat; _43_ : int });
-    const recordResult = decodeCandid(
-      fromEscapedString(raw`DIDL\01\6c\02\d4\e2\98\02\7c\f0\ddd\01\7d\2a`),
-    );
-    expect(recordResult).toHaveProperty("ok");
-    // assert blob "DIDL\01\6c\01\01\7c\01" == "(record { 1 })" : (record { int });
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6c\01\01\7c\01`)),
-    ).toEqual({ ok: [{ "1": 1n }] });
-  });
-
-  test("reference types: variant", () => {
-    // assert blob "DIDL\01\6b\01\00\7c\2a" == "(variant { 0 = 42 })" : (variant { int });
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\00\7c\2a`)),
-    ).toEqual({ ok: [{ "0": 42n }] });
-    // assert blob "DIDL\01\6b\01\f0\ddd\01\7d\2a" == "(variant { _42_ = 42 })" : (variant { _42_ : nat });
-    const variantResult = decodeCandid(
-      fromEscapedString(raw`DIDL\01\6b\01\f0\ddd\01\7d\2a`),
-    );
-    expect(variantResult).toHaveProperty("ok");
-    // assert blob "DIDL\01\6b\01\00\7c" !: (variant { int }) "variant: too short";
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\00\7c`)),
-    ).toHaveProperty("error");
-    // assert blob "DIDL\01\6b\01\01\7c\2a" !: (variant { int }) "variant: invalid tag";
-    expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\01\7c\2a`)),
-    ).toHaveProperty("error");
-  });
-
-  test("reference types: func", () => {
-    // assert blob "DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01" == "(func \"aaaaa-aa\")" : (func () -> ());
+      decodeCandid(fromEscapedString(raw`DIDL\00\01\68\01\03\ca\ff\ee`)),
+    ).toEqual({ ok: [Principal.fromText("w7x7r-cok77-xa")] });
+    // assert blob "DIDL\00\01\68\01\09\ef\cd\ab\00\00\00\00\00\01" == "(principal \"2chl6-4hpzw-vqaaa-aaaaa-c\")" : (principal) "principal";
     expect(
       decodeCandid(
-        fromEscapedString(raw`DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01`),
+        fromEscapedString(raw`DIDL\00\01\68\01\09\ef\cd\ab\00\00\00\00\00\01`),
       ),
-    ).toEqual({ ok: [[principal, ""]] });
-    // assert blob "DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01\04_az_" == "(func \"_az_\")" : (func () -> ());
+    ).toEqual({ ok: [Principal.fromText("2chl6-4hpzw-vqaaa-aaaaa-c")] });
+    // assert blob "DIDL\00\01\68\03\ca\ff\ee" !: (principal) "principal: no tag";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\00\01\68\03\ca\ff\ee`)),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\00\01\68\01\03\ca\ff" !: (principal) "principal: too short";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\00\01\68\01\03\ca\ff`)),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\00\01\68\01\03\ca\ff\ee\ee" !: (principal) "principal: too long";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\00\01\68\01\03\ca\ff\ee\ee`)),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\01\68\01\00\01\03\ca\ff\ee" !: (principal) "principal: not construct";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\68\01\00\01\03\ca\ff\ee`)),
+    ).toHaveProperty("error");
+  });
+
+  test("service", () => {
+    // assert blob "DIDL\00\01\68\01\03\ca\ff\ee" !: (service {}) "service: not principal";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\00\01\68\01\03\ca\ff\ee`)),
+    ).toHaveProperty("ok"); // Type mismatch can not be detected by this decoder
+    // assert blob "DIDL\00\01\69\01\03\ca\ff\ee" !: (service {}) "service: not primitive type";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\00\01\69\01\03\ca\ff\ee`)),
+    ).toHaveProperty("ok"); // Type mismatch can not be detected by this decoder
+    // assert blob "DIDL\01\69\00\01\00\01\03\ca\ff\ee" == "(service \"w7x7r-cok77-xa\")" : (service {}) "service";
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\69\00\01\00\01\03\ca\ff\ee`)),
+    ).toEqual({ ok: [Principal.fromText("w7x7r-cok77-xa")] });
+    // assert blob "DIDL\02\6a\01\71\01\7d\00\69\01\03foo\00\01\01\01\03\ca\ff\ee" == "(service \"w7x7r-cok77-xa\")" : (service { foo : (text) -> (nat) }) "service";
     expect(
       decodeCandid(
         fromEscapedString(
-          raw`DIDL\01\6a\01\01\0a\00\00\00\00\00\00\00\01\01\04_az_`,
+          raw`DIDL\02\6a\01\71\01\7d\00\69\01\03foo\00\01\01\01\03\ca\ff\ee`,
         ),
       ),
-    ).toEqual({ ok: [[principal, "_az_"]] });
-    // assert blob "DIDL\01\6a\00" !: (func () -> ());
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6a\00`))).toHaveProperty(
-      "error",
-    );
-  });
-
-  test("reference types: service", () => {
-    // assert blob "DIDL\01\69\01\0a\00\00\00\00\00\00\00\01\01" == "(service \"aaaaa-aa\")" : (service {});
+    ).toEqual({ ok: [Principal.fromText("w7x7r-cok77-xa")] });
+    // assert blob "DIDL\02\6a\01\71\01\7d\00\69\02\03foo\00\04foo\32\00\01\01\01\03\ca\ff\ee" !: (service { foo : (text) -> (nat); foo2 : (text) -> (nat) }) "service: too long";
     expect(
       decodeCandid(
-        fromEscapedString(raw`DIDL\01\69\01\0a\00\00\00\00\00\00\00\01\01`),
+        fromEscapedString(
+          raw`DIDL\02\6a\01\71\01\7d\00\69\03\03foo\00\04foo\32\00\01\01\01\03\ca\ff\ee`,
+        ),
       ),
-    ).toEqual({ ok: [principal] });
-    // assert blob "DIDL\01\69\00" !: (service {});
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\69\00`))).toHaveProperty(
-      "error",
-    );
+    ).toHaveProperty("error");
+    // assert blob "DIDL\02\6a\01\71\01\7d\00\69\02\04foo\32\00\03foo\00\01\01\01\03\ca\ff\ee" !: (service { foo : (text) -> (nat); foo2 : (text) -> (nat) }) "service: unsorted";
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\02\6a\01\71\01\7d\00\69\02\04foo\32\00\03foo\00\01\01\01\03\ca\ff\ee`,
+        ),
+      ),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\02\6a\01\71\01\7d\00\69\02\03foo\00\03foo\00\01\01\01\03\ca\ff\ee" !: (service { foo : (text) -> (nat) }) "service: duplicate";
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\02\6a\01\71\01\7d\00\69\02\03foo\00\03foo\00\01\01\01\03\ca\ff\ee`,
+        ),
+      ),
+    ).toHaveProperty("error");
   });
 
-  test("subtyping", () => {
-    // assert blob "DIDL\00\01\7f" == "(null)" : (opt nat) "subtyping null";
-    expect(decodeCandid(fromEscapedString(raw`DIDL\00\01\7f`))).toEqual({
-      ok: [[]],
-    });
-    // assert blob "DIDL\01\6e\00" == "(null)" : (opt nat) "subtyping opt empty";
-    expect(decodeCandid(fromEscapedString(raw`DIDL\01\6e\00`))).toEqual({
-      ok: [[]],
-    });
-    // assert blob "DIDL\01\6c\02\01\7d\02\7c\2a\2a" == "(record { 42; 42 })" : (record { int; nat }) "subtyping record";
+  test("function", () => {
+    // assert blob "DIDL\01\6a\00\00\00\01\00\01\01\03\ca\ff\ee\01\61" == "(func \"w7x7r-cok77-xa\".\"a\")" : (func () -> ());
     expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6c\02\01\7d\02\7c\2a\2a`)),
-    ).toEqual({ ok: [{ "1": 42n, "2": -21n }] });
-    // assert blob "DIDL\01\6b\01\00\7c\2a" == "(variant { 0 = 42 })" : (variant { nat; int }) "subtyping variant";
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\00\00\00\01\00\01\01\03\ca\ff\ee\01\61`,
+        ),
+      ),
+    ).toEqual({ ok: [[Principal.fromText("w7x7r-cok77-xa"), "a"]] });
+    // assert blob "DIDL\01\6a\00\00\00\01\00\01\00\03\ca\ff\ee\01\61" !: (func () -> ());
     expect(
-      decodeCandid(fromEscapedString(raw`DIDL\01\6b\01\00\7c\2a`)),
-    ).toEqual({ ok: [{ "0": 42n }] });
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\00\00\00\01\00\01\00\03\ca\ff\ee\01\61`,
+        ),
+      ),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\02j\02|}\01\01\01\01i\00\01\00\01\01\00\04\f0\9f\90\82" == "(func \"aaaaa-aa\".\"🐂\")" : (func (int,nat) -> (service {}) query);
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\02j\02|}\01\01\01\01i\00\01\00\01\01\00\04\f0\9f\90\82`,
+        ),
+      ),
+    ).toEqual({ ok: [[Principal.fromText("aaaaa-aa"), "🐂"]] });
+    // assert blob "DIDL\01\6a\01\68\01\7d\00\01\00\01\01\03\ca\ff\ee\03foo" == "(func \"w7x7r-cok77-xa\".foo)" : (func (principal) -> (nat));
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\01\68\01\7d\00\01\00\01\01\03\ca\ff\ee\03foo`,
+        ),
+      ),
+    ).toEqual({ ok: [[Principal.fromText("w7x7r-cok77-xa"), "foo"]] });
+    // assert blob "DIDL\01\6a\01\71\01\7d\01\01\01\00\01\01\03\ca\ff\ee\03foo" == "(func \"w7x7r-cok77-xa\".foo)" : (func (text) -> (nat) query);
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\01\71\01\7d\01\01\01\00\01\01\03\ca\ff\ee\03foo`,
+        ),
+      ),
+    ).toEqual({ ok: [[Principal.fromText("w7x7r-cok77-xa"), "foo"]] });
+    // assert blob "DIDL\01\6a\01\71\01\7d\01\03\01\00\01\01\03\ca\ff\ee\03foo" !: (func (text) -> (nat));
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\01\71\01\7d\01\03\01\00\01\01\03\ca\ff\ee\03foo`,
+        ),
+      ),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\00\01\6a\01\03\ca\ff\ee\01\61" !: (func () -> ());
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\00\01\6a\01\03\ca\ff\ee\01\61`)),
+    ).toHaveProperty("error");
   });
 
-  test("recursive types", () => {
-    // assert blob "DIDL\02\6e\00\01\00" == "(null)" : (t) where t = opt t;
-    const recursiveResult = decodeCandid(
-      fromEscapedString(raw`DIDL\02\6e\00\01\00`),
-    );
-    expect(recursiveResult).toEqual({ ok: [[]] });
+  test("subtype", () => {
+    // assert blob "DIDL\01\69\00\01\00\01\03\ca\ff\ee" !: (service { foo : (text) -> (nat) });
+    expect(
+      decodeCandid(fromEscapedString(raw`DIDL\01\69\00\01\00\01\03\ca\ff\ee`)),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\02\6a\01\71\01\7d\01\01\69\01\03foo\00\01\01\01\03\ca\ff\ee" !: (service { foo : (text) -> (nat) });
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\02\6a\01\71\01\7d\01\01\69\01\03foo\00\01\01\01\03\ca\ff\ee`,
+        ),
+      ),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\02\6a\01\71\01\7d\00\69\01\03foo\00\01\01\01\03\ca\ff\ee" !: (service { foo : (text) -> (nat) query });
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\02\6a\01\71\01\7d\00\69\01\03foo\00\01\01\01\03\ca\ff\ee`,
+        ),
+      ),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\02\6a\01\71\01\7d\00\69\01\03foo\00\01\01\01\03\ca\ff\ee" == "(service \"w7x7r-cok77-xa\")" : (service {});
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\02\6a\01\71\01\7d\00\69\01\03foo\00\01\01\01\03\ca\ff\ee`,
+        ),
+      ),
+    ).toEqual({ ok: [Principal.fromText("w7x7r-cok77-xa")] });
+    // assert blob "DIDL\01\6a\00\00\00\01\00\01\01\03\ca\ff\ee\03foo" !: (func (text) -> (nat));
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\00\00\00\01\00\01\01\03\ca\ff\ee\03foo`,
+        ),
+      ),
+    ).toHaveProperty("error");
+    // assert blob "DIDL\01\6a\01\71\01\7d\00\01\00\01\01\03\ca\ff\ee\03foo" == "(func \"w7x7r-cok77-xa\".foo)" : (func (text, opt text) -> ());
+    expect(
+      decodeCandid(
+        fromEscapedString(
+          raw`DIDL\01\6a\01\71\01\7d\00\01\00\01\01\03\ca\ff\ee\03foo`,
+        ),
+      ),
+    ).toEqual({ ok: [[Principal.fromText("w7x7r-cok77-xa"), "foo"]] });
   });
 });

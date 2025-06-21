@@ -1,4 +1,5 @@
 // candidDecoder.ts
+import { Principal } from "@dfinity/principal";
 import { uint8ArrayToHex } from "./utils";
 
 /**
@@ -437,12 +438,12 @@ export function decodeCandid(
           for (let j = 0; j < numFuncModes; j++) {
             const modeByte = reader.readByte();
             // 0: query, 1: oneway, 2: update
-            if (modeByte === 0) funcModes.push("query");
-            else if (modeByte === 1) funcModes.push("oneway");
-            else if (modeByte === 2) funcModes.push("update");
+            if (modeByte === 1) funcModes.push("oneway");
+            else if (modeByte === 2)
+              funcModes.push("query"); // Note: query is 2 in some versions
             else
               throw new CandidError(
-                `Invalid function mode byte: ${modeByte}. Expected 0, 1, or 2.`,
+                `Invalid function mode byte: ${modeByte}.`,
                 reader.getCurrentOffset() - 1,
               );
           }
@@ -532,6 +533,31 @@ export function decodeCandid(
 }
 
 /**
+ * Helper function to decode a principal value from the byte stream.
+ * A principal value is encoded as: (tag=1, len:uleb128, bytes)
+ * @param reader The ByteReader instance.
+ * @returns The decoded Principal object.
+ */
+function decodePrincipalValue(reader: ByteReader): Principal {
+  const principalTag = reader.readByte();
+  if (principalTag !== 0x01) {
+    throw new CandidError(
+      `Unsupported principal tag: ${principalTag}. Expected 1.`,
+      reader.getCurrentOffset() - 1,
+    );
+  }
+  const principalLen = Number(reader.readULEB128());
+  if (principalLen > 29) {
+    throw new CandidError(
+      `Invalid principal length: ${principalLen}. Must be at most 29 bytes.`,
+      reader.getCurrentOffset() - 1,
+    );
+  }
+  const bytes = reader.readBytes(principalLen);
+  return Principal.fromUint8Array(bytes);
+}
+
+/**
  * Recursively decodes a Candid value based on its type tag or type table index.
  * @param reader The ByteReader instance to read from.
  * @param typeOrIndex The CandidTypeTag (for primitive) or index into the typeTable (for composite).
@@ -604,7 +630,6 @@ function decodeValue(
       return Number(reader.readLittleEndian(2, true)); // -32768 to 32767, fits JS number
     case CandidTypeTag.Int32:
       return Number(reader.readLittleEndian(4, true)); // Fits JS number
-      return reader.readLittleEndian(4, true).toString();
     case CandidTypeTag.Int64:
       // Convert BigInt to string for JSON serialization compatibility
       return reader.readLittleEndian(8, true);
@@ -624,46 +649,27 @@ function decodeValue(
         reader.getCurrentOffset(),
       );
     case CandidTypeTag.Principal:
-      const principalLen = Number(reader.readULEB128());
-      if (principalLen === 0) {
-        // Anonymous principal (2vxsx-fae)
-        return "2vxsx-fae";
-      } else if (principalLen > 0 && principalLen <= 29) {
-        // Max length for Principal is 29 bytes
-        const bytes = reader.readBytes(principalLen);
-        // For simplicity, returning hex string. Proper Principal decoding involves CRC-32 and base32 encoding.
-        return (
-          "0x" +
-          Array.from(bytes)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("")
-        );
-      } else {
-        throw new CandidError(
-          `Invalid principal length: ${principalLen}. Must be 0 or between 1 and 29 bytes.`,
-          reader.getCurrentOffset() - 1,
-        );
-      }
-    case CandidTypeTag.Opt:
+    case CandidTypeTag.Service:
+      // A Service value is encoded as a Principal value
+      return decodePrincipalValue(reader);
+    case CandidTypeTag.Opt: {
       const optDef = typeDef as OptTypeDefinition;
       const presentByte = reader.readByte(); // 0 for null, 1 for present
       if (presentByte === 0) {
-        return null;
+        return [];
       } else if (presentByte === 1) {
         // Recursively decode the inner value using its type index from the type definition
-        return decodeValue(
-          reader,
-          optDef.innerTypeIdx,
-          typeTable,
-          fieldNamesMap,
-        );
+        return [
+          decodeValue(reader, optDef.innerTypeIdx, typeTable, fieldNamesMap),
+        ];
       } else {
         throw new CandidError(
           `Invalid option tag: ${presentByte}. Expected 0 or 1.`,
           reader.getCurrentOffset() - 1,
         );
       }
-    case CandidTypeTag.Vec:
+    }
+    case CandidTypeTag.Vec: {
       const vecDef = typeDef as VecTypeDefinition;
       const vectorLength = Number(reader.readULEB128()); // Number of elements in the vector
       const elements: any[] = [];
@@ -674,7 +680,8 @@ function decodeValue(
         );
       }
       return elements;
-    case CandidTypeTag.Record:
+    }
+    case CandidTypeTag.Record: {
       const recordDef = typeDef as RecordTypeDefinition;
       const record: { [key: string]: any } = {};
       // Iterate through fields in canonical order (sorted by ID)
@@ -705,7 +712,8 @@ function decodeValue(
         );
       }
       return record;
-    case CandidTypeTag.Variant:
+    }
+    case CandidTypeTag.Variant: {
       const variantDef = typeDef as VariantTypeDefinition;
       const variantIdx = Number(reader.readULEB128()); // Index of the chosen option within the variant's definition
       if (variantIdx >= variantDef.options.length) {
@@ -726,48 +734,20 @@ function decodeValue(
         fieldNamesMap?.[Number(selectedOption.id)] ||
         `_${selectedOption.id.toString()}`;
       return { [optionKey]: variantValue }; // Return a single-key object for the variant
-    case CandidTypeTag.Func:
-      const funcPrincipalLen = Number(reader.readULEB128());
-      let funcPrincipalId = "2vxsx-fae"; // Canonical anonymous principal ID
-      if (funcPrincipalLen > 0) {
-        if (funcPrincipalLen <= 29) {
-          const bytes = reader.readBytes(funcPrincipalLen);
-          // For simplicity, returning hex string. Proper Principal decoding involves CRC-32 and base32 encoding.
-          funcPrincipalId =
-            "0x" +
-            Array.from(bytes)
-              .map((b) => b.toString(16).padStart(2, "0"))
-              .join("");
-        } else {
-          throw new CandidError(
-            `Invalid function principal length: ${funcPrincipalLen}. Must be 0 or between 1 and 29 bytes.`,
-            reader.getCurrentOffset() - 1,
-          );
-        }
+    }
+    case CandidTypeTag.Func: {
+      const funcTag = reader.readByte();
+      if (funcTag !== 0x01) {
+        throw new CandidError(
+          `Unsupported function tag: ${funcTag}. Expected 1 for reference type.`,
+          reader.getCurrentOffset() - 1,
+        );
       }
+      const principal = decodePrincipalValue(reader);
       const funcMethodNameLen = Number(reader.readULEB128());
       const funcMethodName = reader.readUtf8String(funcMethodNameLen);
-      return { principal: funcPrincipalId, method: funcMethodName };
-    case CandidTypeTag.Service:
-      const servicePrincipalLen = Number(reader.readULEB128());
-      let servicePrincipalId = "2vxsx-fae"; // Canonical anonymous principal ID
-      if (servicePrincipalLen > 0) {
-        if (servicePrincipalLen <= 29) {
-          const bytes = reader.readBytes(servicePrincipalLen);
-          // For simplicity, returning hex string. Proper Principal decoding involves CRC-32 and base32 encoding.
-          servicePrincipalId =
-            "0x" +
-            Array.from(bytes)
-              .map((b) => b.toString(16).padStart(2, "0"))
-              .join("");
-        } else {
-          throw new CandidError(
-            `Invalid service principal length: ${servicePrincipalLen}. Must be 0 or between 1 and 29 bytes.`,
-            reader.getCurrentOffset() - 1,
-          );
-        }
-      }
-      return servicePrincipalId;
+      return [principal, funcMethodName];
+    }
 
     default:
       throw new CandidError(
