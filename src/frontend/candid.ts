@@ -5,7 +5,9 @@ import {
   createNameLookup,
   decodeCandid,
   DecodeResult,
-} from "./identify/candidDecoder"; // No .js extension needed for TS imports
+} from "./identify/candidDecoder";
+import { fieldNames } from "./identify/candidFieldNames";
+import { JSONstringify } from "./identify/utils";
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- DOM Elements for Combined Functionality ---
@@ -105,44 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
         bytes[i / 2] = byteValue;
       }
 
-      decodedResult = decodeCandid(
-        bytes,
-        createNameLookup([
-          "foo",
-          "bar",
-          "baz",
-          "name",
-          "age",
-          "isActive",
-          "balance",
-          "items",
-          "address",
-          "standard",
-          "metadata",
-          "timestamp",
-          "owner",
-          "permissions",
-          "delegation",
-          "subaccount",
-          "principal",
-          "transaction",
-          "signature",
-          "publicKey",
-          "expiration",
-          "targets",
-          "delegations",
-          "head",
-          "tail",
-          "next",
-          "previous",
-          "value",
-          "data",
-          "error",
-          "result",
-          "status",
-          "message",
-        ]),
-      );
+      decodedResult = decodeCandid(bytes, fieldNames);
       displayResult(decodedResult);
     } catch (e: any) {
       const error =
@@ -192,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const pre = document.createElement("pre");
         pre.className =
           "bg-red-50 p-4 rounded-lg mt-2 text-sm overflow-auto max-h-60 border border-red-200";
-        pre.textContent = JSON.stringify(result.error.data, null, 2);
+        pre.textContent = JSONstringify(result.error.data, 2);
         errorDiv.appendChild(pre);
       }
       resultContainer.appendChild(errorDiv);
@@ -209,7 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const pre = document.createElement("pre");
       pre.className =
         "bg-green-50 p-4 rounded-lg mt-2 text-sm overflow-auto max-h-96 border border-green-200";
-      pre.textContent = JSON.stringify(result.ok, null, 2);
+      pre.textContent = JSONstringify(result.ok, 2);
       successDiv.appendChild(pre);
       resultContainer.appendChild(successDiv);
     }
