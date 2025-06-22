@@ -267,7 +267,7 @@ actor class Main() = this {
 
   public shared query ({ caller }) func getPrincipal() : async Text {
     Stats.logBalance(stats, "getPrincipal");
-    let hasEmail = if (Map.has(emails, phash, caller)) " email set" else " no email set";
+    let hasEmail = if (Map.has(emails, phash, caller)) "\nEmail address saved" else "\nNo email set";
     if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
     return "Principal " # Principal.toText(caller) # hasEmail;
   };

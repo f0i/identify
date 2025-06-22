@@ -1,5 +1,6 @@
 import { initDemo } from "./demo";
 import { initICgsi } from "./icgsi";
+import { showElement } from "./identify/dom";
 
 const GSI_CLIENT_ID =
   "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
@@ -24,12 +25,18 @@ window.onload = () => {
 (window as any).showInfo = function (sectionId: string) {
   const active = document.getElementById(sectionId)!.style.display === "block";
   // Hide all sections
-  document.getElementById("help")!.style.display = "none";
-  document.getElementById("security")!.style.display = "none";
-  document.getElementById("about")!.style.display = "none";
+  showElement("help", false);
+  showElement("security", false);
+  showElement("about", false);
   // Show the selected section
-  document.getElementById("info")!.style.display = "block";
-  document.getElementById(sectionId)!.style.display = active ? "none" : "block";
+  showElement("info", true);
+  showElement(sectionId, !active);
+  // remove the hash from the URL if element was active
+  if (active) {
+    setTimeout(() =>
+      history.replaceState(null, "", document.location.pathname),
+    );
+  }
 };
 
 /*

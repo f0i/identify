@@ -79,6 +79,8 @@ async function fetchGoogleKeys() {
 async function resetAuth() {
   const authClient = await AuthClient.create();
   authClient.logout().finally(checkAuth);
+  updateListById("log", []);
+  innerText("login-status", "Logged out");
 }
 
 // Check authentication status, get principal and load statistics
