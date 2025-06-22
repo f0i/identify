@@ -42,9 +42,7 @@ export const delegation = async (
     (p: string): Principal => Principal.fromText(p),
   );
   context.statusCallback("");
-  context.targetsCallback(
-    req.params.targets?.slice()?.join(",\n") || "Unrestricted",
-  );
+  context.targetsCallback(req.params.targets?.slice()?.join(",\n") || "");
   const nonce = uint8ArrayToHex(publicKey);
   const token = await context.getAuthToken(nonce);
   const msg = await getDelegation(

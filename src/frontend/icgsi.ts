@@ -1,8 +1,9 @@
-import { setText } from "./identify/dom";
+import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
 import { getDelegation } from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { initGsi } from "./identify/google";
+import { Principal } from "@dfinity/principal";
 
 declare global {
   interface Window {
@@ -16,14 +17,16 @@ const responder = (msg: any) => {
 
 // DOM manipulation
 const setOriginText = (origin: string) => setText("app-origin", origin);
-const setTargetsText = (targets: string) => setText("app-targets", targets);
+const setTargetsText = (targets: string) => {
+  showElement("app-scope", targets.length > 0);
+  setText("app-targets", targets);
+};
 const setStatusText = (status: string) => setText("login-status", status);
 
 let context: Context = DEFAULT_CONTEXT;
 
 export function initICgsi(clientID: string) {
-  const icgsi = document.getElementById("icgsi")!;
-  icgsi.style.display = "block";
+  showElement("icgsi", true);
   console.log("Waiting for message from opener");
   setStatusText("Connecting to application...");
   let init = true;
@@ -85,7 +88,11 @@ export function initICgsi(clientID: string) {
 /// Handle "authorize-client" request according to the II-Spec.
 const handleAuthorizeClient = async (
   origin: string | null,
-  authRequest: { sessionPublicKey: Uint8Array; maxTimeToLive: bigint },
+  authRequest: {
+    sessionPublicKey: Uint8Array;
+    maxTimeToLive: bigint;
+    targets?: Principal[];
+  },
   clientID: string,
   context: Context,
 ): Promise<void> => {
@@ -94,7 +101,8 @@ const handleAuthorizeClient = async (
       throw "Could not determine app origin.";
     }
     context.originCallback(origin);
-    context.targetsCallback("Unrestricted");
+    context.targetsCallback("");
+    context.targetsCallback(authRequest.targets?.slice()?.join(",\n") || "");
     const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
     setStatusText("");
     // Request Google Sign-In and get the JWT token
@@ -106,7 +114,7 @@ const handleAuthorizeClient = async (
       origin,
       authRequest.sessionPublicKey,
       authRequest.maxTimeToLive,
-      undefined,
+      authRequest.targets,
       setStatusText,
     );
 
