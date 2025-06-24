@@ -75,8 +75,8 @@ describe("candidDecoder", () => {
     ).toEqual({
       ok: [
         {
-          _1835347746: [],
-          _3258775938: [],
+          created_at_time: [],
+          from_subaccount: [],
           amount: 1000000000000000000000n,
           fee: [],
           memo: [],

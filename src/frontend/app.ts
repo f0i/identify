@@ -29,7 +29,7 @@ window.onload = () => {
   showElement("security", false);
   showElement("about", false);
   // Show the selected section
-  showElement("info", true);
+  showElement("info", !active);
   showElement(sectionId, !active);
   // remove the hash from the URL if element was active
   if (active) {

@@ -316,18 +316,20 @@ export function createNameLookup(names: string[]): Record<number, string> {
 
 function fieldHash(name: string): number {
   const utf8 = new TextEncoder().encode(name);
-  const p = 223;
-  const mod = 2 ** 32;
+  const p = 223; // The prime base for the polynomial hash
+  const mod = 2 ** 32; // The modulus, ensuring the hash remains a 32-bit unsigned integer
 
-  let hash = 0;
-  const k = utf8.length - 1;
+  let hash = 0; // Initialize the hash accumulator
 
+  // Iterate over each byte in the UTF-8 encoded string
   for (let i = 0; i < utf8.length; i++) {
-    hash += utf8[i] * Math.pow(p, k - i);
-    hash = hash >>> 0; // keep as 32-bit unsigned int after each addition
+    const c = utf8[i]; // Get the current byte value
+    // Apply the polynomial hash formula: (previous_hash * base + current_byte) % modulus
+    hash = (hash * p + c) % mod;
   }
 
-  return hash >>> 0;
+  // The hash is already within the 32-bit unsigned range due to the modulo operation
+  return hash;
 }
 
 /**
