@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Candid Decoder & Hex Converter</title>
+    <title>Candid Decoder & Converter</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -22,72 +22,76 @@
       <h1
         class="text-4xl font-extrabold text-center text-blue-700 mb-6 tracking-tight"
       >
-        Candid Decoder & Hex Converter
+        Candid Decoder & Converter
       </h1>
 
-      <!-- String to Hex Converter Section -->
-      <div class="mb-10 pb-8 border-b-2 border-gray-200">
-        <h2
-          class="text-3xl font-bold text-center text-purple-700 mb-6 tracking-tight"
-        >
-          String to Hex Converter
-        </h2>
-        <p class="text-lg text-gray-600 mb-6 text-center leading-relaxed">
-          Enter a string with byte escape sequences (e.g., `DIDL\02\6b`). It
-          will be automatically converted to hex below.
-        </p>
+      <p class="text-lg text-gray-600 mb-6 text-center leading-relaxed">
+        Enter hex, an escaped string (e.g., `DIDL\00\01\71...`), or Base64
+        encoded Candid data into the field below. The tool will automatically
+        detect the format and provide conversions and the decoded result.
+      </p>
 
-        <!-- Input Textarea for String -->
-        <label
-          for="stringInput"
-          class="block text-lg font-semibold text-gray-700 mb-2"
-          >Input String (with `\xx` escapes):</label
-        >
-        <textarea
-          id="stringInput"
-          placeholder="Example: DIDL\02\6b\02\d1\a7\cf\02\7f\f1\f3\92\8e\04\01\6c\02\a0\d2\ac\a8\04\7c\90\ed\da\e7\04\00\01\00\01\01\01\02\00"
-          rows="6"
-          class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
-          style="resize: vertical"
-        ></textarea>
+      <!-- Single Input Field -->
+      <label
+        for="unifiedInput"
+        class="block text-lg font-semibold text-gray-700 mb-2"
+        >Input (Hex, Escaped String, or Base64):</label
+      >
+      <textarea
+        id="unifiedInput"
+        placeholder="Paste your data here (e.g., 4449444C..., DIDL\00\01..., or AAAAAQBxAQA...)"
+        rows="8"
+        class="w-full p-4 border border-gray-300 rounded-lg bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
+        style="resize: vertical"
+      >
+RElETAZte24AbAKzsNrDA2ithsqDBQFufW54bAb7ygECxvy2AgO6ieXCBAGi3pTrBgGC8/ORDATYo4yoDX0BBQEdXdZAg85gOc3s6DkTiv7FBn9RDHSPT6rgmlsBGgIAAAAAAICAgPXduOvktWw=</textarea
+      >
+
+      <!-- Display area for Candid decoding results -->
+      <div class="mt-8 pt-8 border-t border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+          Candid Decoding Result:
+        </h2>
+        <div id="resultContainer">
+          <!-- Results will be injected here by JavaScript -->
+        </div>
       </div>
 
-      <!-- Candid Decoder Section (now uses the same input field) -->
-      <div>
-        <h2
-          class="text-3xl font-bold text-center text-blue-700 mb-6 tracking-tight"
-        >
-          Candid Decoder
-        </h2>
-        <p class="text-lg text-gray-600 mb-6 text-center leading-relaxed">
-          The hex output from above or any custom hex string you paste here will
-          be automatically decoded.
-        </p>
-
-        <!-- Common Textarea for Hex Input/Output -->
-        <label
-          for="combinedHexInput"
-          class="block text-lg font-semibold text-gray-700 mb-2"
-          >Hex Input (for Candid Decoding):</label
-        >
-        <textarea
-          id="combinedHexInput"
-          placeholder="Paste hex string here, e.g., 4449444C00017101000100 (DIDL + 0 types + 1 arg (nat8) + value 0)"
-          rows="8"
-          class="w-full p-4 border border-gray-300 rounded-lg bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 font-mono text-gray-700 text-base transition-all duration-200 ease-in-out"
-          style="resize: vertical"
-        ></textarea>
-        <button
-          id="copyButton"
-          class="mt-4 w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
-        >
-          Copy Hex to Clipboard
-        </button>
-        <p id="copyStatus" class="text-sm text-green-600 mt-2 text-center"></p>
-
-        <!-- Display area for Candid decoding results -->
-        <div id="resultContainer" class="mt-8 pt-8 border-t border-gray-200">
-          <!-- Results will be injected here by JavaScript -->
+      <!-- Conversion Output Section (moved below resultContainer) -->
+      <div id="conversionOutput" class="mt-8 pt-6 border-t border-gray-200">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Conversions:</h2>
+        <div class="mb-4">
+          <label class="block text-md font-semibold text-gray-700 mb-1"
+            >Hex String:</label
+          >
+          <textarea
+            id="hexOutput"
+            rows="3"
+            readonly
+            class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 font-mono text-gray-700 text-sm overflow-auto resize-none"
+          ></textarea>
+        </div>
+        <div class="mb-4">
+          <label class="block text-md font-semibold text-gray-700 mb-1"
+            >Escaped String:</label
+          >
+          <textarea
+            id="escapedStringOutput"
+            rows="3"
+            readonly
+            class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 font-mono text-gray-700 text-sm overflow-auto resize-none"
+          ></textarea>
+        </div>
+        <div>
+          <label class="block text-md font-semibold text-gray-700 mb-1"
+            >Base64 Encoded:</label
+          >
+          <textarea
+            id="base64Output"
+            rows="3"
+            readonly
+            class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 font-mono text-gray-700 text-sm overflow-auto resize-none"
+          ></textarea>
         </div>
       </div>
     </div>

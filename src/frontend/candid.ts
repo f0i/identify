@@ -10,20 +10,20 @@ import { fieldNames } from "./identify/candidFieldNames";
 import { JSONstringify } from "./identify/utils";
 
 document.addEventListener("DOMContentLoaded", () => {
-  // --- DOM Elements for Combined Functionality ---
-  const stringInput = document.getElementById(
-    "stringInput",
+  // --- DOM Elements ---
+  const unifiedInput = document.getElementById(
+    "unifiedInput",
   ) as HTMLTextAreaElement;
-  const combinedHexInput = document.getElementById(
-    "combinedHexInput",
+  const hexOutput = document.getElementById("hexOutput") as HTMLTextAreaElement;
+  const escapedStringOutput = document.getElementById(
+    "escapedStringOutput",
+  ) as HTMLTextAreaElement;
+  const base64Output = document.getElementById(
+    "base64Output",
   ) as HTMLTextAreaElement;
   const resultContainer = document.getElementById(
     "resultContainer",
   ) as HTMLDivElement;
-  const copyButton = document.getElementById("copyButton") as HTMLButtonElement;
-  const copyStatus = document.getElementById(
-    "copyStatus",
-  ) as HTMLParagraphElement;
 
   /**
    * Converts a string containing byte escape sequences (e.g., '\02', '\6b')
@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * @param inputString The string with escape sequences.
    * @returns The resulting hexadecimal string.
    */
-  function convertStringToHex(inputString: string): string {
+  function convertEscapedStringToHex(inputString: string): string {
     let hexResult = "";
     const encoder = new TextEncoder(); // Used for accurate UTF-8 byte representation
 
@@ -66,34 +66,170 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
+   * Converts a hex string to an escaped string.
+   * @param hexString The hex string to convert.
+   * @returns The escaped string.
+   */
+  function convertHexToEscapedString(hexString: string): string {
+    let escapedString = "";
+    for (let i = 0; i < hexString.length; i += 2) {
+      const byte = parseInt(hexString.substring(i, i + 2), 16);
+      if (byte >= 32 && byte <= 126 && byte !== 92) {
+        // Printable ASCII character (excluding backslash)
+        escapedString += String.fromCharCode(byte);
+      } else {
+        // Non-printable or backslash, convert to \xXX escape sequence
+        escapedString += `\\${byte.toString(16).padStart(2, "0").toLowerCase()}`;
+      }
+    }
+    return escapedString;
+  }
+
+  /**
+   * Converts a hex string to a Base64 string.
+   * @param hexString The hex string to convert.
+   * @returns The Base64 string.
+   */
+  function convertHexToBase64(hexString: string): string {
+    if (hexString.length === 0) return "";
+    const bytes = new Uint8Array(hexString.length / 2);
+    for (let i = 0; i < hexString.length; i += 2) {
+      bytes[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
+    }
+    return btoa(String.fromCharCode(...bytes));
+  }
+
+  /**
+   * Converts a Base64 string to a hex string.
+   * @param base64String The Base64 string to convert.
+   * @returns The hex string.
+   */
+  function convertBase64ToHex(base64String: string): string {
+    if (base64String.length === 0) return "";
+    try {
+      const binaryString = atob(base64String);
+      let hexResult = "";
+      for (let i = 0; i < binaryString.length; i++) {
+        const byte = binaryString.charCodeAt(i);
+        hexResult += byte.toString(16).padStart(2, "0").toUpperCase();
+      }
+      return hexResult;
+    } catch (e) {
+      console.error("Invalid Base64 string:", e);
+      return ""; // Return empty string or handle error appropriately
+    }
+  }
+
+  /**
+   * Detects the input type (Hex, Escaped String, or Base64) and converts it to hex.
+   * @param input The raw user input.
+   * @returns The converted hex string, or null if the format is unrecognized.
+   */
+  function determineAndConvertToHex(input: string): string | null {
+    const trimmedInput = input.trim();
+    if (trimmedInput.length === 0) return null;
+
+    // 1. Check for Hex String (even length, only hex characters)
+    if (/^[0-9a-fA-F]+$/.test(trimmedInput) && trimmedInput.length % 2 === 0) {
+      // Potentially a hex string. Check if it decodes cleanly from base64 first as a heuristic
+      // This is to differentiate hex from base64 that might *look* like hex
+      try {
+        const base64Decoded = atob(trimmedInput);
+        if (base64Decoded.length > 0 && trimmedInput.length % 4 === 0) {
+          // If it successfully decodes from base64 and is a valid base64 length,
+          // it's more likely base64.
+          // This is a heuristic, not foolproof.
+          // For now, prioritize hex detection if it strictly looks like hex.
+          // A more robust solution might involve trying both and seeing which one yields a valid Candid decode.
+        }
+      } catch (e) {
+        // Not valid base64, so it's more likely hex
+      }
+      return trimmedInput.toUpperCase(); // Assume it's hex if it passes the regex
+    }
+
+    // 2. Check for Escaped String (starts with "DIDL" or contains backslashes)
+    if (trimmedInput.startsWith("DIDL") || trimmedInput.includes("\\")) {
+      return convertEscapedStringToHex(trimmedInput);
+    }
+
+    // 3. Check for Base64 String (try decoding)
+    // Base64 strings usually have a length divisible by 4, and use A-Z, a-z, 0-9, +, /, =
+    if (
+      /^[A-Za-z0-9+/=]+$/.test(trimmedInput) &&
+      trimmedInput.length % 4 === 0
+    ) {
+      try {
+        const hex = convertBase64ToHex(trimmedInput);
+        // A simple check: if converting to hex results in a non-empty string, it's likely valid Base64
+        if (hex.length > 0) {
+          return hex;
+        }
+      } catch (e) {
+        // Not a valid Base64 string
+      }
+    }
+
+    // If none of the above, it's an unrecognized format or incomplete input.
+    return null;
+  }
+
+  /**
    * Performs the Candid decoding given a hex string and displays the result.
+   * Also updates the hex, escaped string, and Base64 output fields.
    * @param hexString The hex string to decode.
    */
-  function performCandidDecode(hexString: string) {
+  function processInput(input: string) {
     let decodedResult: DecodeResult | null = null;
+    let hexToDecode: string | null = null;
+    let conversionError: string | null = null;
+
+    // Clear previous results container content
+    resultContainer.innerHTML = "";
+
+    if (input.trim().length === 0) {
+      displayEmptyInputMessage(); // Show specific message for empty input
+      return;
+    }
+
+    // Attempt to convert the input to hex
     try {
-      const cleanHex = hexString.replace(/\s/g, "");
-
-      if (cleanHex.length === 0) {
-        // Clear results if input is empty
-        resultContainer.innerHTML = "";
-        return;
+      hexToDecode = determineAndConvertToHex(input);
+      if (hexToDecode === null) {
+        conversionError =
+          "Unrecognized input format. Please enter valid Hex, Escaped String, or Base64.";
+      } else if (hexToDecode.length % 2 !== 0) {
+        conversionError =
+          "Hex string has an odd number of characters. Each byte requires two hex characters.";
+      } else if (!/^[0-9a-fA-F]*$/.test(hexToDecode)) {
+        conversionError = "Invalid hex characters detected after conversion.";
       }
+    } catch (e: any) {
+      conversionError = `Error during input conversion: ${e.message || e}`;
+    }
 
-      if (cleanHex.length % 2 !== 0) {
-        decodedResult = {
-          error: {
-            msg: "Hex string has an odd number of characters. Each byte requires two hex characters.",
-            index: Math.floor(cleanHex.length / 2),
-          },
-        };
-        displayResult(decodedResult);
-        return;
-      }
+    if (conversionError) {
+      displayError(conversionError);
+      return;
+    }
 
-      const bytes = new Uint8Array(cleanHex.length / 2);
-      for (let i = 0; i < cleanHex.length; i += 2) {
-        const byteValue = parseInt(cleanHex.substring(i, i + 2), 16);
+    // Populate conversion outputs if we have valid hexToDecode
+    if (hexToDecode) {
+      hexOutput.value = hexToDecode;
+      escapedStringOutput.value = convertHexToEscapedString(hexToDecode);
+      base64Output.value = convertHexToBase64(hexToDecode);
+    } else {
+      // This case should ideally be caught by conversionError, but as a fallback
+      displayError(
+        "Could not convert input to a valid hex format for decoding.",
+      );
+      return;
+    }
+
+    try {
+      const bytes = new Uint8Array(hexToDecode.length / 2);
+      for (let i = 0; i < hexToDecode.length; i += 2) {
+        const byteValue = parseInt(hexToDecode.substring(i, i + 2), 16);
         if (isNaN(byteValue)) {
           decodedResult = {
             error: {
@@ -125,19 +261,41 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /**
+   * Displays an error message in the result container.
+   * @param message The error message to display.
+   */
+  function displayError(message: string) {
+    resultContainer.innerHTML = ""; // Clear previous results
+    const errorDiv = document.createElement("div");
+    errorDiv.className =
+      "bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg relative shadow-inner";
+    errorDiv.innerHTML = `
+          <strong class="font-bold">Error!</strong>
+          <span class="block sm:inline ml-2">${message}</span>
+      `;
+    resultContainer.appendChild(errorDiv);
+  }
+
+  /**
+   * Displays a message when the input field is empty.
+   */
+  function displayEmptyInputMessage() {
+    resultContainer.innerHTML = ""; // Clear previous results
+    const messageDiv = document.createElement("div");
+    messageDiv.className =
+      "bg-blue-100 border border-blue-400 text-blue-700 px-6 py-4 rounded-lg relative shadow-inner";
+    messageDiv.innerHTML = `
+          <p class="text-center">Enter data (Hex, Escaped String, or Base64) to see the decoding result and conversions.</p>
+      `;
+    resultContainer.appendChild(messageDiv);
+  }
+
+  /**
    * Renders the decoding result (decoded data or error) into the DOM.
    * @param {DecodeResult} result - The result object from decodeCandid.
    */
   function displayResult(result: DecodeResult) {
     resultContainer.innerHTML = ""; // Clear previous results
-
-    // Only display "Decoding Result" header if there's an actual result (not just empty input)
-    if ("ok" in result || "error" in result) {
-      const h2 = document.createElement("h2");
-      h2.className = "text-2xl font-bold text-gray-800 mb-4";
-      h2.textContent = "Decoding Result:";
-      resultContainer.appendChild(h2);
-    }
 
     if ("error" in result) {
       const errorDiv = document.createElement("div");
@@ -180,47 +338,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- Event Listener for String Input (Automatic Hex Conversion) ---
-  stringInput.addEventListener("input", () => {
-    const inputString = stringInput.value;
-    const hex = convertStringToHex(inputString);
-    combinedHexInput.value = hex;
-    // Trigger Candid decoding automatically when string input changes
-    performCandidDecode(hex);
-    copyStatus.textContent = ""; // Clear previous copy status
+  // --- Event Listener for Unified Input ---
+  unifiedInput.addEventListener("input", () => {
+    processInput(unifiedInput.value);
   });
 
-  // --- Event Listener for Combined Hex Input (Automatic Candid Decoding) ---
-  combinedHexInput.addEventListener("input", () => {
-    const hexString = combinedHexInput.value;
-    performCandidDecode(hexString);
-    copyStatus.textContent = ""; // Clear previous copy status
-  });
-
-  // --- Event Listener for Copy to Clipboard ---
-  copyButton.addEventListener("click", () => {
-    combinedHexInput.select();
-    combinedHexInput.setSelectionRange(0, 99999); // For mobile devices
-
-    try {
-      const success = document.execCommand("copy");
-      if (success) {
-        copyStatus.textContent = "Copied to clipboard!";
-      } else {
-        copyStatus.textContent = "Failed to copy.";
-      }
-    } catch (err) {
-      console.error("Failed to copy text:", err);
-      copyStatus.textContent = "Failed to copy (browser issue).";
-    }
-
-    setTimeout(() => {
-      copyStatus.textContent = "";
-    }, 3000);
-  });
-
-  // Initial decode if there's any pre-filled value
-  if (combinedHexInput.value) {
-    performCandidDecode(combinedHexInput.value);
+  // Initial processing if there's any pre-filled value
+  if (unifiedInput.value) {
+    processInput(unifiedInput.value);
+  } else {
+    // If initially empty, display the empty input message
+    displayEmptyInputMessage();
   }
 });
