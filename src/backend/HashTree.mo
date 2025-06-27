@@ -24,13 +24,12 @@ module {
 
   // I only want to insert signatures at /sig/<seed>/<data> and /time/<time>.
   // Order does not matter because I will always return a pruned tree which only contains /time and one element in /sig
-
   public func addSig(tree : HashTree, seed : Blob, hash : [Nat8], now : Time) : HashTree {
     switch (tree) {
       case (#Fork(#Labeled("sig", _), #Labeled("time", #Leaf(_)))) insertSig(tree, seed, hash, now);
       case (#Empty) initSigTree(seed, hash, now);
       case (_) {
-        Debug.print("Unexpected tree formatk: " # debug_show tree);
+        Debug.print("Unexpected tree format: " # debug_show tree);
         initSigTree(seed, hash, now); // TODO: handle other cases instead of overwriting
       };
     };
@@ -61,7 +60,10 @@ module {
     let tagHeader : [Nat8] = [0xD9, 0xD9, 0xF7]; // CBOR tag 55799
 
     let certCBOR = cborBlob(cert);
-    let treeCBOR = cbor(getPrunedSigTree(tree, seed)); // TODO: fail if seed not found
+    let prunedTree = getPrunedSigTree(tree, seed);
+    // fail if seed was not found
+    if (prunedTree == #Empty) Debug.trap("Internal error: could not find signature");
+    let treeCBOR = cbor(prunedTree);
 
     Array.flatten<Nat8>([
       tagHeader,

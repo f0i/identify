@@ -290,7 +290,7 @@ actor class Main() = this {
     let keyCount = Nat.toText(Map.size(emails)) # " identities created";
     let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
 
-    if (not hasPermission(caller)) {
+    if (not hasPermission(caller) or true) {
       return [appCount, keyCount, loginCount];
     };
     let counter = Stats.counterEntries(stats);

@@ -1,8 +1,6 @@
 import Bench "mo:bench";
 import Nat "mo:base/Nat";
 import Iter "mo:base/Iter";
-import Buffer "mo:base/Buffer";
-import Array "mo:base/Array";
 import Result "mo:base/Result";
 import Debug "mo:base/Debug";
 import Base64 "../src/backend/Base64";
