@@ -117,27 +117,6 @@ actor class Main() = this {
     });
   };
 
-  public shared ({ caller }) func setGoogleKeys(data : Text) : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
-    Stats.logBalance(stats, "setGoogleKeys");
-    if (not hasPermission(caller)) {
-      if (pendingFetchAttempts < 3 and googleKeys.size() != 0) {
-        return #err("Function inactive. Try using fetchGoogleKeys instead. pending Fetch requests: " # Nat.toText(pendingFetchAttempts));
-      };
-      return #err("Permission denied.");
-    };
-    switch (RSA.pubKeysFromJSON(data)) {
-      case (#ok keys) googleKeys := keys;
-      case (#err err) {
-        Stats.log(stats, "set google keys failed: " # err);
-        return #err(err);
-      };
-    };
-    Stats.log(stats, Nat.toText(googleKeys.size()) # " google keys set.");
-    return #ok({
-      keys = googleKeys;
-    });
-  };
-
   type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
 
   var sigTree : HashTree = #Empty;
