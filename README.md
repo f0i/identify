@@ -137,6 +137,58 @@ sequenceDiagram
     note over U, A: User is now signed in
 ```
 
+# Authentication services
+
+The following web2 authentication providers are supported
+
+- [x] Google (JWT from JS SDK)
+- [ ] Auth0 (PKCE + JWT)
+- [ ] GitHub (PKCE)
+- [ ] X (OAuth 1.0a)
+- [ ] Apple (PKCE + JWT)
+- [ ] Microsoft (PKCE + JWT)
+
+## Google
+
+Google authentication is using the [Google Identity Services JavaScript SDK](https://developers.google.com/identity/gsi/web/guides/overview).
+This provides the fastest way to get access to the JWT authentication token.
+
+To configure google sign in for a custom domain, you have to create a API client ID and assign your domain to it.
+See [Get your Google API client ID](https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid) in the Google developer docs.
+
+This client ID must be set inside the app configuration.
+Currently this has to be done both in the fronend (app.ts -> GSI_CLIENT_ID) and the backend (main.mo -> googleClientIds).
+
+## Auth0
+
+Possibly allows fetching JWT tokens without separate HTTP-outcalls.
+
+https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-proof-key-for-code-exchange-pkce
+
+## GitHub
+
+Github does not support JWT based sign in for users, so PKCE (Proof Key for Code Exchange extension to the OAuth 2.0) must be used.
+This requires additional HTTP outcalls from the backend.
+
+https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
+
+## X
+
+https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-proof-key-for-code-exchange-pkce
+
+## Apple
+
+https://developer.apple.com/documentation/sign_in_with_apple
+
+## Microsoft
+
+https://learn.microsoft.com/azure/active-directory/develop/v2-oauth2-auth-code-flow
+
+## Facebook
+
+https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow
+
+
 # Resources and Related projects
 
 - IC interface spec
