@@ -2,6 +2,7 @@ import { initDemo } from "./demo";
 import { initICgsi } from "./icgsi";
 import { showElement } from "./identify/dom";
 
+// TODO:? consider loading clientID from the backend to make configuration easier
 const GSI_CLIENT_ID =
   "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
 
