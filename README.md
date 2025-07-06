@@ -142,9 +142,9 @@ sequenceDiagram
 The following web2 authentication providers are supported
 
 - [x] Google (JWT from JS SDK)
-- [ ] Auth0 (PKCE + JWT)
+- [ ] Auth0 (JWT from JS SDK)
 - [ ] GitHub (PKCE)
-- [ ] X (OAuth 1.0a)
+- [ ] X (PKCE)
 - [ ] Apple (PKCE + JWT)
 - [ ] Microsoft (PKCE + JWT)
 
@@ -174,7 +174,7 @@ https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth
 
 ## X
 
-https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-proof-key-for-code-exchange-pkce
+https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/authorization-code
 
 ## Apple
 

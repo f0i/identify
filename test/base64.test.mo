@@ -23,3 +23,15 @@ switch (Base64.decode(test2)) {
   };
   case (#err err) trap("could not decode base64 data [0, 1, 2, ..., 255]: " # err);
 };
+
+print("- decode with padding");
+
+let test3 = "SGVsbG8gV29ybGQ=";
+let refData3 = "Hello World";
+
+switch (Base64.decodeText(test3)) {
+  case (#ok(data)) {
+    if (data != refData3) trap("unexpected data after decoding base64 with padding: " # debug_show (refData3));
+  };
+  case (#err err) trap("could not decode base64 string with padding 'test3': " # err);
+};
