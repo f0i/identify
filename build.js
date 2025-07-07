@@ -18,6 +18,7 @@ esbuild
   .build({
     entryPoints: [
       "src/frontend/app.ts", // Main app
+      "src/frontend/zitadel.ts", // OAuth via zitadel
       "src/frontend/callback.ts", // OAuth callback
       "src/frontend/candid.ts", // Candid decoder
     ],
@@ -40,6 +41,7 @@ esbuild
     },
   })
   .then(() => copyWithCacheBuster("index", "app"))
+  .then(() => copyWithCacheBuster("zitadel", "zitadel"))
   .then(() => copyWithCacheBuster("candid", "candid"))
   .then(() => copyWithCacheBuster("callback", "callback"))
   .then(() => {
