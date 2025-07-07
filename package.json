@@ -28,6 +28,7 @@
   "dependencies": {
     "@dfinity/agent": "^2.1.2",
     "@dfinity/auth-client": "^2.1.2",
-    "@dfinity/candid": "^2.4.1"
+    "@dfinity/candid": "^2.4.1",
+    "oidc-client-ts": "^3.3.0"
   }
 }
