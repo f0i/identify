@@ -20,6 +20,7 @@ esbuild
       "src/frontend/app.ts", // Main app
       "src/frontend/zitadel.ts", // OAuth via zitadel
       "src/frontend/callback.ts", // OAuth callback
+      "src/frontend/auth0.ts", // OAuth via Auth0
       "src/frontend/candid.ts", // Candid decoder
     ],
     bundle: true, // Bundle all dependencies into a single file
@@ -42,6 +43,7 @@ esbuild
   })
   .then(() => copyWithCacheBuster("index", "app"))
   .then(() => copyWithCacheBuster("zitadel", "zitadel"))
+  .then(() => copyWithCacheBuster("auth0", "auth0"))
   .then(() => copyWithCacheBuster("candid", "candid"))
   .then(() => copyWithCacheBuster("callback", "callback"))
   .then(() => {

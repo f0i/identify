@@ -6,6 +6,11 @@ export const ZITADEL = {
   redirect_uri: "https://login.f0i.de/callback.html",
 };
 
+export const AUTH0 = {
+  domain: "identify.uk.auth0.com",
+  clientId: "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ",
+};
+
 export const GSI = {
   // TODO:? consider loading clientID from the backend to make configuration easier
   client_id:
