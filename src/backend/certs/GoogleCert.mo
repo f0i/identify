@@ -4,10 +4,18 @@ import Char "mo:base/Char";
 import Debug "mo:base/Debug";
 
 module {
+  /// Strategy to select which keys to keep from the Google certificate response.
+  /// When keys are rotated, it can happen that the responses differ based on the location of the replica performing the http outcall.
+  /// This is usually when a new key is added or an old one is removed, but not propageted to all global google endpoints.
+  /// Using this strategy allows to ignore a secific key based on the index.
   public type IgnoreKey = {
     #keepAll;
-    #ignoreNofM : (Nat, Nat);
+    #ignoreNofM : (Nat, Nat); // remove one key at index n if there are at least m keys
   };
+
+  /// Sort keys and fields from the certificate response body.
+  /// The received JSON data can be in any order, so this function will turn them into a deterministic order.
+  /// This is required to reach consensus on the http response data across all replicas.
   public func transformBody(body : Text, ignoreKey : IgnoreKey) : Text {
     let lines = Text.split(body, #char '\n');
     var buffer = Array.init<Text>(6, "");

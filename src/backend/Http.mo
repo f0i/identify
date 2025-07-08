@@ -5,7 +5,7 @@ import Text "mo:base/Text";
 import Debug "mo:base/Debug";
 import Error "mo:base/Error";
 import IC "ic:aaaaa-aa";
-import GoogleCert "GoogleCert";
+import GoogleCert "certs/GoogleCert";
 
 module {
   type Timestamp = Nat64;

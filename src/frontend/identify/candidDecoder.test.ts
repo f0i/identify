@@ -81,7 +81,7 @@ describe("candidDecoder", () => {
           fee: [],
           memo: [],
           to: {
-            _1349681965: [],
+            subaccount: [],
             owner: Principal.fromText(
               "6pfju-rc52z-aihtt-ahhg6-z2bzc-ofp5r-igp5i-qy5ep-j6vob-gs3ae-nae",
             ),

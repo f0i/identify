@@ -21,6 +21,10 @@ import CanisterSignature "CanisterSignature";
 import Ed25519 "Ed25519";
 import Hex "Hex";
 import { setTimer; recurringTimer } = "mo:base/Timer";
+import AuthProvider "AuthProvider";
+import Queue "mo:new-base/Queue";
+import Option "mo:new-base/Option";
+import TimeFormat "TimeFormat";
 
 actor class Main() = this {
   let TIME_MINUTE = 60 * 1_000_000_000;
@@ -29,13 +33,10 @@ actor class Main() = this {
   let MIN_EXPIRATION_TIME = TIME_MINUTE * 2;
   let MIN_FETCH_ATTEMPT_TIME = TIME_MINUTE * 10;
   let MIN_FETCH_TIME = 6 * TIME_HOUR;
+  let MAX_TIME_PER_LOGIN = 5 * TIME_MINUTE;
 
   type HashTree = HashTree.HashTree;
   type Time = Time.Time;
-
-  stable var emails : Map.Map<Principal, Text> = Map.new(); // TODO remove, was deprecated, use users instead
-  type KeyPair = Ed25519.KeyPair;
-  stable var keyPairs : Map.Map<Text, KeyPair> = Map.new();
 
   type User = { email : Text; sub : Text; origin : Text; createdAt : Time };
   stable var users : Map.Map<Principal, User> = Map.new();
@@ -46,8 +47,20 @@ actor class Main() = this {
   stable var stats = Stats.new(1000);
   Stats.log(stats, "deploied new backend version.");
 
-  var googleKeys : [RSA.PubKey] = [];
-  var googleClientIds : [Text] = ["376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com"];
+  type OAuth2ConnectConfig = AuthProvider.OAuth2ConnectConfig;
+  let googleConfig : OAuth2ConnectConfig = {
+    provider = #google;
+    clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
+    keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
+    var keys : [RSA.PubKey] = [];
+  };
+
+  let zidadelConfig : OAuth2ConnectConfig = {
+    provider = #zitadel;
+    clientId = "327788236128717664";
+    keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
+    var keys : [RSA.PubKey] = [];
+  };
 
   // Reset trusted apps on each deployment
   trustedApps := Map.new();
@@ -86,52 +99,39 @@ actor class Main() = this {
     ignore await fetchGoogleKeys();
   };
 
-  var lastFetchaAttempt : Time = 0;
-  var pendingFetchAttempts : Nat = 0;
-  var lastFetch : Time = 0;
-  public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<{ keys : [RSA.PubKey] }, Text> {
+  let googleFetchAttempts = Stats.newAttemptTracker();
+
+  public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<[RSA.PubKey], Text> {
     Stats.logBalance(stats, "fetchGoogleKeys");
     if (not hasPermission(caller)) {
-      if (Time.now() - lastFetch < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
-      if (Time.now() - lastFetchaAttempt < MIN_FETCH_ATTEMPT_TIME) return #err("Rate limit reached. Try again in 30 minutes.");
+      if (Time.now() - googleFetchAttempts.lastSuccess < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
+      if (Time.now() - googleFetchAttempts.lastAttempt < MIN_FETCH_ATTEMPT_TIME) return #err("Rate limit reached. Try again in 30 minutes.");
     };
-    pendingFetchAttempts += 1;
-    lastFetchaAttempt := Time.now();
-    Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(pendingFetchAttempts) # ")");
 
-    // TODO: retry with other transform functions
-    let fetched = await Http.getRequest("https://www.googleapis.com/oauth2/v3/certs", 5000, transform);
+    Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(googleFetchAttempts.count + 1) # ")");
+    let res = await AuthProvider.fetchKeys(googleConfig, googleFetchAttempts, transform);
 
-    switch (RSA.pubKeysFromJSON(fetched.data)) {
-      case (#ok keys) googleKeys := keys;
-      case (#err err) {
-        Stats.log(stats, "google keys fetch failed: " # err);
-        return #err(err);
-      };
-    };
-    pendingFetchAttempts := 0;
-    lastFetch := Time.now();
-    Stats.log(stats, Nat.toText(googleKeys.size()) # " google keys fetched.");
-    return #ok({
-      keys = googleKeys;
-    });
+    Stats.log(stats, Nat.toText(googleConfig.keys.size()) # " google keys fetched.");
+    return res;
   };
 
   type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
 
   var sigTree : HashTree = #Empty;
+  var sigsExpList = Queue.empty<Time.Time>();
   public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
     Stats.logBalance(stats, "prepareDelegationSig");
 
     // verify token
-    if (googleKeys.size() == 0) return #err("Google keys not loaded");
+    if (googleConfig.keys.size() == 0) return #err("Google keys not loaded");
     if (expireIn > MAX_EXPIRATION_TIME) return #err("Expiration time to long");
     if (expireIn < MIN_EXPIRATION_TIME) return #err("Expiration time to short");
-    let expireAt = Time.now() + expireIn;
+    let now = Time.now();
+    let expireAt = now + expireIn;
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds, nonce)) {
+    let jwt = switch (Jwt.decode(token, googleConfig.keys, now, 5 * 60 /*seconds*/, [googleConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
@@ -145,8 +145,16 @@ actor class Main() = this {
     let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
     let hash = Delegation.getUnsignedHash(sessionKey, expireAt, targets);
-    sigTree := HashTree.addSig(#Empty, hashedSeed, hash, Time.now());
-    //TODO: sigTree := HashTree.addSig(sigTree, hashedSeed, hash, Time.now());
+    // TODO: check if updating works. If not re-enable the reset per request again:
+    //sigTree := HashTree.addSig(#Empty, hashedSeed, hash, Time.now());
+    sigTree := HashTree.addSig(sigTree, hashedSeed, hash, now);
+    Queue.pushBack(sigsExpList, now);
+    // Remove old signatures from sigTree
+    while (Option.get(Queue.peekFront(sigsExpList), now) < (now - MAX_TIME_PER_LOGIN)) {
+      ignore Queue.popFront(sigsExpList);
+    };
+    sigTree := HashTree.removeSigs(sigTree, Queue.size(sigsExpList));
+
     CertifiedData.set(Blob.fromArray(HashTree.hash(sigTree)));
 
     let principal = CanisterSignature.toPrincipal(signingCanisterID, seed);
@@ -154,10 +162,9 @@ actor class Main() = this {
     let normalized = Email.normalizeEmail(rawEmail);
     switch (normalized) {
       case (#ok email) {
-        if (Map.has(emails, phash, CanisterSignature.toPrincipal(signingCanisterID, seed))) {
+        if (Map.has(users, phash, CanisterSignature.toPrincipal(signingCanisterID, seed))) {
           Stats.inc(stats, "signin", origin);
         } else {
-          Map.set(emails, phash, principal, email);
           Map.set(users, phash, principal, { email; sub; origin; createdAt = Time.now() });
           Stats.inc(stats, "signup", origin);
           Stats.inc(stats, "signin", origin);
@@ -183,12 +190,12 @@ actor class Main() = this {
     let ?cert = CertifiedData.getCertificate() else return #err("Certificate only available in query calls");
 
     // verify token
-    if (googleKeys.size() == 0) return #err("Google keys not loaded");
+    if (googleConfig.keys.size() == 0) return #err("Google keys not loaded");
     if (expireAt < Time.now()) return #err("Expired");
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleKeys, Time.now(), 5 * 60 /*seconds*/, googleClientIds, nonce)) {
+    let jwt = switch (Jwt.decode(token, googleConfig.keys, Time.now(), 5 * 60 /*seconds*/, [googleConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
         return #err("failed to decode token: " # err);
@@ -212,8 +219,8 @@ actor class Main() = this {
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
     Stats.logBalance(stats, "checkEmail");
-    let ?actual = Map.get(emails, phash, principal) else return false;
-    return email == actual;
+    let ?actual = Map.get(users, phash, principal) else return false;
+    return email == actual.email;
   };
 
   /// Get an email address for a principal
@@ -246,7 +253,7 @@ actor class Main() = this {
 
   public shared query ({ caller }) func getPrincipal() : async Text {
     Stats.logBalance(stats, "getPrincipal");
-    let hasEmail = if (Map.has(emails, phash, caller)) "\nEmail address saved" else "\nNo email set";
+    let hasEmail = if (Map.has(users, phash, caller)) "\nEmail address saved" else "\nNo email set";
     if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
     return "Principal " # Principal.toText(caller) # hasEmail;
   };
@@ -266,7 +273,7 @@ actor class Main() = this {
   public shared query ({ caller }) func getStats() : async [Text] {
     Stats.logBalance(stats, "getStats");
     let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
-    let keyCount = Nat.toText(Map.size(emails)) # " identities created";
+    let keyCount = Nat.toText(Map.size(users)) # " identities created";
     let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
 
     if (not hasPermission(caller) or true) {
@@ -278,7 +285,7 @@ actor class Main() = this {
     let costs = Stats.costData(stats);
 
     let log = Iter.toArray(Stats.logEntries(stats));
-    let accs = Iter.toArray(Iter.map(Map.entries(emails), func((p : Principal, e : Text)) : Text = Principal.toText(p) # " " # e));
+    let accs = Iter.toArray(Iter.map(Map.entries(users), func((p : Principal, u : User)) : Text = Principal.toText(p) # " " # u.email # " " # u.origin # " " # TimeFormat.toText(u.createdAt)));
     return Array.flatten<Text>([[appCount, keyCount, loginCount], counterText, costs, log, accs]);
   };
 

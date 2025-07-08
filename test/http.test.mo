@@ -1,5 +1,5 @@
 import { print; trap } "mo:base/Debug";
-import { transformBody } "../src/backend/GoogleCert";
+import { transformBody } "../src/backend/certs/GoogleCert";
 import RSA "../src/backend/RSA";
 
 // data fetched from

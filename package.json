@@ -26,6 +26,7 @@
     "typescript": "^5.6.2"
   },
   "dependencies": {
+    "@auth0/auth0-spa-js": "^2.2.0",
     "@dfinity/agent": "^2.1.2",
     "@dfinity/auth-client": "^2.1.2",
     "@dfinity/candid": "^2.4.1",

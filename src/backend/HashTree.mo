@@ -1,5 +1,4 @@
 import Sha256 "mo:sha2/Sha256";
-import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Text "mo:base/Text";
 import Debug "mo:base/Debug";
@@ -7,6 +6,8 @@ import Nat8 "mo:base/Nat8";
 import Time "mo:base/Time";
 import Result "mo:base/Result";
 import Nat64 "mo:base/Nat64";
+import Array "mo:new-base/Array";
+import Hex "Hex";
 
 // Partial implementation of a hash tree with just the functions to generate canister signatures
 module {
@@ -20,6 +21,22 @@ module {
     #Labeled : (Blob, HashTree);
     #Leaf : Blob;
     #Pruned : Hash;
+  };
+
+  public func toText(tree : HashTree) : Text {
+    toTextIndent(tree, 0) # "\nroot hash: " # Hex.toText(hash(tree));
+  };
+
+  public func toTextIndent(tree : HashTree, indent : Nat) : Text {
+    let indentStr = "\n" # Text.join("", Array.repeat<Text>(" ", indent).vals());
+    let content = switch (tree) {
+      case (#Empty) "Empty";
+      case (#Fork(a, b)) indentStr # "Fork(" # toTextIndent(a, indent + 1) # ", " # toTextIndent(b, indent + 1) # indentStr # ")";
+      case (#Labeled(l, t)) "Labeled(" # Hex.toText(Blob.toArray(l)) # "," # toTextIndent(t, indent + 1) # ")";
+      case (#Leaf(v)) "Leaf(" # Hex.toText(Blob.toArray(v)) # ")";
+      case (#Pruned(h)) "Pruned(" # Hex.toText(h) # ")";
+    };
+    return content;
   };
 
   // I only want to insert signatures at /sig/<seed>/<data> and /time/<time>.
@@ -44,6 +61,8 @@ module {
     return { seed; hashedSeed };
   };
 
+  /// Insert a signature into the tree.
+  /// The current version does not guarantee a well formed tree!
   func insertSig(tree : HashTree, seed : Blob, hash : [Nat8], now : Time) : HashTree {
     let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(_time))) = tree else return #Empty;
     let newSig : HashTree = labeled(seed, #Labeled(Blob.fromArray(hash), #Leaf("")));
@@ -52,10 +71,26 @@ module {
     return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(timeToBytes(now))));
   };
 
+  public func removeSigs(tree : HashTree, depth : Nat) : HashTree {
+    // check format of the tree
+    let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(_time))) = tree else return #Empty;
+    return #Fork(#Labeled("sig", keepDepth(sig, depth)), #Labeled("time", #Leaf(_time)));
+  };
+
+  func keepDepth(tree : HashTree, depth : Nat) : HashTree {
+    switch (tree) {
+      case (#Empty) return #Empty;
+      case (#Fork(a, b)) if (depth == 0) return #Empty else return #Fork(keepDepth(a, depth - 1), keepDepth(b, depth - 1));
+      case (#Labeled(l, t)) return #Labeled(l, keepDepth(t, depth));
+      case (#Leaf(v)) return #Leaf(v);
+      case (#Pruned(h)) return #Pruned(h);
+    };
+  };
+
   let certKey : [Nat8] = [0x6B, 0x63, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65]; // "certificate"
   let treeKey : [Nat8] = [0x64, 0x74, 0x72, 0x65, 0x65]; // "tree"
 
-  // Get a cbor encoded signature
+  /// Get a cbor encoded signature
   public func getSignature(tree : HashTree, seed : Blob, cert : Blob) : [Nat8] {
     let tagHeader : [Nat8] = [0xD9, 0xD9, 0xF7]; // CBOR tag 55799
 

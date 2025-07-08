@@ -16,6 +16,12 @@ module {
 
   type Map<K, V> = Map.Map<K, V>;
 
+  public type AttemptTracker = {
+    var count : Nat;
+    var lastAttempt : Time.Time;
+    var lastSuccess : Time.Time;
+  };
+
   public type Stats = {
     counter : Map<Text, Map<Text, Nat>>;
     log : [var Text];
@@ -23,6 +29,11 @@ module {
     var lastBalance : Nat;
     var lastFn : Text;
     costs : Map<Text, FnCost>;
+  };
+  public func newAttemptTracker() : AttemptTracker = {
+    var count = 0;
+    var lastAttempt : Time.Time = 0;
+    var lastSuccess : Time.Time = 0;
   };
 
   public type FnCost = {

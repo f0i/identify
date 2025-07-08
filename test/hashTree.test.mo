@@ -44,7 +44,7 @@ if (HashTree.hash(tree) != hash) trap("could not calculate hash of full tree");
 
 print("- sig pruning");
 
-let sigTree = HashTree.addSig(#Empty, "test", [1, 2, 3, 4], 1234567890);
+var sigTree = HashTree.addSig(#Empty, "test", [1, 2, 3, 4], 1234567890);
 let pruned1 = HashTree.getPrunedSigTree(sigTree, "test");
 if (pruned1 != sigTree) trap("should not prune anything from tree with only one signature");
 
@@ -69,3 +69,33 @@ if (cbor2 != Hex.toArrayUnsafe("8301830243736967830182045820b3959f2f87c06a6bef1d
 let sig = HashTree.getSignature(pruned2, "test", cert);
 
 if (sig != Hex.toArrayUnsafe("d9d9f7a26b6365727469666963617465460b16212c374264747265658301830243736967830182045820b3959f2f87c06a6bef1dffa14fb5332c9992c5b84b28b2503d2c0ddf567f46aa830244746573748302440102030482034083024474696d6582034800000002dfdc1c48")) trap("unexpected signature " # Hex.toText(sig));
+
+print("- add multiple signatures");
+
+sigTree := #Empty;
+sigTree := HashTree.addSig(sigTree, "test1", [1, 1, 1], 10);
+sigTree := HashTree.addSig(sigTree, "test2", [2, 2, 2], 20);
+sigTree := HashTree.addSig(sigTree, "test3", [3, 3, 3], 30);
+sigTree := HashTree.addSig(sigTree, "test4", [4, 4, 4], 40);
+sigTree := HashTree.addSig(sigTree, "test5", [5, 5, 5], 50);
+
+let expectedHash3 : [Nat8] = Hex.toArrayUnsafe("b00eb7f58eb0df3c9200b0f4c870124817f9287db12c0c7cdd2349e29145b26d");
+if (HashTree.hash(sigTree) != expectedHash3) {
+  trap("unexpected tree after adding multiple signatures:\n" # HashTree.toText(sigTree));
+};
+
+print("- remove multiple signatures");
+// Keep 3 signatures
+sigTree := HashTree.removeSigs(sigTree, 3);
+
+let expectedHash4 : [Nat8] = Hex.toArrayUnsafe("1618f2d54bbdf382bdf8901e0f8bafcab777a2fd12279e58359cdaefcb57f9b7");
+if (HashTree.hash(sigTree) != expectedHash4) {
+  trap("unexpected tree after keeping last 3 signatures:\n" # HashTree.toText(sigTree));
+};
+// Keep 2 signatures
+sigTree := HashTree.removeSigs(sigTree, 2);
+
+let expectedHash5 : [Nat8] = Hex.toArrayUnsafe("de62c10487cfb524543bf229741a7c9bb8bbe7f9bc9f5d6ce4bf566c25c025a1");
+if (HashTree.hash(sigTree) != expectedHash5) {
+  trap("unexpected tree after keeping last 2 signatures:\n" # HashTree.toText(sigTree));
+};
