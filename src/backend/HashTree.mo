@@ -52,15 +52,6 @@ module {
     };
   };
 
-  public func encodeSeed(sub : Text, origin : Text) : {
-    seed : Blob;
-    hashedSeed : Blob;
-  } {
-    let seed = shaHashTextToBlob(sub # " " # origin);
-    let hashedSeed = Sha256.fromBlob(#sha256, seed);
-    return { seed; hashedSeed };
-  };
-
   /// Insert a signature into the tree.
   /// The current version does not guarantee a well formed tree!
   func insertSig(tree : HashTree, seed : Blob, hash : [Nat8], now : Time) : HashTree {
@@ -91,13 +82,14 @@ module {
   let treeKey : [Nat8] = [0x64, 0x74, 0x72, 0x65, 0x65]; // "tree"
 
   /// Get a cbor encoded signature
+  /// Traps if seed is not in the hashtree
   public func getSignature(tree : HashTree, seed : Blob, cert : Blob) : [Nat8] {
     let tagHeader : [Nat8] = [0xD9, 0xD9, 0xF7]; // CBOR tag 55799
 
     let certCBOR = cborBlob(cert);
     let prunedTree = getPrunedSigTree(tree, seed);
     // fail if seed was not found
-    if (prunedTree == #Empty) Debug.trap("Internal error: could not find signature");
+    if (prunedTree == #Empty) Debug.trap("Internal error: could not find any signature for this user.");
     let treeCBOR = cbor(prunedTree);
 
     Array.flatten<Nat8>([
@@ -178,7 +170,6 @@ module {
   };
 
   func shaHash(data : [Nat8]) : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, data));
-  func shaHashTextToBlob(data : Text) : Blob = Sha256.fromBlob(#sha256, Text.encodeUtf8(data));
 
   func timeToBytes(t : Time) : Blob {
     assert t > 0;

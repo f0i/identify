@@ -1,5 +1,5 @@
 import Result "mo:base/Result";
-import Time "mo:base/Time";
+import Time "mo:new-base/Time";
 import Map "mo:map/Map";
 import { phash } "mo:map/Map";
 import Set "mo:map/Set";
@@ -12,34 +12,38 @@ import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Debug "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
-import Blob "mo:base/Blob";
 import Http "Http";
 import Stats "Stats";
 import Email "Email";
 import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
-import Ed25519 "Ed25519";
 import Hex "Hex";
 import { setTimer; recurringTimer } = "mo:base/Timer";
 import AuthProvider "AuthProvider";
-import Queue "mo:new-base/Queue";
 import Option "mo:new-base/Option";
 import TimeFormat "TimeFormat";
+import Ed25519 "Ed25519";
 
 actor class Main() = this {
-  let TIME_MINUTE = 60 * 1_000_000_000;
-  let TIME_HOUR = 60 * TIME_MINUTE;
-  let MAX_EXPIRATION_TIME = 31 * 24 * TIME_HOUR;
-  let MIN_EXPIRATION_TIME = TIME_MINUTE * 2;
-  let MIN_FETCH_ATTEMPT_TIME = TIME_MINUTE * 10;
-  let MIN_FETCH_TIME = 6 * TIME_HOUR;
-  let MAX_TIME_PER_LOGIN = 5 * TIME_MINUTE;
+  type Duration = Time.Duration;
+  let toNanos = Time.toNanoseconds;
+
+  let MAX_EXPIRATION_TIME = #days(31);
+  let MIN_EXPIRATION_TIME = #minutes(2);
+  let MIN_FETCH_ATTEMPT_TIME = #minutes(10);
+  let MIN_FETCH_TIME = #hours(6);
+  // Max time between prepareDelegation and getDelegation calls
+  let MAX_TIME_PER_LOGIN = #minutes(5);
 
   type HashTree = HashTree.HashTree;
   type Time = Time.Time;
 
   type User = { email : Text; sub : Text; origin : Text; createdAt : Time };
   stable var users : Map.Map<Principal, User> = Map.new();
+
+  /// data from older versions
+  stable var keyPairs : Map.Map<Text, Ed25519.KeyPair> = Map.new();
+  stable var emails : Map.Map<Principal, Text> = Map.new();
 
   type AppInfo = { name : Text; origins : [Text] };
   stable var trustedApps : Map.Map<Principal, AppInfo> = Map.new();
@@ -55,7 +59,7 @@ actor class Main() = this {
     var keys : [RSA.PubKey] = [];
   };
 
-  let zidadelConfig : OAuth2ConnectConfig = {
+  let _zidadelConfig : OAuth2ConnectConfig = {
     provider = #zitadel;
     clientId = "327788236128717664";
     keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
@@ -104,8 +108,8 @@ actor class Main() = this {
   public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<[RSA.PubKey], Text> {
     Stats.logBalance(stats, "fetchGoogleKeys");
     if (not hasPermission(caller)) {
-      if (Time.now() - googleFetchAttempts.lastSuccess < MIN_FETCH_TIME) return #err("Rate limit reached. Try again in some hours.");
-      if (Time.now() - googleFetchAttempts.lastAttempt < MIN_FETCH_ATTEMPT_TIME) return #err("Rate limit reached. Try again in 30 minutes.");
+      if (Time.now() - googleFetchAttempts.lastSuccess < toNanos(MIN_FETCH_TIME)) return #err("Rate limit reached. Try again in some hours.");
+      if (Time.now() - googleFetchAttempts.lastAttempt < toNanos(MIN_FETCH_ATTEMPT_TIME)) return #err("Rate limit reached. Try again in 30 minutes.");
     };
 
     Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(googleFetchAttempts.count + 1) # ")");
@@ -117,21 +121,22 @@ actor class Main() = this {
 
   type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
 
-  var sigTree : HashTree = #Empty;
-  var sigsExpList = Queue.empty<Time.Time>();
+  let sigStore = CanisterSignature.newStore(Principal.fromActor(this));
+
+  // TODO: change interface type of expireIn to Duration
   public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
     Stats.logBalance(stats, "prepareDelegationSig");
 
-    // verify token
+    // check preconditions
     if (googleConfig.keys.size() == 0) return #err("Google keys not loaded");
-    if (expireIn > MAX_EXPIRATION_TIME) return #err("Expiration time to long");
-    if (expireIn < MIN_EXPIRATION_TIME) return #err("Expiration time to short");
+    if (expireIn > toNanos(MAX_EXPIRATION_TIME)) return #err("Expiration time to long");
+    if (expireIn < toNanos(MIN_EXPIRATION_TIME)) return #err("Expiration time to short");
     let now = Time.now();
     let expireAt = now + expireIn;
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleConfig.keys, now, 5 * 60 /*seconds*/, [googleConfig.clientId], nonce)) {
+    let jwt = switch (Jwt.decode(token, googleConfig.keys, now, #seconds(60), [googleConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
@@ -140,39 +145,28 @@ actor class Main() = this {
     };
 
     let sub = jwt.payload.sub;
-    let { seed; hashedSeed } = HashTree.encodeSeed(origin, sub);
-    let signingCanisterID = Principal.fromActor(this);
-    let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
-    let hash = Delegation.getUnsignedHash(sessionKey, expireAt, targets);
-    // TODO: check if updating works. If not re-enable the reset per request again:
-    //sigTree := HashTree.addSig(#Empty, hashedSeed, hash, Time.now());
-    sigTree := HashTree.addSig(sigTree, hashedSeed, hash, now);
-    Queue.pushBack(sigsExpList, now);
-    // Remove old signatures from sigTree
-    while (Option.get(Queue.peekFront(sigsExpList), now) < (now - MAX_TIME_PER_LOGIN)) {
-      ignore Queue.popFront(sigsExpList);
-    };
-    sigTree := HashTree.removeSigs(sigTree, Queue.size(sigsExpList));
+    // This is adding a signature to the sigTree and storing its hash in certified data.
+    let pubKey = CanisterSignature.prepareDelegation(sigStore, sub, origin, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
 
-    CertifiedData.set(Blob.fromArray(HashTree.hash(sigTree)));
-
-    let principal = CanisterSignature.toPrincipal(signingCanisterID, seed);
-    let rawEmail = jwt.payload.email;
+    // store user data
+    let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
+    // TODO: make email optional
+    let rawEmail = Option.get(jwt.payload.email, "");
     let normalized = Email.normalizeEmail(rawEmail);
     switch (normalized) {
+      case (#err err) {
+        Stats.log(stats, "!!!!!!!!!! Could not normalize email address which was signed by google: " # err # " !!!!!!!!!!");
+        return #err("Failed to normalize gmail address.");
+      };
       case (#ok email) {
-        if (Map.has(users, phash, CanisterSignature.toPrincipal(signingCanisterID, seed))) {
+        if (Map.has(users, phash, principal)) {
           Stats.inc(stats, "signin", origin);
         } else {
           Map.set(users, phash, principal, { email; sub; origin; createdAt = Time.now() });
           Stats.inc(stats, "signup", origin);
           Stats.inc(stats, "signin", origin);
         };
-      };
-      case (#err err) {
-        Stats.log(stats, "!!!!!!!!!! Could not normalize email address which was signed by google: " # err # " !!!!!!!!!!");
-        return #err("Failed to normalize gmail address.");
       };
     };
 
@@ -187,7 +181,7 @@ actor class Main() = this {
     Stats.logBalance(stats, "getDelegations");
 
     // If called as an update call, the getCertificate function returns null
-    let ?cert = CertifiedData.getCertificate() else return #err("Certificate only available in query calls");
+    if (CertifiedData.getCertificate() == null) return #err("This function must only be called using query calls");
 
     // verify token
     if (googleConfig.keys.size() == 0) return #err("Google keys not loaded");
@@ -195,7 +189,7 @@ actor class Main() = this {
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleConfig.keys, Time.now(), 5 * 60 /*seconds*/, [googleConfig.clientId], nonce)) {
+    let jwt = switch (Jwt.decode(token, googleConfig.keys, Time.now(), #minutes(5), [googleConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
         return #err("failed to decode token: " # err);
@@ -203,18 +197,12 @@ actor class Main() = this {
       case (#ok data) data;
     };
 
-    let signingCanisterID = Principal.fromActor(this);
     let sub = jwt.payload.sub;
-    let { seed; hashedSeed } = HashTree.encodeSeed(origin, sub);
-    let pubKey = CanisterSignature.DERencodePubKey(signingCanisterID, seed);
 
     //sign delegation
-    let signature = HashTree.getSignature(sigTree, hashedSeed, cert);
-    let authResponse = Delegation.getDelegationExternalSig(sessionKey, pubKey, signature, expireAt, targets);
+    let auth = CanisterSignature.getDelegation(sigStore, sub, origin, sessionKey, expireAt, targets);
 
-    return #ok({
-      auth = authResponse;
-    });
+    return #ok({ auth });
   };
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {

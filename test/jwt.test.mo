@@ -55,14 +55,14 @@ let nowNanos2 = 1727527187123456789;
 //   exp token2 1727528912
 
 print("- token 1");
-let data1 = switch (Jwt.decode(testJWT1, keys, nowNanos1, 10, [clientId], null)) {
+let data1 = switch (Jwt.decode(testJWT1, keys, nowNanos1, #seconds(10), [clientId], null)) {
   case (#err err) trap("failed to decode jwt 1: " # err);
   case (#ok data) data;
 };
 assert data1.payload.name == "Martin S.";
 
 print("- token 2");
-let data2 = switch (Jwt.decode(testJWT2, keys, nowNanos2, 10, [clientId], null)) {
+let data2 = switch (Jwt.decode(testJWT2, keys, nowNanos2, #seconds(10), [clientId], null)) {
   case (#err err) trap("failed to decode jwt 2: " # err);
   case (#ok data) data;
 };

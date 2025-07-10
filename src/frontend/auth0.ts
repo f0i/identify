@@ -30,6 +30,7 @@ window.onload = async () => {
     await auth0Client.loginWithRedirect({
       authorizationParams: {
         redirect_uri: window.location.origin + "/auth0.html",
+        nonce: "testnonce1234567890",
       },
     });
   };

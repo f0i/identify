@@ -1,8 +1,8 @@
 import { JSON } "mo:serde";
 import Result "mo:base/Result";
-import Text "mo:base/Text";
+import Text "mo:new-base/Text";
 import Array "mo:base/Array";
-import Time "mo:base/Time";
+import Time "mo:new-base/Time";
 import Nat "mo:base/Nat";
 import Base64 "Base64";
 import Sha256 "mo:sha2/Sha256";
@@ -10,6 +10,8 @@ import RSA "./RSA";
 import TimeFormat "TimeFormat";
 
 module {
+  type Time = Time.Time;
+  type Duration = Time.Duration;
   /**
   Data sturcture of a decoded JWT token's header.
   */
@@ -34,9 +36,11 @@ module {
     exp : Nat; // expiration time in seconds since Unix epoch
     iat : Nat; // issued at time
     jti : Text; // JWT token ID
-    email : Text; // user email
-    name : Text; // user full name
+    email : ?Text; // user email
+    email_verified : ?Bool; // email verified by auth provider
+    name : ?Text; // user full name
     nonce : ?Text; // nonce (used here to link the session key)
+    amr : ?[Text] // authentication methods references
   };
 
   /**
@@ -81,11 +85,12 @@ module {
   the an error result with the reason why the token could not be verified.
 
   */
-  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time.Time, issuedToleranceS : Nat, audiences : [Text], nonce : ?Text) : Result.Result<JWT, Text> {
+  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time, issuedTolerance : Duration, audiences : [Text], nonce : ?Text) : Result.Result<JWT, Text> {
     assert (pubKeys.size() > 0);
     assert (audiences.size() > 0);
 
     let nowS = now / 1_000_000_000;
+    let issuedToleranceS = Time.toNanoseconds(issuedTolerance) / 1_000_000_000;
     let issuedBeforeS = nowS + issuedToleranceS;
     let iter = Text.split(token, #char('.'));
 
