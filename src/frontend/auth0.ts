@@ -2,7 +2,10 @@ import { createAuth0Client } from "@auth0/auth0-spa-js";
 import { AUTH0 } from "./auth-config";
 
 window.onload = async () => {
-  let auth0Client = await createAuth0Client(AUTH0);
+  let auth0Client = await createAuth0Client({
+    ...AUTH0,
+    authorizationParams: { nonce: "asdftestnonce" },
+  });
 
   // Handle callback from Auth0
   if (
@@ -15,13 +18,15 @@ window.onload = async () => {
   }
 
   // Check if user is authenticated
+  console.log("check isAuthenticated()");
   if (await auth0Client.isAuthenticated()) {
+    console.log("call getIdTokenClaims()");
     auth0Client.getIdTokenClaims().then((claims) => {
       if (!claims)
         throw new Error(
           "Authentication errror: Authentication provider Auth0 did not return ID token",
         );
-      console.log("Auth0 ID Token Claims:", claims.__raw);
+      console.log("Auth0 ID Token Claims:", claims.nonce, claims);
     });
   }
 
