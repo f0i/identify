@@ -8,7 +8,8 @@
     "test:frontend": "jest --config ./src/frontend/jest.config.js",
     "test:backend": "./test/run.sh",
     "test:backend:fast": "./test/run.sh --fast",
-    "bench": "mops bench"
+    "bench": "mops bench",
+    "postinstall": "node patch/auth0-spa-js.js"
   },
   "keywords": [],
   "author": "",
@@ -19,14 +20,14 @@
     "@types/gapi.auth2": "^0.0.61",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.5.5",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.25.6",
     "jest": "^30.0.0",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
   },
   "dependencies": {
-    "@auth0/auth0-spa-js": "github:f0i/auth0-spa-js#allow-custom-nonce",
+    "@auth0/auth0-spa-js": "^2.2.0",
     "@dfinity/agent": "^2.1.2",
     "@dfinity/auth-client": "^2.1.2",
     "@dfinity/candid": "^2.4.1",
