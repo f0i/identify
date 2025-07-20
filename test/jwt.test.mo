@@ -59,13 +59,13 @@ let data1 = switch (Jwt.decode(testJWT1, keys, nowNanos1, #seconds(10), [clientI
   case (#err err) trap("failed to decode jwt 1: " # err);
   case (#ok data) data;
 };
-assert data1.payload.name == "Martin S.";
+assert data1.payload.name == ?"Martin S.";
 
 print("- token 2");
 let data2 = switch (Jwt.decode(testJWT2, keys, nowNanos2, #seconds(10), [clientId], null)) {
   case (#err err) trap("failed to decode jwt 2: " # err);
   case (#ok data) data;
 };
-assert data2.payload.name == "Martin S.";
+assert data2.payload.name == ?"Martin S.";
 
 assert data1 != data2;

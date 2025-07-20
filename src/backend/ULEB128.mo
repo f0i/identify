@@ -5,9 +5,9 @@ import Nat "mo:base/Nat";
 module {
   // Encode a Nat into ULEB128
   public func encode(value : Nat) : [Nat8] {
-    if (value == 0) {
+    if (value < 128) {
       // Special case: if the number is zero, encode it as a single zero byte
-      return [0x00];
+      return [Nat8.fromNat(value)];
     };
 
     var n = value;

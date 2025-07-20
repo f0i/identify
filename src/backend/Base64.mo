@@ -6,6 +6,7 @@ import Nat32 "mo:new-base/Nat32";
 import Nat8 "mo:new-base/Nat8";
 import Result "mo:new-base/Result";
 import Text "mo:new-base/Text";
+import VarArray "mo:new-base/VarArray";
 import Prim "mo:⛔";
 
 module Base64 {
@@ -43,7 +44,7 @@ module Base64 {
     let base64TableSize = Array.size(base64Table);
     let paddedLength = ((data64.size() + 3) / 4) * 4; // Ensures the length is a multiple of 4
     let outputSize = paddedLength * 3 / 4;
-    var output : [var Nat8] = Prim.Array_init(outputSize, 0 : Nat8);
+    var output : [var Nat8] = VarArray.repeat(0 : Nat8, outputSize);
     var block : [var Nat32] = [var 0, 0, 0, 0];
     var blockIndex : Nat = 0;
     var outIndex = 0;

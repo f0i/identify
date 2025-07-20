@@ -71,6 +71,7 @@ Currently the following ICRCs are implemented or will be considered for implemen
 - [ ] ICRC-95: Derivation Origin
 - [ ] ICRC-112: Batch Call Canister
 - [ ] ICRC-114: Validate Batch Call
+- [ ] ICRC-146: Cross Chain JSON-RPC
 
 
 # Authentication flow

@@ -10,16 +10,17 @@ window.onload = () => {
   } else {
     initDemo(IDENTITY_PROVIDER);
   }
+
   document.getElementById("version")!.innerText = process.env.BUILD_TIME!;
   try {
-    (window as any).showInfo(document.location.hash.substring(1));
+    showInfo(document.location.hash.substring(1));
   } catch (e) {
     // ignore
   }
 };
 
-(window as any).showInfo = function (sectionId: string) {
-  const active = document.getElementById(sectionId)!.style.display === "block";
+function showInfo(sectionId: string) {
+  const active = document.getElementById(sectionId)?.style.display === "block";
   // Hide all sections
   showElement("help", false);
   showElement("security", false);
@@ -33,7 +34,7 @@ window.onload = () => {
       history.replaceState(null, "", document.location.pathname),
     );
   }
-};
+}
 
 /*
 (function pipeAllConsoleToOpener() {

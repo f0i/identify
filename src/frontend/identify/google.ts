@@ -10,21 +10,21 @@ export async function initGsi(
   clientId: string,
   nonce: string,
   showPrompt: boolean = true,
-  buttonId?: string,
-): Promise<{ credential: string }> {
+  buttonId: string,
+): Promise<string> {
   await loadGoogleSignInClient();
 
   return new Promise((resolve, _reject) => {
     window.google.accounts.id.initialize({
       client_id: clientId,
-      callback: resolve,
+      callback: (token: { credential: string }) => resolve(token.credential),
       nonce: nonce,
     });
 
-    window.google.accounts.id.renderButton(
-      document.getElementById(buttonId ?? "icgsi-google-btn")!,
-      { theme: "outline", size: "large" },
-    );
+    window.google.accounts.id.renderButton(document.getElementById(buttonId)!, {
+      theme: "outline",
+      size: "large",
+    });
 
     if (showPrompt) {
       window.google.accounts.id.prompt();

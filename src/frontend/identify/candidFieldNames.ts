@@ -2498,6 +2498,6 @@ const candidFieldNames = [
   "xdrs_per_icp",
   "xnet_endpoint",
   "xrc_id",
-  "yes"
+  "yes",
 ];
 export const fieldNames = createNameLookup(candidFieldNames);
