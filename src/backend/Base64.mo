@@ -1,13 +1,12 @@
-import Array "mo:new-base/Array";
-import Blob "mo:new-base/Blob";
-import Char "mo:new-base/Char";
-import Nat "mo:new-base/Nat";
-import Nat32 "mo:new-base/Nat32";
-import Nat8 "mo:new-base/Nat8";
-import Result "mo:new-base/Result";
-import Text "mo:new-base/Text";
-import VarArray "mo:new-base/VarArray";
-import Prim "mo:⛔";
+import Array "mo:core/Array";
+import Blob "mo:core/Blob";
+import Char "mo:core/Char";
+import Nat "mo:core/Nat";
+import Nat32 "mo:core/Nat32";
+import Nat8 "mo:core/Nat8";
+import Result "mo:core/Result";
+import Text "mo:core/Text";
+import VarArray "mo:core/VarArray";
 
 module Base64 {
 
@@ -28,7 +27,7 @@ module Base64 {
   /// Helper function to decode a block of 4 base64 characters into 3 bytes
   func decodeBlock(block : [var Nat32], output : [var Nat8], index : Nat) {
     let buffer : Nat32 = (block[0] << 18) + (block[1] << 12) + (block[2] << 6) + block[3];
-    let (_, a, b, c) = Prim.explodeNat32(buffer);
+    let (_, a, b, c) = Nat32.explode(buffer);
     output[index] := a;
     output[index + 1] := b;
     output[index + 2] := c;

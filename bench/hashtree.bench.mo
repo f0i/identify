@@ -8,6 +8,7 @@ import HashTree "../src/backend/HashTree";
 import CertTree "mo:ic-certification/CertTree";
 import CanisterSigs "mo:ic-certification/CanisterSigs";
 import Sha256 "mo:sha2/Sha256";
+import Runtime "mo:core/Runtime";
 
 module {
   type HashTree = HashTree.HashTree;
@@ -25,7 +26,7 @@ module {
 
     bench.runner(
       func(row, col) {
-        let ?n = Nat.fromText(col) else Debug.trap("Cols must only contain numbers: " # col);
+        let ?n = Nat.fromText(col) else Runtime.trap("Cols must only contain numbers: " # col);
 
         if (row == "f0i:identify") {
           var tree : HashTree = #Empty;

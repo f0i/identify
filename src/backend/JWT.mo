@@ -1,9 +1,9 @@
 import { JSON } "mo:serde";
-import Result "mo:base/Result";
-import Text "mo:new-base/Text";
-import Array "mo:base/Array";
-import Time "mo:new-base/Time";
-import Nat "mo:base/Nat";
+import Result "mo:core/Result";
+import Text "mo:core/Text";
+import Array "mo:core/Array";
+import Time "mo:core/Time";
+import Nat "mo:core/Nat";
 import Base64 "Base64";
 import Sha256 "mo:sha2/Sha256";
 import RSA "./RSA";

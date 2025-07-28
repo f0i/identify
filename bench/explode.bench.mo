@@ -1,13 +1,9 @@
 import Bench "mo:bench";
-import Nat "mo:base/Nat";
-import Iter "mo:base/Iter";
-import Buffer "mo:base/Buffer";
-import Array "mo:base/Array";
-import Result "mo:base/Result";
-import Debug "mo:base/Debug";
-import Nat8 "mo:base/Nat8";
-import Nat16 "mo:base/Nat16";
-import Prim "mo:⛔";
+import Nat "mo:core/Nat";
+import Nat8 "mo:core/Nat8";
+import Nat16 "mo:core/Nat16";
+import Nat32 "mo:core/Nat32";
+import Runtime "mo:core/Runtime";
 
 module {
   public func init() : Bench.Bench {
@@ -21,18 +17,18 @@ module {
 
     bench.runner(
       func(row, col) {
-        let ?n = Nat.fromText(col) else Debug.trap("Cols must only contain numbers: " # col);
+        let ?n = Nat.fromText(col) else Runtime.trap("Cols must only contain numbers: " # col);
 
         if (row == "explode") {
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let buffer : Nat32 = 0x11223344;
-            let (a, b, c, d) = Prim.explodeNat32(buffer);
+            let (a, b, c, d) = Nat32.explode(buffer);
           };
         };
 
         // Manual decoding (without explode)
         if (row == "binop") {
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let buffer : Nat32 = 0x11223344;
             let a = Nat8.fromNat16(Nat16.fromNat32((buffer >> 16) & 0xFF));
             let b = Nat8.fromNat16(Nat16.fromNat32((buffer >> 16) & 0xFF));

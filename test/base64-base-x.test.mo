@@ -1,9 +1,9 @@
 /// This test is copied from https://github.com/edjcase/motoko_base_x
 /// Additional checks have been added to compare with our custom Base64 decoder implementation
 import { test } "mo:test";
-import Debug "mo:base/Debug";
-import Runtime "mo:new-base/Runtime";
-import Blob "mo:new-base/Blob";
+import Debug "mo:core/Debug";
+import Runtime "mo:core/Runtime";
+import Blob "mo:core/Blob";
 import BaseX "mo:base-x-encoder";
 import Base64 "../src/backend/Base64";
 
@@ -211,7 +211,7 @@ test(
     for (testCase in testCases.vals()) {
       let actual = BaseX.toBase64(testCase.input.vals(), testCase.outputFormat);
       if (actual != testCase.expected) {
-        Debug.trap(
+        Runtime.trap(
           "toBase64 Failure\nValue: " # debug_show (testCase.input) # "\nOutputFormat: " # debug_show (testCase.outputFormat) # "\nExpected: " # testCase.expected # "\nActual:   " # actual
         );
       };

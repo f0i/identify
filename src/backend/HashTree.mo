@@ -1,12 +1,13 @@
 import Sha256 "mo:sha2/Sha256";
-import Blob "mo:base/Blob";
-import Text "mo:base/Text";
-import Debug "mo:base/Debug";
-import Nat8 "mo:base/Nat8";
-import Time "mo:base/Time";
-import Result "mo:base/Result";
-import Nat64 "mo:base/Nat64";
-import Array "mo:new-base/Array";
+import Blob "mo:core/Blob";
+import Text "mo:core/Text";
+import Debug "mo:core/Debug";
+import Nat8 "mo:core/Nat8";
+import Time "mo:core/Time";
+import Result "mo:core/Result";
+import Nat64 "mo:core/Nat64";
+import Array "mo:core/Array";
+import Runtime "mo:core/Runtime";
 import Hex "Hex";
 
 // Partial implementation of a hash tree with just the functions to generate canister signatures
@@ -89,7 +90,7 @@ module {
     let certCBOR = cborBlob(cert);
     let prunedTree = getPrunedSigTree(tree, seed);
     // fail if seed was not found
-    if (prunedTree == #Empty) Debug.trap("Internal error: could not find any signature for this user.");
+    if (prunedTree == #Empty) Runtime.trap("Internal error: could not find any signature for this user.");
     let treeCBOR = cbor(prunedTree);
 
     Array.flatten<Nat8>([
@@ -224,7 +225,7 @@ module {
       [0x59, high, low];
     } else {
       // larger lengths could use 0x5A for 4-byte length, but in our case this is unlikeley to happen
-      Debug.trap("Blob too large to encode");
+      Runtime.trap("Blob too large to encode");
     };
     return Array.flatten([head, data]);
   };

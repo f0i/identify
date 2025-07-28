@@ -1,26 +1,27 @@
-import Result "mo:base/Result";
-import Time "mo:new-base/Time";
+import Result "mo:core/Result";
+import Time "mo:core/Time";
 import Map "mo:map/Map";
 import { phash } "mo:map/Map";
 import Set "mo:map/Set";
 import Jwt "JWT";
 import RSA "RSA";
 import Delegation "Delegation";
-import Principal "mo:base/Principal";
-import Nat "mo:base/Nat";
-import Iter "mo:base/Iter";
-import Array "mo:base/Array";
-import Debug "mo:base/Debug";
-import CertifiedData "mo:base/CertifiedData";
+import Principal "mo:core/Principal";
+import Nat "mo:core/Nat";
+import Iter "mo:core/Iter";
+import Array "mo:core/Array";
+import Debug "mo:core/Debug";
+import CertifiedData "mo:core/CertifiedData";
 import Http "Http";
 import Stats "Stats";
 import Email "mo:email";
 import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
 import Hex "Hex";
-import { setTimer; recurringTimer } = "mo:base/Timer";
+import { setTimer; recurringTimer } = "mo:core/Timer";
 import AuthProvider "AuthProvider";
-import Option "mo:new-base/Option";
+import Option "mo:core/Option";
+import { trap } "mo:core/Runtime";
 import TimeFormat "TimeFormat";
 import Ed25519 "Ed25519";
 
@@ -217,7 +218,7 @@ persistent actor class Main() = this {
   /// Get an email address for a principal
   public shared query ({ caller }) func getEmail(principal : Principal, origin : Text) : async ?Text {
     Stats.logBalance(stats, "getEmail");
-    let ?appInfo = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for caller " # Principal.toText(caller));
+    let ?appInfo = Map.get(trustedApps, phash, caller) else trap("Permission denied for caller " # Principal.toText(caller));
     for (o in appInfo.origins.vals()) {
       if (o == origin) {
         let ?user = Map.get(users, phash, principal) else return null;
@@ -225,13 +226,13 @@ persistent actor class Main() = this {
       };
     };
     // origin was not in appInfo.origions
-    Debug.trap("Permission denied for origin " # origin);
+    trap("Permission denied for origin " # origin);
   };
 
   /// Get an email address for a principal
   public shared query ({ caller }) func getUser(principal : Principal, origin : Text) : async ?User {
     Stats.logBalance(stats, "getUser");
-    let ?appInfo = Map.get(trustedApps, phash, caller) else Debug.trap("Permission denied for caller " # Principal.toText(caller));
+    let ?appInfo = Map.get(trustedApps, phash, caller) else trap("Permission denied for caller " # Principal.toText(caller));
     for (o in appInfo.origins.vals()) {
       if (o == origin) {
         let ?user = Map.get(users, phash, principal) else return null;
@@ -239,7 +240,7 @@ persistent actor class Main() = this {
       };
     };
     // origin was not in appInfo.origions
-    Debug.trap("Permission denied for origin " # origin);
+    trap("Permission denied for origin " # origin);
   };
 
   public shared query ({ caller }) func getPrincipal() : async Text {
@@ -254,7 +255,7 @@ persistent actor class Main() = this {
     text : Text;
   } {
     if (not hasPermission(caller)) {
-      Debug.trap("Permisison denied.");
+      trap("Permisison denied.");
     };
     let val = Stats.cycleBalanceStart();
     let text = Stats.formatNat(val, "C");

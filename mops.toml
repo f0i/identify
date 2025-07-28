@@ -1,12 +1,12 @@
 [dependencies]
-base = "0.14.14"
-serde = "https://github.com/f0i/serde#main"
-sha2 = "0.1.4"
+core = "0.6.0"
+base = "0.15.0"
+serde = "3.3.1"
+sha2 = "0.1.6"
 tweetnacl = "1.1.2"
 map = "9.0.1"
 prng = "0.0.5"
 hash = "1.0.0"
-new-base = "0.4.0"
 cbor = "2.0.0"
 email = "0.1.0"
 
@@ -23,5 +23,3 @@ ic-certification = "https://github.com/f0i/ic-certification#main@0e807b295ac2f80
 itertools = "0.2.2"
 candid = "1.1.1"
 xtended-numbers = "0.4.0"
-json-float = "https://github.com/NatLabs/json.mo#float@f3c8e7d418a7a8f2d6c0d7e2d276a0a82c2046ff"
-parser-combinators = "https://github.com/aviate-labs/parser-combinators.mo#v0.1.2@6a331bf78e9dcd7623977f06c8e561fd1a8c0103"

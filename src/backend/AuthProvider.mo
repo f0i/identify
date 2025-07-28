@@ -1,11 +1,11 @@
 import Http "Http";
 import RSA "RSA";
 import Stats "Stats";
-import Time "mo:new-base/Time";
-import Result "mo:new-base/Result";
-import Text "mo:new-base/Text";
-import Option "mo:new-base/Option";
-import Debug "mo:base/Debug";
+import Time "mo:core/Time";
+import Result "mo:core/Result";
+import Text "mo:core/Text";
+import Option "mo:core/Option";
+import Debug "mo:core/Debug";
 import Jwt "JWT";
 
 module {

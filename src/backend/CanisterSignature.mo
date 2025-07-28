@@ -1,18 +1,19 @@
-import Blob "mo:base/Blob";
-import Principal "mo:base/Principal";
-import Array "mo:base/Array";
-import Nat8 "mo:base/Nat8";
-import Debug "mo:base/Debug";
+import Blob "mo:core/Blob";
+import Principal "mo:core/Principal";
+import Array "mo:core/Array";
+import Nat8 "mo:core/Nat8";
+import Debug "mo:core/Debug";
 import Sha256 "mo:sha2/Sha256";
-import Queue "mo:new-base/Queue";
-import Time "mo:new-base/Time";
-import Text "mo:new-base/Text";
-import Option "mo:new-base/Option";
-import CertifiedData "mo:new-base/CertifiedData";
-import { trap } "mo:new-base/Runtime";
+import Queue "mo:core/Queue";
+import Time "mo:core/Time";
+import Text "mo:core/Text";
+import Option "mo:core/Option";
+import CertifiedData "mo:core/CertifiedData";
+import { trap } "mo:core/Runtime";
 import HashTree "HashTree";
 import Delegation "Delegation";
 import Hex "Hex";
+
 module {
 
   type Time = Time.Time;
