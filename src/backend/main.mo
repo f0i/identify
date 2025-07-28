@@ -14,7 +14,7 @@ import Debug "mo:base/Debug";
 import CertifiedData "mo:base/CertifiedData";
 import Http "Http";
 import Stats "Stats";
-import Email "Email";
+import Email "mo:email";
 import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
 import Hex "Hex";
@@ -24,42 +24,42 @@ import Option "mo:new-base/Option";
 import TimeFormat "TimeFormat";
 import Ed25519 "Ed25519";
 
-actor class Main() = this {
+persistent actor class Main() = this {
   type Duration = Time.Duration;
-  let toNanos = Time.toNanoseconds;
+  transient let toNanos = Time.toNanoseconds;
 
-  let MAX_EXPIRATION_TIME = #days(31);
-  let MIN_EXPIRATION_TIME = #minutes(2);
-  let MIN_FETCH_ATTEMPT_TIME = #minutes(10);
-  let MIN_FETCH_TIME = #hours(6);
+  transient let MAX_EXPIRATION_TIME = #days(31);
+  transient let MIN_EXPIRATION_TIME = #minutes(2);
+  transient let MIN_FETCH_ATTEMPT_TIME = #minutes(10);
+  transient let MIN_FETCH_TIME = #hours(6);
   // Max time between prepareDelegation and getDelegation calls
-  let MAX_TIME_PER_LOGIN = #minutes(5);
+  transient let MAX_TIME_PER_LOGIN = #minutes(5);
 
   type HashTree = HashTree.HashTree;
   type Time = Time.Time;
 
   type User = { email : Text; sub : Text; origin : Text; createdAt : Time };
-  stable var users : Map.Map<Principal, User> = Map.new();
+  var users : Map.Map<Principal, User> = Map.new();
 
   /// data from older versions
-  stable var keyPairs : Map.Map<Text, Ed25519.KeyPair> = Map.new();
-  stable var emails : Map.Map<Principal, Text> = Map.new();
+  var keyPairs : Map.Map<Text, Ed25519.KeyPair> = Map.new();
+  var emails : Map.Map<Principal, Text> = Map.new();
 
   type AppInfo = { name : Text; origins : [Text] };
-  stable var trustedApps : Map.Map<Principal, AppInfo> = Map.new();
+  var trustedApps : Map.Map<Principal, AppInfo> = Map.new();
 
-  stable var stats = Stats.new(1000);
+  var stats = Stats.new(1000);
   Stats.log(stats, "deploied new backend version.");
 
   type OAuth2ConnectConfig = AuthProvider.OAuth2ConnectConfig;
-  let googleConfig : OAuth2ConnectConfig = {
+  transient let googleConfig : OAuth2ConnectConfig = {
     provider = #google;
     clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
     keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
     var keys : [RSA.PubKey] = [];
   };
 
-  let _zidadelConfig : OAuth2ConnectConfig = {
+  transient let _zidadelConfig : OAuth2ConnectConfig = {
     provider = #zitadel;
     clientId = "327788236128717664";
     keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
@@ -68,12 +68,12 @@ actor class Main() = this {
 
   // Reset trusted apps on each deployment
   trustedApps := Map.new();
-  let btcGiftCards = {
+  transient let btcGiftCards = {
     name = "Bitcoin Gift Cards";
     origins = ["https://btc-gift-cards.com", "https://y4leg-vyaaa-aaaah-aq3ra-cai.icp0.io"];
   };
   Map.set(trustedApps, phash, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), btcGiftCards);
-  let btcGiftCardsDemo = {
+  transient let btcGiftCardsDemo = {
     name = "Bitcoin Gift Cards Demo";
     origins = ["https://mdh4j-syaaa-aaaah-arcfq-cai.icp0.io"];
   };
@@ -103,7 +103,7 @@ actor class Main() = this {
     ignore await fetchGoogleKeys();
   };
 
-  let googleFetchAttempts = Stats.newAttemptTracker();
+  transient let googleFetchAttempts = Stats.newAttemptTracker();
 
   public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<[RSA.PubKey], Text> {
     Stats.logBalance(stats, "fetchGoogleKeys");
@@ -121,7 +121,7 @@ actor class Main() = this {
 
   type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
 
-  let sigStore = CanisterSignature.newStore(Principal.fromActor(this));
+  transient let sigStore = CanisterSignature.newStore(Principal.fromActor(this));
 
   // TODO: change interface type of expireIn to Duration
   public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
@@ -152,17 +152,20 @@ actor class Main() = this {
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
     // TODO: make email optional
-    let rawEmail = Option.get(jwt.payload.email, "");
-    let normalized = Email.normalizeEmail(rawEmail);
-    switch (normalized) {
-      case (#err err) {
-        Stats.log(stats, "!!!!!!!!!! Could not normalize email address which was signed by google: " # err # " !!!!!!!!!!");
-        return #err("Failed to normalize gmail address.");
-      };
-      case (#ok email) {
-        if (Map.has(users, phash, principal)) {
-          Stats.inc(stats, "signin", origin);
-        } else {
+    if (Map.has(users, phash, principal)) {
+      // user exists
+      Stats.inc(stats, "signin", origin);
+    } else {
+      let rawEmail = Option.get(jwt.payload.email, "");
+      let res = Email.parse(rawEmail);
+
+      switch (res) {
+        case (#err err) {
+          Stats.log(stats, "Could not parse email address contained in JWT " # err # " !!!!!!!!!!");
+          return #err("Failed to normalize gmail address.");
+        };
+        case (#ok emailData) {
+          let email = Email.toAddress(emailData);
           Map.set(users, phash, principal, { email; sub; origin; createdAt = Time.now() });
           Stats.inc(stats, "signup", origin);
           Stats.inc(stats, "signin", origin);
@@ -277,7 +280,7 @@ actor class Main() = this {
     return Array.flatten<Text>([[appCount, keyCount, loginCount], counterText, costs, log, accs]);
   };
 
-  stable var mods : Set.Set<Principal> = Set.new();
+  var mods : Set.Set<Principal> = Set.new();
   public shared ({ caller }) func addMod(user : Principal) : async Result.Result<(), Text> {
     Stats.logBalance(stats, "addMod");
     if (not Principal.isController(caller)) return #err("Permisison denied.");

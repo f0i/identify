@@ -8,11 +8,11 @@ prng = "0.0.5"
 hash = "1.0.0"
 new-base = "0.4.0"
 cbor = "2.0.0"
-
+email = "0.1.0"
 
 [toolchain]
 wasmtime = "25.0.1"
-moc = "0.14.14"
+moc = "0.15.0"
 
 [dev-dependencies]
 bench = "1.0.0"
@@ -20,10 +20,8 @@ base64 = "1.0.1"
 base-x-encoder = "1.2.0"
 test = "2.1.1"
 ic-certification = "https://github.com/f0i/ic-certification#main@0e807b295ac2f804eb9641296b78334345390ec4"
-
 itertools = "0.2.2"
 candid = "1.1.1"
 xtended-numbers = "0.4.0"
 json-float = "https://github.com/NatLabs/json.mo#float@f3c8e7d418a7a8f2d6c0d7e2d276a0a82c2046ff"
 parser-combinators = "https://github.com/aviate-labs/parser-combinators.mo#v0.1.2@6a331bf78e9dcd7623977f06c8e561fd1a8c0103"
-

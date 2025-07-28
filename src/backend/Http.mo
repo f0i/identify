@@ -50,6 +50,7 @@ module {
       body = null;
       method = #get;
       transform = ?transform_context;
+      is_replicated = ?true;
     };
 
     let maxCost = 400_000 /* base cost */ + Nat64.toNat(maxBytes) * 100_000 /* cost per byte */ * 3 /* factor to ensure enough cycles */;
