@@ -1,7 +1,6 @@
-import Array "mo:base/Array";
-import Iter "mo:base/Iter";
-import Int "mo:base/Int";
-import Time "mo:base/Time";
+import Time "mo:core/Time";
+import Int "mo:core/Int";
+import Nat "mo:core/Nat";
 
 module {
 
@@ -53,7 +52,7 @@ module {
     // Adjust February days for leap years
     let adjustedDaysInMonth = if (isLeapYear(year)) daysInMonthLeapYear else daysInMonth;
 
-    label monthLoop for (i in Iter.range(0, 11)) {
+    label monthLoop for (i in Nat.range(0, 12)) {
       if (days < adjustedDaysInMonth[i]) {
         month := i + 1;
         day := days + 1;

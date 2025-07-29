@@ -1,4 +1,5 @@
-import { print; trap } "mo:base/Debug";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
 import { transformBody } "../src/backend/certs/GoogleCert";
 import RSA "../src/backend/RSA";
 

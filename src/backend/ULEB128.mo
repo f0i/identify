@@ -1,6 +1,6 @@
-import Nat8 "mo:base/Nat8";
+import Nat8 "mo:core/Nat8";
 import Buffer "mo:base/Buffer";
-import Nat "mo:base/Nat";
+import Nat "mo:core/Nat";
 
 module {
   // Encode a Nat into ULEB128

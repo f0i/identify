@@ -1,6 +1,6 @@
-import { print; trap } "mo:base/Debug";
-import Debug "mo:base/Debug";
-import Blob "mo:base/Blob";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
+import Blob "mo:core/Blob";
 import HashTree "../src/backend/HashTree";
 import Hex "../src/backend/Hex";
 type HashTree = HashTree.HashTree;

@@ -1,16 +1,17 @@
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
-import Array "mo:base/Array";
-import Iter "mo:base/Iter";
-import Time "mo:base/Time";
-import Buffer "mo:base/Buffer";
+import Array "mo:core/Array";
+import Iter "mo:core/Iter";
+import Time "mo:core/Time";
+import List "mo:core/List";
 import TimeFormat "TimeFormat";
-import Float "mo:base/Float";
-import Cycles "mo:base/ExperimentalCycles";
-import IC "mo:base/ExperimentalInternetComputer";
-import Nat "mo:base/Nat";
-import Int "mo:base/Int";
-import Nat64 "mo:base/Nat64";
+import Float "mo:core/Float";
+import Cycles "mo:core/Cycles";
+import IC "mo:core/InternetComputer";
+import Nat "mo:core/Nat";
+import Int "mo:core/Int";
+import Nat64 "mo:core/Nat64";
+import VarArray "mo:core/VarArray";
 
 module {
 
@@ -47,7 +48,7 @@ module {
 
   public func new(logSize : Nat) : Stats = {
     counter = Map.new();
-    log = Array.init(logSize, "");
+    log = VarArray.repeat("", logSize);
     var logIndex = 0;
     var lastBalance = Cycles.balance();
     var lastFn = "init";
@@ -71,13 +72,13 @@ module {
     counter : Nat;
   };
   public func counterEntries(stats : Stats) : [CounterEntry] {
-    let out = Buffer.Buffer<CounterEntry>(10);
+    let out = List.empty<CounterEntry>();
     for ((category, val) in Map.entries(stats.counter)) {
       for ((sub, counter) in Map.entries(val)) {
-        out.add({ category; sub; counter });
+        List.add(out, { category; sub; counter });
       };
     };
-    return Buffer.toArray(out);
+    return List.toArray(out);
   };
 
   public func log(stats : Stats, msg : Text) {
@@ -104,7 +105,7 @@ module {
           var total = diff;
           var min = diff;
           var max = diff;
-          log = Array.init(100, 0);
+          log = VarArray.repeat(0, 100);
         } : FnCost;
         cost.log[0] := diff;
         Map.set(stats.costs, thash, stats.lastFn, cost);

@@ -1,5 +1,6 @@
-import { print; trap } "mo:base/Debug";
-import Principal "mo:base/Principal";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
+import Principal "mo:core/Principal";
 import Nat "mo:base/Nat";
 import Ed25519 "../src/backend/Ed25519";
 

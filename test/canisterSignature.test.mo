@@ -1,5 +1,6 @@
-import { print; trap } "mo:base/Debug";
-import Principal "mo:base/Principal";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
+import Principal "mo:core/Principal";
 import CanisterSignature "../src/backend/CanisterSignature";
 import Delegation "../src/backend/Delegation";
 import Hex "../src/backend/Hex";

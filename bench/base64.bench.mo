@@ -1,8 +1,7 @@
 import Bench "mo:bench";
-import Nat "mo:base/Nat";
-import Iter "mo:base/Iter";
-import Result "mo:base/Result";
-import Debug "mo:base/Debug";
+import Nat "mo:core/Nat";
+import Result "mo:core/Result";
+import { trap } "mo:core/Runtime";
 import Base64 "../src/backend/Base64";
 import MopsBase64 "mo:base64";
 import BaseXEncoder "mo:base-x-encoder";
@@ -22,17 +21,17 @@ module {
 
     bench.runner(
       func(row, col) {
-        let ?n = Nat.fromText(col) else Debug.trap("Cols must only contain numbers: " # col);
+        let ?n = Nat.fromText(col) else trap("Cols must only contain numbers: " # col);
 
         if (row == "f0i:identify") {
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let data = Base64.decode(testData);
             assert Result.isOk(data);
           };
         };
 
         if (row == "mops:base-x-encoder") {
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let data = BaseXEncoder.fromBase64(testData);
             assert Result.isOk(data);
           };
@@ -40,7 +39,7 @@ module {
 
         if (row == "mops:base64") {
           let base64 = MopsBase64.Base64(#version(MopsBase64.V2), ?true);
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let data = base64.decode(testData);
             assert data != [];
           };

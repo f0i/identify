@@ -1,14 +1,14 @@
 import Bench "mo:bench";
-import Debug "mo:base/Debug";
-import Time "mo:base/Time";
-import Nat "mo:base/Nat";
-import Iter "mo:base/Iter";
-import Text "mo:base/Text";
+import Time "mo:core/Time";
+import Nat "mo:core/Nat";
+import Iter "mo:core/Iter";
+import Text "mo:core/Text";
 import HashTree "../src/backend/HashTree";
 import CertTree "mo:ic-certification/CertTree";
 import CanisterSigs "mo:ic-certification/CanisterSigs";
 import Sha256 "mo:sha2/Sha256";
 import Runtime "mo:core/Runtime";
+import Nat "mo:core/Nat";
 
 module {
   type HashTree = HashTree.HashTree;
@@ -30,7 +30,7 @@ module {
 
         if (row == "f0i:identify") {
           var tree : HashTree = #Empty;
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let seed = Text.encodeUtf8("test" # Nat.toText(i));
             let hash : [Nat8] = [1, 2, 3, 4];
             tree := HashTree.addSig(tree, seed, hash, time + i);
@@ -41,7 +41,7 @@ module {
         if (row == "ic-certification") {
           let cert_store : CertTree.Store = CertTree.newStore();
           let ct = CertTree.Ops(cert_store);
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let seed = Text.encodeUtf8("test" # Nat.toText(i));
             let hash : Blob = "1234";
             let seedHash = Sha256.fromBlob(#sha256, seed);
@@ -55,7 +55,7 @@ module {
           let ct = CertTree.Ops(cert_store);
           let csm = CanisterSigs.Manager(ct, null);
 
-          for (i in Iter.range(1, n)) {
+          for (i in Nat.range(0, n)) {
             let seed = Text.encodeUtf8("test" # Nat.toText(i));
             //let hash : [Nat8] = [1, 2, 3, 4];
             let hash : Blob = "1234";

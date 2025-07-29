@@ -1,4 +1,5 @@
-import { print; trap } "mo:base/Debug";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
 import Jwt "../src/backend/JWT";
 import RSA "../src/backend/RSA";
 

@@ -1,5 +1,6 @@
-import { print; trap } "mo:base/Debug";
-import Array "mo:base/Array";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
+import VarArray "mo:core/VarArray";
 import Map "mo:map/Map";
 import Stats "../src/backend/Stats";
 
@@ -7,7 +8,7 @@ print("# Stats");
 
 let stats : Stats.Stats = {
   counter = Map.new();
-  log = Array.init(10, "");
+  log = VarArray.repeat("", 10);
   var logIndex = 0;
   var lastBalance = 123;
   var lastFn = "none";
