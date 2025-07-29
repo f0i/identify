@@ -2,6 +2,7 @@ import Array "mo:base/Array";
 import Iter "mo:base/Iter";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
+
 module {
 
   // Define constants for time units
@@ -11,6 +12,7 @@ module {
 
   // Number of days in each month, assuming February has 28 days
   let daysInMonth : [Nat] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  let daysInMonthLeapYear : [Nat] = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
   // Leap year check
   func isLeapYear(year : Nat) : Bool {
@@ -49,17 +51,7 @@ module {
     seconds %= secondsPerDay; // Remaining seconds in the current day
 
     // Adjust February days for leap years
-    let adjustedDaysInMonth = Array.tabulate<Nat>(
-      12,
-      func(i : Nat) : Nat {
-        if (i == 1 and isLeapYear(year)) {
-          // February in a leap year
-          return 29;
-        } else {
-          return daysInMonth[i];
-        };
-      },
-    );
+    let adjustedDaysInMonth = if (isLeapYear(year)) daysInMonthLeapYear else daysInMonth;
 
     label monthLoop for (i in Iter.range(0, 11)) {
       if (days < adjustedDaysInMonth[i]) {
