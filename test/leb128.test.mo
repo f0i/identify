@@ -1,4 +1,5 @@
-import { print; trap } "mo:base/Debug";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
 import ULEB128 "../src/backend/ULEB128";
 
 print("# ULEB 128");

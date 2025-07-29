@@ -1,4 +1,5 @@
-import { print; trap } "mo:base/Debug";
+import { print } "mo:core/Debug";
+import { trap } "mo:core/Runtime";
 import Base64 "../src/backend/Base64";
 
 print("# base64");

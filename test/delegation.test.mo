@@ -1,4 +1,4 @@
-import { print; trap } "mo:base/Debug";
+import { print } "mo:core/Debug";
 import Delegation "../src/backend/Delegation";
 import Hex "../src/backend/Hex";
 import Ed25519 "../src/backend/Ed25519";
@@ -133,7 +133,7 @@ assert response.delegations[0] == expectedDelegation2;
 
 //request HttpRequest { content: SignedIngressContent { sender: q5tbd-mxo5r-lktnw-lqon3-uhihj-dwklj-lmhvt-jhty6-sc5ln-pd74f-bae, canister_id: CanisterId(awnf6-qrkfi-vcukr-kfiva), method_name: "some_method", arg: [], ingress_expiry: 1620328630000000000, nonce: None }, auth: Authenticated(UserSignature { signature: [134, 126, 98, 224, 180, 163, 249, 162, 15, 94, 42, 118, 51, 51, 93, 71, 162, 168, 231, 50, 43, 246, 244, 79, 182, 66, 78, 224, 92, 132, 77, 47, 107, 200, 95, 32, 68, 242, 121, 255, 58, 38, 76, 145, 122, 135, 19, 132, 183, 177, 91, 136, 36, 255, 224, 184, 216, 102, 248, 78, 42, 201, 231, 2], signer_pubkey: [48, 42, 48, 5, 6, 3, 43, 101, 112, 3, 33, 0, 179, 42, 56, 35, 15, 225, 75, 202, 12, 47, 213, 20, 95, 3, 241, 25, 210, 152, 244, 40, 251, 75, 142, 217, 236, 96, 201, 112, 46, 165, 147, 71], sender_delegation: Some([SignedDelegation { delegation: Delegation { pubkey: Blob{44 bytes;302a300506032b6570032100891c2769bdd1ff99125655f544956d5a81a644b61becf49f969747d3c27167d8}, expiration: Time(1620328630000000000), targets: None }, signature: Blob{64 bytes;3de6da33557084e41e95cc00820d18d1ef1bee5316b6331abcc835ae2ee1ae0f6946ab50aecd329aab40b8cbb0667bdbbd86222b7f1b92381626e46083b3dc01} }]) }) }
 
-let a = {
+let _a = {
   kind = "success";
   delegations = [{
     delegation = {

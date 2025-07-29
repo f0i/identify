@@ -1,7 +1,6 @@
 /// This test is copied from https://github.com/edjcase/motoko_base_x
 /// Additional checks have been added to compare with our custom Base64 decoder implementation
 import { test } "mo:test";
-import Debug "mo:core/Debug";
 import Runtime "mo:core/Runtime";
 import Blob "mo:core/Blob";
 import BaseX "mo:base-x-encoder";

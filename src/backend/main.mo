@@ -10,7 +10,6 @@ import Principal "mo:core/Principal";
 import Nat "mo:core/Nat";
 import Iter "mo:core/Iter";
 import Array "mo:core/Array";
-import Debug "mo:core/Debug";
 import CertifiedData "mo:core/CertifiedData";
 import Http "Http";
 import Stats "Stats";
