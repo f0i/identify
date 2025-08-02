@@ -1,5 +1,4 @@
-import Map "mo:map/Map";
-import { thash } "mo:map/Map";
+import Map "mo:core/Map";
 import Array "mo:core/Array";
 import Iter "mo:core/Iter";
 import Time "mo:core/Time";
@@ -12,6 +11,8 @@ import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Nat64 "mo:core/Nat64";
 import VarArray "mo:core/VarArray";
+import Text "mo:core/Text";
+import Option "mo:core/Option";
 
 module {
 
@@ -47,25 +48,27 @@ module {
   };
 
   public func new(logSize : Nat) : Stats = {
-    counter = Map.new();
+    counter = Map.empty();
     log = VarArray.repeat("", logSize);
     var logIndex = 0;
     var lastBalance = Cycles.balance();
     var lastFn = "init";
-    costs = Map.new();
+    costs = Map.empty();
   };
 
   public func inc(stats : Stats, category : Text, sub : Text) {
-    let cat = switch (Map.get(stats.counter, thash, category)) {
+    let cat = switch (Map.get(stats.counter, Text.compare, category)) {
       case (?data) data;
       case (null) {
-        let data = Map.new<Text, Nat>();
-        Map.set(stats.counter, thash, category, data);
+        let data = Map.empty<Text, Nat>();
+        Map.add(stats.counter, Text.compare, category, data);
         data;
       };
     };
-    ignore Map.update<Text, Nat>(cat, thash, sub, func(_, x) = switch (x) { case (?v) ?(v + 1); case (null) ?1 });
+    let current = Option.get(Map.get(cat, Text.compare, sub), 0);
+    Map.add(cat, Text.compare, sub, current + 1);
   };
+
   public type CounterEntry = {
     category : Text;
     sub : Text;
@@ -94,7 +97,7 @@ module {
     stats.log[stats.logIndex % stats.log.size()] := prefix # stats.lastFn # " " # msg;
     stats.logIndex += 1;
     stats.lastBalance := Cycles.balance();
-    switch (Map.get(stats.costs, thash, stats.lastFn)) {
+    switch (Map.get(stats.costs, Text.compare, stats.lastFn)) {
       case (?cost) {
         setCost(cost, diff);
       };
@@ -108,24 +111,24 @@ module {
           log = VarArray.repeat(0, 100);
         } : FnCost;
         cost.log[0] := diff;
-        Map.set(stats.costs, thash, stats.lastFn, cost);
+        Map.add(stats.costs, Text.compare, stats.lastFn, cost);
       };
     };
     stats.lastFn := nextFn;
   };
 
   public func getSubCount(stats : Stats, category : Text) : Nat {
-    switch (Map.get(stats.counter, thash, category)) {
+    switch (Map.get(stats.counter, Text.compare, category)) {
       case (?data) return Map.size(data);
       case (null) return 0;
     };
   };
 
   public func getSubSum(stats : Stats, category : Text) : Nat {
-    switch (Map.get(stats.counter, thash, category)) {
+    switch (Map.get(stats.counter, Text.compare, category)) {
       case (?data) {
         var acc = 0;
-        for (n in Map.vals(data)) {
+        for (n in Map.values(data)) {
           acc += n;
         };
         return acc;
@@ -156,8 +159,8 @@ module {
   };
 
   public func costData(stats : Stats) : [Text] {
-    let overview = Iter.toArray(Iter.map(Map.vals(stats.costs), describeCost));
-    let history = Iter.toArray(Iter.map(Map.vals(stats.costs), costHistory));
+    let overview = Iter.toArray(Iter.map(Map.values(stats.costs), describeCost));
+    let history = Iter.toArray(Iter.map(Map.values(stats.costs), costHistory));
     Array.tabulate(overview.size() * 2, func(i : Nat) : Text { if (i % 2 == 0) overview[i / 2] else history[i / 2] });
   };
 

@@ -191,7 +191,7 @@ persistent actor class Main() = this {
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
     Stats.logBalance(stats, "checkEmail");
     let ?actual = Map.get(users, Principal.compare, principal) else return false;
-    return email == actual.email;
+    return ?email == actual.email;
   };
 
   /// Get an email address for a principal
@@ -244,9 +244,8 @@ persistent actor class Main() = this {
       case (null) "User not found";
     };
 
-    let hasEmail = if (Map.containsKey(users, Principal.compare, caller)) "\nEmail address saved" else "\nNo email set";
     if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
-    return "Principal " # Principal.toText(caller) # hasEmail;
+    return "Principal " # Principal.toText(caller) # "\n" # userInfo;
   };
 
   /// Get cycle balance of the backend canister
