@@ -8,6 +8,7 @@ prng = "0.0.5"
 hash = "1.0.0"
 cbor = "2.0.0"
 email = "0.1.0"
+hex = "1.0.1"
 
 [toolchain]
 wasmtime = "35.0.0"

@@ -1,6 +1,6 @@
 import { print } "mo:core/Debug";
 import Delegation "../src/backend/Delegation";
-import Hex "../src/backend/Hex";
+import Hex "mo:hex";
 import Ed25519 "../src/backend/Ed25519";
 let fromHex = Hex.toArrayUnsafe;
 

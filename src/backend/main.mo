@@ -8,20 +8,15 @@ import RSA "RSA";
 import Delegation "Delegation";
 import Principal "mo:core/Principal";
 import Nat "mo:core/Nat";
-import Iter "mo:core/Iter";
-import Array "mo:core/Array";
 import CertifiedData "mo:core/CertifiedData";
 import Http "Http";
 import Stats "Stats";
-import Email "mo:email";
 import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
 import Hex "Hex";
 import { setTimer; recurringTimer } = "mo:core/Timer";
 import AuthProvider "AuthProvider";
-import Option "mo:core/Option";
 import { trap } "mo:core/Runtime";
-import TimeFormat "TimeFormat";
 import User "User";
 
 persistent actor class Main() = this {
