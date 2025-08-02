@@ -11,8 +11,8 @@ cbor = "2.0.0"
 email = "0.1.0"
 
 [toolchain]
-wasmtime = "25.0.1"
-moc = "0.15.0"
+wasmtime = "35.0.0"
+moc = "0.15.1"
 
 [dev-dependencies]
 bench = "1.0.0"
