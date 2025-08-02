@@ -1,6 +1,6 @@
 import Result "mo:core/Result";
 import Time "mo:core/Time";
-import Map "mo:map/Map";
+import Map "mo:core/Map";
 import { phash } "mo:map/Map";
 import Set "mo:map/Set";
 import Jwt "JWT";
@@ -22,31 +22,36 @@ import AuthProvider "AuthProvider";
 import Option "mo:core/Option";
 import { trap } "mo:core/Runtime";
 import TimeFormat "TimeFormat";
-import Ed25519 "Ed25519";
+import User "User";
 
 persistent actor class Main() = this {
   type Duration = Time.Duration;
+
   transient let toNanos = Time.toNanoseconds;
 
+  /// Maximum session time before delegation expires
   transient let MAX_EXPIRATION_TIME = #days(31);
+  /// Minimum session time before delegation expires
   transient let MIN_EXPIRATION_TIME = #minutes(2);
+  /// Minimum time between updating oAuth keys from provider.
+  /// Thisl will limit the amoutn of requests when invalid key-ids are used,
+  /// but could also case users to not be able to sign in for some minutes, if the key just updated.
   transient let MIN_FETCH_ATTEMPT_TIME = #minutes(10);
+  /// Minimum time between successful fetch attempts
   transient let MIN_FETCH_TIME = #hours(6);
-  // Max time between prepareDelegation and getDelegation calls
+  /// Max time between prepareDelegation and getDelegation calls
   transient let MAX_TIME_PER_LOGIN = #minutes(5);
+  /// Interval to automatically update keys
+  transient let KEY_UPDATE_INTERVAL = #hours(48);
 
   type HashTree = HashTree.HashTree;
   type Time = Time.Time;
 
-  type User = { email : Text; sub : Text; origin : Text; createdAt : Time };
-  var users : Map.Map<Principal, User> = Map.new();
-
-  /// data from older versions
-  var keyPairs : Map.Map<Text, Ed25519.KeyPair> = Map.new();
-  var emails : Map.Map<Principal, Text> = Map.new();
+  type User = User.User;
+  var users : Map.Map<Principal, User> = Map.empty();
 
   type AppInfo = { name : Text; origins : [Text] };
-  var trustedApps : Map.Map<Principal, AppInfo> = Map.new();
+  var trustedApps : Map.Map<Principal, AppInfo> = Map.empty();
 
   var stats = Stats.new(1000);
   Stats.log(stats, "deploied new backend version.");
@@ -67,36 +72,21 @@ persistent actor class Main() = this {
   };
 
   // Reset trusted apps on each deployment
-  trustedApps := Map.new();
+  trustedApps := Map.empty();
   transient let btcGiftCards = {
     name = "Bitcoin Gift Cards";
     origins = ["https://btc-gift-cards.com", "https://y4leg-vyaaa-aaaah-aq3ra-cai.icp0.io"];
   };
-  Map.set(trustedApps, phash, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), btcGiftCards);
+  Map.add(trustedApps, Principal.compare, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), btcGiftCards);
   transient let btcGiftCardsDemo = {
     name = "Bitcoin Gift Cards Demo";
     origins = ["https://mdh4j-syaaa-aaaah-arcfq-cai.icp0.io"];
   };
-  Map.set(trustedApps, phash, Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"), btcGiftCardsDemo);
+  Map.add(trustedApps, Principal.compare, Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"), btcGiftCardsDemo);
 
   // Transform http request by sorting keys by key ID
   public query func transform(raw : Http.TransformArgs) : async Http.TransformResult {
     Http.transform(raw, #keepAll);
-  };
-
-  // Transform http request and remove first key if 3 keys are present
-  public query func transform1(raw : Http.TransformArgs) : async Http.TransformResult {
-    Http.transform(raw, #ignoreNofM(0, 3));
-  };
-
-  // Transform http request and remove second key if 3 keys are present
-  public query func transform2(raw : Http.TransformArgs) : async Http.TransformResult {
-    Http.transform(raw, #ignoreNofM(1, 3));
-  };
-
-  // Transform http request and remove third key if 3 keys are present
-  public query func transform3(raw : Http.TransformArgs) : async Http.TransformResult {
-    Http.transform(raw, #ignoreNofM(2, 3));
   };
 
   private func fetchKeys() : async () {
@@ -128,6 +118,7 @@ persistent actor class Main() = this {
     Stats.logBalance(stats, "prepareDelegationSig");
 
     // check preconditions
+    let provider = #google;
     if (googleConfig.keys.size() == 0) return #err("Google keys not loaded");
     if (expireIn > toNanos(MAX_EXPIRATION_TIME)) return #err("Expiration time to long");
     if (expireIn < toNanos(MIN_EXPIRATION_TIME)) return #err("Expiration time to short");
@@ -151,27 +142,16 @@ persistent actor class Main() = this {
 
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
-    // TODO: make email optional
-    if (Map.has(users, phash, principal)) {
-      // user exists
-      Stats.inc(stats, "signin", origin);
-    } else {
-      let rawEmail = Option.get(jwt.payload.email, "");
-      let res = Email.parse(rawEmail);
 
-      switch (res) {
-        case (#err err) {
-          Stats.log(stats, "Could not parse email address contained in JWT " # err # " !!!!!!!!!!");
-          return #err("Failed to normalize gmail address.");
-        };
-        case (#ok emailData) {
-          let email = Email.toAddress(emailData);
-          Map.set(users, phash, principal, { email; sub; origin; createdAt = Time.now() });
-          Stats.inc(stats, "signup", origin);
-          Stats.inc(stats, "signin", origin);
-        };
+    let user = switch (Map.get(users, Principal.compare, principal)) {
+      case (?old) {
+        Stats.inc(stats, "signup", origin);
+        User.update(old, origin, provider, jwt);
       };
+      case (null) User.create(origin, provider, jwt);
     };
+    Map.add(users, Principal.compare, principal, user);
+    Stats.inc(stats, "signin", origin);
 
     return #ok({
       pubKey;
@@ -210,18 +190,20 @@ persistent actor class Main() = this {
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
     Stats.logBalance(stats, "checkEmail");
-    let ?actual = Map.get(users, phash, principal) else return false;
+    let ?actual = Map.get(users, Principal.compare, principal) else return false;
     return email == actual.email;
   };
 
   /// Get an email address for a principal
+  /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getEmail(principal : Principal, origin : Text) : async ?Text {
     Stats.logBalance(stats, "getEmail");
-    let ?appInfo = Map.get(trustedApps, phash, caller) else trap("Permission denied for caller " # Principal.toText(caller));
+    let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
     for (o in appInfo.origins.vals()) {
       if (o == origin) {
-        let ?user = Map.get(users, phash, principal) else return null;
-        if (user.origin == origin) return ?user.email;
+        let ?user = Map.get(users, Principal.compare, principal) else return null;
+        if (user.email_verified != ?true) return null;
+        if (user.origin == origin) return user.email;
       };
     };
     // origin was not in appInfo.origions
@@ -229,12 +211,13 @@ persistent actor class Main() = this {
   };
 
   /// Get an email address for a principal
+  /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getUser(principal : Principal, origin : Text) : async ?User {
     Stats.logBalance(stats, "getUser");
-    let ?appInfo = Map.get(trustedApps, phash, caller) else trap("Permission denied for caller " # Principal.toText(caller));
+    let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
     for (o in appInfo.origins.vals()) {
       if (o == origin) {
-        let ?user = Map.get(users, phash, principal) else return null;
+        let ?user = Map.get(users, Principal.compare, principal) else return null;
         if (user.origin == origin) return ?user;
       };
     };
@@ -242,13 +225,31 @@ persistent actor class Main() = this {
     trap("Permission denied for origin " # origin);
   };
 
+  /// Get principal and some user info of the caller
   public shared query ({ caller }) func getPrincipal() : async Text {
     Stats.logBalance(stats, "getPrincipal");
-    let hasEmail = if (Map.has(users, phash, caller)) "\nEmail address saved" else "\nNo email set";
+
+    let userInfo = switch (Map.get(users, Principal.compare, caller)) {
+      case (?user) {
+        "User found, " # (
+          if (user.email == null) {
+            "Email not set";
+          } else if (user.email_verified == ?true) {
+            "Email verified";
+          } else {
+            "Email not verified";
+          }
+        );
+      };
+      case (null) "User not found";
+    };
+
+    let hasEmail = if (Map.containsKey(users, Principal.compare, caller)) "\nEmail address saved" else "\nNo email set";
     if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
     return "Principal " # Principal.toText(caller) # hasEmail;
   };
 
+  /// Get cycle balance of the backend canister
   public shared query ({ caller }) func getBalance() : async {
     val : Nat;
     text : Text;
@@ -261,23 +262,13 @@ persistent actor class Main() = this {
     return { val; text };
   };
 
-  public shared query ({ caller }) func getStats() : async [Text] {
+  public shared query func getStats() : async [Text] {
     Stats.logBalance(stats, "getStats");
     let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
     let keyCount = Nat.toText(Map.size(users)) # " identities created";
     let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
 
-    if (not hasPermission(caller) or true) {
-      return [appCount, keyCount, loginCount];
-    };
-    let counter = Stats.counterEntries(stats);
-    let counterText = Array.map<Stats.CounterEntry, Text>(counter, func(c) = c.category # " " # c.sub # ": " # Nat.toText(c.counter));
-
-    let costs = Stats.costData(stats);
-
-    let log = Iter.toArray(Stats.logEntries(stats));
-    let accs = Iter.toArray(Iter.map(Map.entries(users), func((p : Principal, u : User)) : Text = Principal.toText(p) # " " # u.email # " " # u.origin # " " # TimeFormat.toText(u.createdAt)));
-    return Array.flatten<Text>([[appCount, keyCount, loginCount], counterText, costs, log, accs]);
+    return [appCount, keyCount, loginCount];
   };
 
   var mods : Set.Set<Principal> = Set.new();
@@ -295,6 +286,6 @@ persistent actor class Main() = this {
 
   // Update keys now and every 2 days
   ignore setTimer<system>(#seconds(1), fetchKeys);
-  ignore recurringTimer<system>(#seconds(60 * 60 * 48), fetchKeys);
+  ignore recurringTimer<system>(KEY_UPDATE_INTERVAL, fetchKeys);
 
 };

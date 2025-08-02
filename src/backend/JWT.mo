@@ -12,9 +12,8 @@ import TimeFormat "TimeFormat";
 module {
   type Time = Time.Time;
   type Duration = Time.Duration;
-  /**
-  Data sturcture of a decoded JWT token's header.
-  */
+
+  /// Data sturcture of a decoded JWT token's header.
   public type Header = {
     alg : Text; // algorithm used (e.g. RS256 for RSA with SHA256)
     typ : Text; // type (e.g. JWT) optional but recomended
@@ -26,9 +25,7 @@ module {
     crit : ?Text; // criticla extensions
   };
 
-  /**
-  Data sturcture of a decoded JWT token's payload
-  */
+  /// Data sturcture of a decoded JWT token's payload
   public type Payload = {
     iss : Text; // issuer
     sub : Text; // subject (Google user ID)
@@ -43,9 +40,7 @@ module {
     amr : ?[Text] // authentication methods references
   };
 
-  /**
-  Data sturcture of a decoded JWT token
-  */
+  /// Data sturcture of a decoded JWT token
   public type JWT = {
     header : Header;
     payload : Payload;
