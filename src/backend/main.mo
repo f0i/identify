@@ -140,10 +140,12 @@ persistent actor class Main() = this {
 
     let user = switch (Map.get(users, Principal.compare, principal)) {
       case (?old) {
-        Stats.inc(stats, "signup", origin);
         User.update(old, origin, provider, jwt);
       };
-      case (null) User.create(origin, provider, jwt);
+      case (null) {
+        Stats.inc(stats, "signup", origin);
+        User.create(origin, provider, jwt);
+      };
     };
     Map.add(users, Principal.compare, principal, user);
     Stats.inc(stats, "signin", origin);
@@ -258,7 +260,7 @@ persistent actor class Main() = this {
 
   public shared query func getStats() : async [Text] {
     Stats.logBalance(stats, "getStats");
-    let appCount = Nat.toText(Stats.getSubCount(stats, "register")) # " apps connected";
+    let appCount = Nat.toText(Stats.getSubCount(stats, "signup")) # " apps connected";
     let keyCount = Nat.toText(Map.size(users)) # " identities created";
     let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
 
