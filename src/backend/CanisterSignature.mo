@@ -101,7 +101,8 @@ module {
     store.sigTree := HashTree.removeSigs(store.sigTree, Queue.size(store.sigExpQueue));
 
     // Add signature to the sigTree
-    store.sigTree := HashTree.addSig(store.sigTree, hashedSeed, hash, now);
+    store.sigTree := HashTree.addSig(#Empty, hashedSeed, hash, now);
+    //store.sigTree := HashTree.addSig(store.sigTree, hashedSeed, hash, now);
     Queue.pushBack<Time>(store.sigExpQueue, now);
 
     // Store in certified data
@@ -125,7 +126,7 @@ module {
     return authResponse;
   };
 
-  type SignatureStore = {
+  public type SignatureStore = {
     var sigTree : HashTree;
     sigExpQueue : Queue.Queue<Time>;
     canister : Principal;

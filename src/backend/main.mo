@@ -16,6 +16,8 @@ import Hex "Hex";
 import { setTimer; recurringTimer } = "mo:core/Timer";
 import AuthProvider "AuthProvider";
 import { trap } "mo:core/Runtime";
+import Text "mo:core/Text";
+import Queue "mo:core/Queue";
 import User "User";
 
 persistent actor class Main() = this {
@@ -46,8 +48,8 @@ persistent actor class Main() = this {
   type AppInfo = { name : Text; origins : [Text] };
   var trustedApps : Map.Map<Principal, AppInfo> = Map.empty();
 
-  var stats = Stats.new(1000);
-  Stats.log(stats, "deploied new backend version.");
+  //var stats = Stats.new(1000);
+  //Stats.log(stats, "deploied new backend version.");
 
   type OAuth2ConnectConfig = AuthProvider.OAuth2ConnectConfig;
   transient let googleConfig : OAuth2ConnectConfig = {
@@ -89,16 +91,16 @@ persistent actor class Main() = this {
   transient let googleFetchAttempts = Stats.newAttemptTracker();
 
   public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<[RSA.PubKey], Text> {
-    Stats.logBalance(stats, "fetchGoogleKeys");
+    //Stats.logBalance(stats, "fetchGoogleKeys");
     if (not hasPermission(caller)) {
       if (Time.now() - googleFetchAttempts.lastSuccess < toNanos(MIN_FETCH_TIME)) return #err("Rate limit reached. Try again in some hours.");
       if (Time.now() - googleFetchAttempts.lastAttempt < toNanos(MIN_FETCH_ATTEMPT_TIME)) return #err("Rate limit reached. Try again in 30 minutes.");
     };
 
-    Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(googleFetchAttempts.count + 1) # ")");
+    //Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(googleFetchAttempts.count + 1) # ")");
     let res = await AuthProvider.fetchKeys(googleConfig, googleFetchAttempts, transform);
 
-    Stats.log(stats, Nat.toText(googleConfig.keys.size()) # " google keys fetched.");
+    //Stats.log(stats, Nat.toText(googleConfig.keys.size()) # " google keys fetched.");
     return res;
   };
 
@@ -108,7 +110,7 @@ persistent actor class Main() = this {
 
   // TODO: change interface type of expireIn to Duration
   public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
-    Stats.logBalance(stats, "prepareDelegationSig");
+    //Stats.logBalance(stats, "prepareDelegationSig");
 
     // check preconditions
     let provider = #google;
@@ -122,7 +124,7 @@ persistent actor class Main() = this {
     // Time of JWT token from google must not be more than 5 minutes in the future
     let jwt = switch (Jwt.decode(token, googleConfig.keys, now, #seconds(60), [googleConfig.clientId], nonce)) {
       case (#err err) {
-        Stats.log(stats, "getDelegations failed: invalid token from " # origin);
+        //Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
       };
       case (#ok data) data;
@@ -141,12 +143,12 @@ persistent actor class Main() = this {
         User.update(old, origin, provider, jwt);
       };
       case (null) {
-        Stats.inc(stats, "signup", origin);
+        //Stats.inc(stats, "signup", origin);
         User.create(origin, provider, jwt);
       };
     };
     Map.add(users, Principal.compare, principal, user);
-    Stats.inc(stats, "signin", origin);
+    //Stats.inc(stats, "signin", origin);
 
     return #ok({
       pubKey;
@@ -156,7 +158,7 @@ persistent actor class Main() = this {
 
   public shared query func getDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
     // The log statements will only show up if this function is called as an update call
-    Stats.logBalance(stats, "getDelegations");
+    //Stats.logBalance(stats, "getDelegations");
 
     // If called as an update call, the getCertificate function returns null
     if (CertifiedData.getCertificate() == null) return #err("This function must only be called using query calls");
@@ -169,7 +171,7 @@ persistent actor class Main() = this {
     // Time of JWT token from google must not be more than 5 minutes in the future
     let jwt = switch (Jwt.decode(token, googleConfig.keys, Time.now(), #minutes(5), [googleConfig.clientId], nonce)) {
       case (#err err) {
-        Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
+        //Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
         return #err("failed to decode token: " # err);
       };
       case (#ok data) data;
@@ -184,7 +186,7 @@ persistent actor class Main() = this {
   };
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
-    Stats.logBalance(stats, "checkEmail");
+    //Stats.logBalance(stats, "checkEmail");
     let ?actual = Map.get(users, Principal.compare, principal) else return false;
     return ?email == actual.email;
   };
@@ -192,7 +194,7 @@ persistent actor class Main() = this {
   /// Get an email address for a principal
   /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getEmail(principal : Principal, origin : Text) : async ?Text {
-    Stats.logBalance(stats, "getEmail");
+    //Stats.logBalance(stats, "getEmail");
     let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
     for (o in appInfo.origins.vals()) {
       if (o == origin) {
@@ -208,7 +210,7 @@ persistent actor class Main() = this {
   /// Get an email address for a principal
   /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getUser(principal : Principal, origin : Text) : async ?User {
-    Stats.logBalance(stats, "getUser");
+    //Stats.logBalance(stats, "getUser");
     let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
     for (o in appInfo.origins.vals()) {
       if (o == origin) {
@@ -222,7 +224,7 @@ persistent actor class Main() = this {
 
   /// Get principal and some user info of the caller
   public shared query ({ caller }) func getPrincipal() : async Text {
-    Stats.logBalance(stats, "getPrincipal");
+    //Stats.logBalance(stats, "getPrincipal");
 
     let userInfo = switch (Map.get(users, Principal.compare, caller)) {
       case (?user) {
@@ -247,27 +249,36 @@ persistent actor class Main() = this {
   public shared query ({ caller }) func getBalance() : async {
     val : Nat;
     text : Text;
+    a : Nat;
+    b : Nat;
+    c : Nat;
   } {
     if (not hasPermission(caller)) {
       trap("Permisison denied.");
     };
     let val = Stats.cycleBalanceStart();
     let text = Stats.formatNat(val, "C");
-    return { val; text };
+    let a = Text.size(debug_show sigStore.sigTree);
+    let b = Queue.size(sigStore.sigExpQueue);
+    let c = Text.size(debug_show "stats");
+    return { val; text; a; b; c };
   };
 
   public shared query func getStats() : async [Text] {
-    Stats.logBalance(stats, "getStats");
+    //Stats.logBalance(stats, "getStats");
+    return ["Status: OK"];
+    /*
     let appCount = Nat.toText(Stats.getSubCount(stats, "signup")) # " apps connected";
     let keyCount = Nat.toText(Map.size(users)) # " identities created";
     let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
 
     return [appCount, keyCount, loginCount];
+    */
   };
 
   var mods : Set.Set<Principal> = Set.new();
   public shared ({ caller }) func addMod(user : Principal) : async Result.Result<(), Text> {
-    Stats.logBalance(stats, "addMod");
+    //Stats.logBalance(stats, "addMod");
     if (not Principal.isController(caller)) return #err("Permisison denied.");
     Set.add(mods, phash, user);
     #ok;
