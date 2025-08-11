@@ -61,6 +61,15 @@ persistent actor class Main() = this {
     var fetchAttempts = Stats.newAttemptTracker();
   };
 
+  transient let auth0Config : OAuth2ConnectConfig = {
+    name = "Auth0";
+    provider = #auth0;
+    clientId = "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ";
+    keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
+    var keys : [RSA.PubKey] = [];
+    var fetchAttempts = Stats.newAttemptTracker();
+  };
+
   transient let _zidadelConfig : OAuth2ConnectConfig = {
     name = "Zitadel";
     provider = #zitadel;
@@ -92,12 +101,14 @@ persistent actor class Main() = this {
     let providerName = AuthProvider.providerName(provider);
     switch (provider) {
       case (#google) return googleConfig;
+      case (#auth0) return auth0Config;
       case (_) trap("Provider " # providerName # " not yet supported.");
     };
   };
 
   private func fetchAllKeys() : async () {
     await fetchKeys(#google);
+    await fetchKeys(#auth0);
     // TODO: fetch for other providers
   };
 

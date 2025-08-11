@@ -8,7 +8,7 @@ import * as icrc49 from "./icrc49_call_canister";
 import * as jsonrpc from "./jsonrpc";
 import { IdentityManager } from "./idenity-manager";
 import { initGsi } from "./google";
-import { getDelegation } from "./delegation";
+import { getDelegation, ProviderKey } from "./delegation";
 import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
@@ -16,6 +16,7 @@ import {
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
+  provider: ProviderKey;
   gsiClientID?: string;
   origin?: string;
   statusCallback: (msg: string) => void;
@@ -25,6 +26,7 @@ export type Context = {
   getAuthToken: (nonce: string) => Promise<string>;
 };
 export const DEFAULT_CONTEXT: Context = {
+  provider: "google",
   // Callbacks can be sued to update the UI.
   statusCallback: (msg: string) => console.log("status", msg),
   targetsCallback: (msg: string) => console.log("targets", msg),
@@ -62,6 +64,7 @@ export const loadOrFetchDelegation = async (
     );
     console.log("requesting delegation from backend");
     authRes = await getDelegation(
+      context.provider,
       auth,
       origin,
       sessionKey,

@@ -1,12 +1,17 @@
 import { Principal } from "@dfinity/principal";
 import { canisterId, createActor } from "../../declarations/backend";
 import { AuthResponseUnwrapped, unwrapTargets, wrapOpt } from "./utils";
+import { Provider } from "../../declarations/backend/backend.did";
 
 export type DelegationParams = {
   publicKey: string;
   targets?: string[];
   maxTimeToLive?: string;
 };
+
+export type ProviderKey = Provider extends { [K in string]: null }
+  ? keyof Provider
+  : never;
 
 /// Get delegation from backend using the auth token
 /// @param idToken The ID token from Google sign-in
@@ -15,6 +20,7 @@ export type DelegationParams = {
 /// @param maxTimeToLive The maximum time the delegation is valid for
 /// @param targets Optional list of target canisters which the delegation is valid for
 export const getDelegation = async (
+  provider: ProviderKey,
   idToken: string,
   origin: string,
   sessionPublicKey: Uint8Array,
@@ -34,6 +40,7 @@ export const getDelegation = async (
   statusCallback("Google sign in succeeded. Authorizing client...");
 
   let prepRes = await backend.prepareDelegation(
+    { [provider]: null } as Provider,
     idToken,
     origin,
     sessionPublicKey,
@@ -48,6 +55,7 @@ export const getDelegation = async (
   statusCallback("Google sign in succeeded. Get client authorization...");
 
   let authRes = await backend.getDelegation(
+    { [provider]: null } as Provider,
     idToken,
     origin,
     sessionPublicKey,

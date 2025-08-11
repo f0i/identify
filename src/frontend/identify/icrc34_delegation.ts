@@ -46,6 +46,7 @@ export const delegation = async (
   const nonce = uint8ArrayToHex(publicKey);
   const token = await context.getAuthToken(nonce);
   const msg = await getDelegation(
+    context.provider,
     token,
     origin,
     publicKey,
