@@ -54,10 +54,15 @@ export const loadOrFetchDelegation = async (
     const targets = undefined;
     const nonce = uint8ArrayToHex(sessionKey);
     context.statusCallback("");
-    const auth = await initGsi(context.gsiClientID, nonce);
+    const auth = await initGsi(
+      context.gsiClientID,
+      nonce,
+      true,
+      "icgsi-google-btn",
+    );
     console.log("requesting delegation from backend");
     authRes = await getDelegation(
-      auth.credential,
+      auth,
       origin,
       sessionKey,
       maxTimeToLive,

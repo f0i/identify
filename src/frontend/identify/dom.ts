@@ -16,7 +16,7 @@ export const showElement = (id: string, show: boolean) => {
   const el = document.getElementById(id);
   if (el) {
     el.style.display = show ? "block" : "none";
-  } else {
+  } else if (id !== "" && id !== "authorize") {
     console.error(
       "showElement() did not find DOM element",
       id,

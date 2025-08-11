@@ -32,8 +32,8 @@ export function initICgsi(clientID: string) {
   let init = true;
 
   context.getAuthToken = async (nonce: string) => {
-    let auth = await initGsi(clientID, nonce);
-    return auth.credential;
+    const auth = await initGsi(clientID, nonce, true, "icgsi-google-btn");
+    return auth;
   };
   context.gsiClientID = clientID;
   context.statusCallback = setStatusText;
@@ -106,11 +106,11 @@ const handleAuthorizeClient = async (
     const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
     setStatusText("");
     // Request Google Sign-In and get the JWT token
-    const auth = await initGsi(clientID, nonce);
+    const auth = await initGsi(clientID, nonce, true, "icgsi-google-btn");
 
     // Get delegation from backend using the JWT token
     const msg = await getDelegation(
-      auth.credential,
+      auth,
       origin,
       authRequest.sessionPublicKey,
       authRequest.maxTimeToLive,

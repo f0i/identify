@@ -21,7 +21,10 @@ export async function initGsi(
       nonce: nonce,
     });
 
-    window.google.accounts.id.renderButton(document.getElementById(buttonId)!, {
+    const el = document.getElementById(buttonId)!;
+    if (!el) console.trace("Google sign in button not found: #" + buttonId);
+
+    window.google.accounts.id.renderButton(el, {
       theme: "outline",
       size: "large",
     });

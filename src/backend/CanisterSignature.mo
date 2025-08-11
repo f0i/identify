@@ -83,6 +83,13 @@ module {
   /// Add a signature to the sigTree and store its hash in certified data.
   /// The signature can be requested by getDelegation in a query call.
   public func prepareDelegation(store : SignatureStore, userId : Text, origin : Text, sessionKey : [Nat8], now : Time, timePerLogin : Duration, expireAt : Time, targets : ?[Principal]) : [Nat8] {
+    prepareDelegationTo(CertifiedData.set, store, userId, origin, sessionKey, now, timePerLogin, expireAt, targets);
+  };
+
+  /// Prepare a delegation and set it to a custom cert store.
+  /// See prepareDelegation().
+  /// This is also used for testing where CertifiedData is not available
+  public func prepareDelegationTo(setCertData : (Blob) -> (), store : SignatureStore, userId : Text, origin : Text, sessionKey : [Nat8], now : Time, timePerLogin : Duration, expireAt : Time, targets : ?[Principal]) : [Nat8] {
 
     let hash = Delegation.getUnsignedHash(sessionKey, expireAt, targets);
     let { seed; hashedSeed } = encodeSeed(userId, origin);
@@ -98,7 +105,7 @@ module {
     Queue.pushBack<Time>(store.sigExpQueue, now);
 
     // Store in certified data
-    CertifiedData.set(Blob.fromArray(HashTree.hash(store.sigTree)));
+    setCertData(Blob.fromArray(HashTree.hash(store.sigTree)));
 
     return DERencodePubKey(store.canister, seed);
   };

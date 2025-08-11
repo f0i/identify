@@ -34,7 +34,7 @@ export const callCanister = async (
   const argData = decodeCandid(base64decode(req.params.arg), fieldNames);
   let argText = req.params.arg;
   if ("ok" in argData) {
-    argText = JSONstringify(argData.ok);
+    argText = JSONstringify(argData.ok, 2);
   } else if ("error" in argData) {
     argText +=
       "\n(decoding error: " +
@@ -44,7 +44,7 @@ export const callCanister = async (
       ")";
   } else if ("warning" in argData) {
     argText =
-      JSONstringify(argData.warning.data) +
+      JSONstringify(argData.warning.data, 2) +
       "\n(warning: " +
       argData.warning.msg +
       ")";
@@ -84,7 +84,7 @@ export const callCanister = async (
   );
 
   // TODO?: ask for confimation before calling the canister
-  await new Promise<void>((resolve) => setTimeout(resolve, 15000)); // wait some seconds for debugging
+  await new Promise<void>((resolve) => setTimeout(resolve, 300)); // wait some seconds for debugging
 
   const callResponse = await canister_call({
     canisterId: req.params.canisterId,

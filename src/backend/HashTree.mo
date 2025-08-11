@@ -63,12 +63,14 @@ module {
     return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(timeToBytes(now))));
   };
 
+  /// Remove all signatures below some depth
   public func removeSigs(tree : HashTree, depth : Nat) : HashTree {
     // check format of the tree
     let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(_time))) = tree else return #Empty;
     return #Fork(#Labeled("sig", keepDepth(sig, depth)), #Labeled("time", #Leaf(_time)));
   };
 
+  /// Helper to remove all elements from a hash tree that are below some depth
   func keepDepth(tree : HashTree, depth : Nat) : HashTree {
     switch (tree) {
       case (#Empty) return #Empty;
@@ -79,6 +81,7 @@ module {
     };
   };
 
+  /// Cbor encoded bytes for keys
   let certKey : [Nat8] = [0x6B, 0x63, 0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65]; // "certificate"
   let treeKey : [Nat8] = [0x64, 0x74, 0x72, 0x65, 0x65]; // "tree"
 
@@ -103,6 +106,7 @@ module {
     ]);
   };
 
+  /// Prune a signature tree, keeping one specific seed
   public func getPrunedSigTree(tree : HashTree, seed : Blob) : HashTree {
     let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(time))) = tree else return #Empty;
     let sigTree = getSig(sig, seed);
@@ -112,6 +116,8 @@ module {
     return #Empty;
   };
 
+  /// Try to find the label seed and get the pruned tree for it.
+  /// Returnes a marker indicating if the seed was found and a pruned tree, with only the seed path included.
   func getSig(tree : HashTree, seed : Blob) : { found : Bool; tree : HashTree } {
     switch (tree) {
       case (#Empty) return { found = false; tree };
@@ -134,19 +140,23 @@ module {
     };
   };
 
+  /// Initialize a signature tree with the provided data
   func initSigTree(seed : Blob, hash : [Nat8], now : Time) : HashTree {
     let allSig : HashTree = labeled(seed, #Labeled(Blob.fromArray(hash), #Leaf("")));
     return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(timeToBytes(now))));
   };
 
+  /// Create a labeled from Blob
   public func labeled(l : Blob, tree : HashTree) : HashTree {
     return #Labeled(l, tree);
   };
 
+  /// Create a label from Text
   public func labeledText(l : Text, tree : HashTree) : HashTree {
     return #Labeled(Text.encodeUtf8(l), tree);
   };
 
+  /// Create a pruned node
   public func prune(tree : HashTree) : HashTree {
     return #Pruned(hash(tree));
   };
@@ -160,6 +170,7 @@ module {
   // ic-hashtree-leaf
   let sepLeaf : [Nat8] = [16, 0x69, 0x63, 0x2d, 0x68, 0x61, 0x73, 0x68, 0x74, 0x72, 0x65, 0x65, 0x2d, 0x6c, 0x65, 0x61, 0x66];
 
+  /// Calculate the root hash of a tree
   public func hash(tree : HashTree) : Hash {
     switch (tree) {
       case (#Empty) shaHash(sepEmpty);
@@ -170,27 +181,20 @@ module {
     };
   };
 
+  /// Calcualte sha256 from data
   func shaHash(data : [Nat8]) : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, data));
 
+  /// Encode a timestamp
   func timeToBytes(t : Time) : Blob {
     assert t > 0;
+    assert t < (2 ** 64);
     let n = Nat64.fromIntWrap(t);
-    func toNat8(x : Nat64) : Nat8 = Nat8.fromNat(Nat64.toNat(x));
-
-    // TODO: update to use explodeNat64
-    let bytes : [Nat8] = [
-      toNat8((n >> 56) & 0xFF),
-      toNat8((n >> 48) & 0xFF),
-      toNat8((n >> 40) & 0xFF),
-      toNat8((n >> 32) & 0xFF),
-      toNat8((n >> 24) & 0xFF),
-      toNat8((n >> 16) & 0xFF),
-      toNat8((n >> 8) & 0xFF),
-      toNat8(n & 0xFF),
-    ];
+    let (a, b, c, d, e, f, g, h) = Nat64.explode(n);
+    let bytes : [Nat8] = [a, b, c, d, e, f, g, h];
     return Blob.fromArray(bytes);
   };
 
+  /// Cbor encode a tree
   public func cbor(tree : HashTree) : [Nat8] {
     switch (tree) {
       case (#Empty) [0x81, 0];
@@ -201,15 +205,18 @@ module {
     };
   };
 
+  /// Cbor encode a Blob
   func cborBlob(blob : Blob) : [Nat8] {
     let data = Blob.toArray(blob);
     cborData(data);
   };
 
+  /// Cbor encode a Hash
   func cborHash(h : Hash) : [Nat8] {
     cborData(h);
   };
 
+  /// Cbor encode Bytes
   func cborData(data : [Nat8]) : [Nat8] {
     let n = Array.size(data);
     let head : [Nat8] = if (n < 24) {

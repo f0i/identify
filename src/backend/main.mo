@@ -11,7 +11,6 @@ import Nat "mo:core/Nat";
 import CertifiedData "mo:core/CertifiedData";
 import Http "Http";
 import Stats "Stats";
-import HashTree "HashTree";
 import CanisterSignature "CanisterSignature";
 import Hex "Hex";
 import { setTimer; recurringTimer } = "mo:core/Timer";
@@ -39,7 +38,6 @@ persistent actor class Main() = this {
   /// Interval to automatically update keys
   transient let KEY_UPDATE_INTERVAL = #hours(48);
 
-  type HashTree = HashTree.HashTree;
   type Time = Time.Time;
 
   type User = User.User;

@@ -1,6 +1,8 @@
 import { print } "mo:core/Debug";
 import { trap } "mo:core/Runtime";
 import Principal "mo:core/Principal";
+import Nat "mo:core/Nat";
+import Text "mo:core/Text";
 import CanisterSignature "../src/backend/CanisterSignature";
 import Delegation "../src/backend/Delegation";
 import Hex "../src/backend/Hex";
@@ -23,3 +25,37 @@ print("- encode public key");
 let derKey = CanisterSignature.DERencodePubKey(Principal.fromBlob("a"), "asdf");
 let expectedKey = Hex.toArrayUnsafe("3017300c060a2b0601040183b8430102030700016161736466");
 if (derKey != expectedKey) trap("Unexpected key for a/asdf");
+
+print("- store");
+do {
+  let store = CanisterSignature.newStore(principal);
+  let userId = "user0";
+  let origin = "test";
+  let now = 1234567890_000_000_000;
+  let timePerLogin = #minutes(1);
+  let expireAt = 1234569890_000_000_000;
+  let targets = null;
+  var lastCert : Blob = "";
+  let dummySetCert = func(data : Blob) = lastCert := data;
+
+  ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, userId, origin, sessionKey, now, timePerLogin, expireAt, targets);
+
+  assert store.sigExpQueue.size == 1;
+  assert Text.size(debug_show store.sigTree) > 200;
+  assert Text.size(debug_show store.sigTree) < 400;
+
+  for (i in Nat.range(1, 7)) {
+    ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, "user" # Nat.toText(i), origin, sessionKey, now, timePerLogin, expireAt, targets);
+  };
+
+  assert store.sigExpQueue.size == 7;
+  assert Text.size(debug_show store.sigTree) > 1500;
+  assert Text.size(debug_show store.sigTree) < 2000;
+
+  let now2 = now + 61_000_000_000;
+  ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, userId, origin, sessionKey, now2, timePerLogin, expireAt, targets);
+
+  assert store.sigExpQueue.size == 1;
+  assert Text.size(debug_show store.sigTree) > 200;
+  assert Text.size(debug_show store.sigTree) < 400;
+};
