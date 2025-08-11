@@ -16,6 +16,7 @@ import Hex "Hex";
 import { setTimer; recurringTimer } = "mo:core/Timer";
 import AuthProvider "AuthProvider";
 import { trap } "mo:core/Runtime";
+import Debug "mo:core/Debug";
 import User "User";
 
 persistent actor class Main() = this {
@@ -30,15 +31,16 @@ persistent actor class Main() = this {
   /// Minimum time between updating oAuth keys from provider.
   /// Thisl will limit the amoutn of requests when invalid key-ids are used,
   /// but could also case users to not be able to sign in for some minutes, if the key just updated.
-  transient let MIN_FETCH_ATTEMPT_TIME = #minutes(10);
+  transient let _MIN_FETCH_ATTEMPT_TIME = #minutes(10);
   /// Minimum time between successful fetch attempts
-  transient let MIN_FETCH_TIME = #hours(6);
+  transient let _MIN_FETCH_TIME = #hours(6);
   /// Max time between prepareDelegation and getDelegation calls
   transient let MAX_TIME_PER_LOGIN = #minutes(5);
   /// Interval to automatically update keys
   transient let KEY_UPDATE_INTERVAL = #hours(48);
 
   type Time = Time.Time;
+  type Provider = AuthProvider.Provider;
 
   type User = User.User;
   var users : Map.Map<Principal, User> = Map.empty();
@@ -51,17 +53,21 @@ persistent actor class Main() = this {
 
   type OAuth2ConnectConfig = AuthProvider.OAuth2ConnectConfig;
   transient let googleConfig : OAuth2ConnectConfig = {
+    name = "Google";
     provider = #google;
     clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
     keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
     var keys : [RSA.PubKey] = [];
+    var fetchAttempts = Stats.newAttemptTracker();
   };
 
   transient let _zidadelConfig : OAuth2ConnectConfig = {
+    name = "Zitadel";
     provider = #zitadel;
     clientId = "327788236128717664";
     keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
     var keys : [RSA.PubKey] = [];
+    var fetchAttempts = Stats.newAttemptTracker();
   };
 
   // Reset trusted apps on each deployment
@@ -82,37 +88,43 @@ persistent actor class Main() = this {
     Http.transform(raw, #keepAll);
   };
 
-  private func fetchKeys() : async () {
-    ignore await fetchGoogleKeys();
+  private func getProviderConfig(provider : Provider) : OAuth2ConnectConfig {
+    let providerName = AuthProvider.providerName(provider);
+    switch (provider) {
+      case (#google) return googleConfig;
+      case (_) trap("Provider " # providerName # " not yet supported.");
+    };
   };
 
-  transient let googleFetchAttempts = Stats.newAttemptTracker();
+  private func fetchAllKeys() : async () {
+    await fetchKeys(#google);
+    // TODO: fetch for other providers
+  };
 
-  public shared ({ caller }) func fetchGoogleKeys() : async Result.Result<[RSA.PubKey], Text> {
-    Stats.logBalance(stats, "fetchGoogleKeys");
-    if (not hasPermission(caller)) {
-      if (Time.now() - googleFetchAttempts.lastSuccess < toNanos(MIN_FETCH_TIME)) return #err("Rate limit reached. Try again in some hours.");
-      if (Time.now() - googleFetchAttempts.lastAttempt < toNanos(MIN_FETCH_ATTEMPT_TIME)) return #err("Rate limit reached. Try again in 30 minutes.");
+  private func fetchKeys(provider : Provider) : async () {
+    let providerConfig = getProviderConfig(provider);
+    let res = await AuthProvider.fetchKeys(providerConfig, transform);
+    let providerName = AuthProvider.providerName(provider);
+    switch (res) {
+      case (#ok(keys)) Debug.print(Nat.toText(keys.size()) # " keys loaded for " # providerName);
+      case (#err(err)) Debug.print("Failed to load keys for " # providerName # ": " # err);
     };
-
-    Stats.log(stats, "attempt to fetch google keys (attempt " # Nat.toText(googleFetchAttempts.count + 1) # ")");
-    let res = await AuthProvider.fetchKeys(googleConfig, googleFetchAttempts, transform);
-
-    Stats.log(stats, Nat.toText(googleConfig.keys.size()) # " google keys fetched.");
-    return res;
   };
 
   type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
 
   transient let sigStore = CanisterSignature.newStore(Principal.fromActor(this));
 
-  // TODO: change interface type of expireIn to Duration
-  public shared func prepareDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
+  /// Verify the token and prepare a delegation.
+  /// The delegation can be fetched using an query call to getDelegation.
+  public shared func prepareDelegation(provider : Provider, token : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
     Stats.logBalance(stats, "prepareDelegationSig");
 
+    // load Provider config
+    let providerConfig = getProviderConfig(provider);
+
     // check preconditions
-    let provider = #google;
-    if (googleConfig.keys.size() == 0) return #err("Google keys not loaded");
+    if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerConfig.name);
     if (expireIn > toNanos(MAX_EXPIRATION_TIME)) return #err("Expiration time to long");
     if (expireIn < toNanos(MIN_EXPIRATION_TIME)) return #err("Expiration time to short");
     let now = Time.now();
@@ -120,7 +132,7 @@ persistent actor class Main() = this {
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleConfig.keys, now, #seconds(60), [googleConfig.clientId], nonce)) {
+    let jwt = switch (Jwt.decode(token, providerConfig.keys, now, #seconds(60), [providerConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
@@ -154,19 +166,28 @@ persistent actor class Main() = this {
     });
   };
 
-  public shared query func getDelegation(token : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
+  public shared query func getDelegation(provider : Provider, token : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
     // The log statements will only show up if this function is called as an update call
     Stats.logBalance(stats, "getDelegations");
 
     // If called as an update call, the getCertificate function returns null
     if (CertifiedData.getCertificate() == null) return #err("This function must only be called using query calls");
 
+    // load Provider config
+    let providerName = AuthProvider.providerName(provider);
+    let providerConfig = switch (provider) {
+      case (#google) googleConfig;
+      case (_) trap("Provider " # providerName # " not yet supported.");
+    };
+
+    // check preconditions
+
     // verify token
-    if (googleConfig.keys.size() == 0) return #err("Google keys not loaded");
+    if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerName);
     if (expireAt < Time.now()) return #err("Expired");
 
     let nonce = ?Hex.toText(sessionKey);
-    // Time of JWT token from google must not be more than 5 minutes in the future
+    // Time of JWT token must not be issued more than 5 minutes in the future
     let jwt = switch (Jwt.decode(token, googleConfig.keys, Time.now(), #minutes(5), [googleConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
@@ -279,7 +300,7 @@ persistent actor class Main() = this {
   };
 
   // Update keys now and every 2 days
-  ignore setTimer<system>(#seconds(1), fetchKeys);
-  ignore recurringTimer<system>(KEY_UPDATE_INTERVAL, fetchKeys);
+  ignore setTimer<system>(#seconds(1), fetchAllKeys);
+  ignore recurringTimer<system>(KEY_UPDATE_INTERVAL, fetchAllKeys);
 
 };

@@ -31,14 +31,17 @@ module {
 
   public type OAuth2ConnectConfig = {
     provider : Provider;
+    name : Text;
     clientId : Text;
     keysUrl : Text;
     var keys : [RSA.PubKey];
+    var fetchAttempts : Stats.AttemptTracker;
   };
 
   type Transform = shared query Http.TransformArgs -> async Http.TransformResult;
 
-  public func fetchKeys(config : OAuth2ConnectConfig, attempts : Stats.AttemptTracker, transform : Transform) : async Result<[RSA.PubKey]> {
+  public func fetchKeys(config : OAuth2ConnectConfig, transform : Transform) : async Result<[RSA.PubKey]> {
+    let attempts = config.fetchAttempts;
     attempts.count += 1;
     attempts.lastAttempt := Time.now();
 
