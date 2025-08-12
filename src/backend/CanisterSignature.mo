@@ -2,7 +2,6 @@ import Blob "mo:core/Blob";
 import Principal "mo:core/Principal";
 import Array "mo:core/Array";
 import Nat8 "mo:core/Nat8";
-import Debug "mo:core/Debug";
 import Sha256 "mo:sha2/Sha256";
 import Queue "mo:core/Queue";
 import Time "mo:core/Time";
@@ -12,7 +11,6 @@ import CertifiedData "mo:core/CertifiedData";
 import { trap } "mo:core/Runtime";
 import HashTree "HashTree";
 import Delegation "Delegation";
-import Hex "Hex";
 
 module {
 

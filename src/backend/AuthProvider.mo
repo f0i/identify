@@ -6,6 +6,7 @@ import Result "mo:core/Result";
 import Text "mo:core/Text";
 import Option "mo:core/Option";
 import Debug "mo:core/Debug";
+import Error "mo:core/Error";
 import Jwt "JWT";
 
 module {
@@ -46,20 +47,17 @@ module {
     attempts.lastAttempt := Time.now();
 
     Debug.print("fetching keys from " # config.keysUrl);
-    let fetched = await Http.getRequest(config.keysUrl, 5000, transform);
+    try {
+      let fetched = await Http.getRequest(config.keysUrl, 5000, transform);
 
-    switch (RSA.pubKeysFromJSON(fetched.data)) {
-      case (#ok keys) config.keys := keys;
-      case (#err err) {
-        Debug.print("Failed to fetch " # providerName(config.provider) # " public keys: " # err);
-        return #err("Failed to fetch " # providerName(config.provider) # " public keys: " # err);
-      };
+      config.keys := RSA.deserializeKeys(fetched.data);
+
+      attempts.count := 0;
+      attempts.lastSuccess := Time.now();
+      return #ok(config.keys);
+    } catch (e) {
+      return #err("Failed to fetch keys for " # config.name # ": " # Error.message(e));
     };
-
-    attempts.count := 0;
-    attempts.lastSuccess := Time.now();
-    Debug.print("Successfuly fetched " # providerName(config.provider) # " public keys");
-    return #ok(config.keys);
   };
 
   type Identifier = {

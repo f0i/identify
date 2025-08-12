@@ -8,6 +8,9 @@ import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
 import Base64 "Base64";
 import { JSON } "mo:serde";
+import Text "mo:core/Text";
+import Runtime "mo:core/Runtime";
+
 module {
 
   public type PubKey = {
@@ -135,4 +138,52 @@ module {
 
     return #ok(Buffer.toArray(keys));
   };
+
+  /// Encode to custom key serialization format.
+  /// Only use with the same version of serialize and deserialize functions! (e.g. in transform step during http outcalls)
+  /// The format is not guaranteed to be stable, mixing different versions might result in invalid keys.
+  /// Do NOT use for persisting keys in stable memory!
+  public func serializeKey(key : PubKey) : Text {
+    key.alg # "," # key.kid # "," # key.use # "," # key.kty # "," # Nat.toText(key.e) # "," # Nat.toText(key.n);
+  };
+
+  /// Encode to custom key serialization format.
+  /// Only use with the same version of serialize and deserialize functions! (e.g. in transform step during http outcalls)
+  /// The format is not guaranteed to be stable, mixing different versions might result in invalid keys.
+  /// Do NOT use for persisting keys in stable memory!
+  public func serializeKeys(keys : [PubKey]) : Text {
+    Array.map(keys, serializeKey)
+    |> Array.sort(_, Text.compare)
+    |> Text.join("\n", _.vals());
+  };
+
+  /// Decode to custom key serialization format.
+  /// Only use with the same version of serialize and deserialize functions! (e.g. in transform step during http outcalls)
+  /// The format is not guaranteed to be stable, mixing different versions might result in invalid keys.
+  /// Do NOT use for persisting keys in stable memory!
+  public func deserializeKey(serialized : Text) : PubKey {
+    let parts = Text.split(serialized, #char ',') |> Iter.toArray(_);
+    if (parts.size() != 6) Runtime.trap("Invalid serialized key");
+    let ?e = Nat.fromText(parts[4]) else Runtime.trap("Invalid value of e in RSA key");
+    let ?n = Nat.fromText(parts[5]) else Runtime.trap("Invalid value of n in RSA key");
+    return {
+      alg = parts[0];
+      kid = parts[1];
+      use = parts[2];
+      kty = parts[3];
+      e;
+      n;
+    };
+  };
+
+  /// Decode to custom key serialization format.
+  /// Only use with the same version of serialize and deserialize functions! (e.g. in transform step during http outcalls)
+  /// The format is not guaranteed to be stable, mixing different versions might result in invalid keys.
+  /// Do NOT use for persisting keys in stable memory!
+  public func deserializeKeys(serialized : Text) : [PubKey] {
+    Text.split(serialized, #char '\n')
+    |> Iter.map(_, deserializeKey)
+    |> Iter.toArray(_);
+  };
+
 };

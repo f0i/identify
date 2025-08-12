@@ -4,17 +4,23 @@ import Nat64 "mo:base/Nat64";
 import Text "mo:base/Text";
 import Debug "mo:base/Debug";
 import Error "mo:base/Error";
+import Runtime "mo:core/Runtime";
 import IC "ic:aaaaa-aa";
-import GoogleCert "certs/GoogleCert";
+import RSA "RSA";
 
 module {
   type Timestamp = Nat64;
 
-  public func transform({ context; response } : TransformArgs, ignoreKey : GoogleCert.IgnoreKey) : IC.http_request_result {
+  public func transform({ context; response } : TransformArgs) : IC.http_request_result {
     ignore context;
     let ?content = Text.decodeUtf8(response.body) else Debug.trap("Invalid response body");
 
-    let body = GoogleCert.transformBody(content, ignoreKey);
+    let keys = switch (RSA.pubKeysFromJSON(content)) {
+      case (#err err) Runtime.trap("Http transformBody failes: " # err);
+      case (#ok data) data;
+    };
+
+    let body = RSA.serializeKeys(keys);
 
     return {
       status = response.status;

@@ -12,7 +12,7 @@ import CertifiedData "mo:core/CertifiedData";
 import Http "Http";
 import Stats "Stats";
 import CanisterSignature "CanisterSignature";
-import Hex "Hex";
+import Hex "mo:hex";
 import { setTimer; recurringTimer } = "mo:core/Timer";
 import AuthProvider "AuthProvider";
 import { trap } "mo:core/Runtime";
@@ -94,7 +94,7 @@ persistent actor class Main() = this {
 
   // Transform http request by sorting keys by key ID
   public query func transform(raw : Http.TransformArgs) : async Http.TransformResult {
-    Http.transform(raw, #keepAll);
+    Http.transform(raw);
   };
 
   private func getProviderConfig(provider : Provider) : OAuth2ConnectConfig {
@@ -118,7 +118,7 @@ persistent actor class Main() = this {
     let providerName = AuthProvider.providerName(provider);
     switch (res) {
       case (#ok(keys)) Debug.print(Nat.toText(keys.size()) # " keys loaded for " # providerName);
-      case (#err(err)) Debug.print("Failed to load keys for " # providerName # ": " # err);
+      case (#err(err)) Debug.print(err);
     };
   };
 

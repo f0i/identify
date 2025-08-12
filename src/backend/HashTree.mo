@@ -8,7 +8,7 @@ import Result "mo:core/Result";
 import Nat64 "mo:core/Nat64";
 import Array "mo:core/Array";
 import Runtime "mo:core/Runtime";
-import Hex "Hex";
+import Hex "mo:hex";
 
 // Partial implementation of a hash tree with just the functions to generate canister signatures
 module {
