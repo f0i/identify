@@ -6,7 +6,9 @@ import {
   Cbor,
   Certificate,
   lookupResultToBuffer,
+  ReplicaRejectCode,
   UpdateCallRejectedError,
+  v3ResponseBody,
 } from "@dfinity/agent";
 import { AgentError } from "@dfinity/agent/lib/cjs/errors";
 import {
@@ -84,8 +86,8 @@ const poll = async (
 
   let certificate: Certificate | undefined;
 
-  if (response.body && response.body.certificate) {
-    const cert = response.body.certificate;
+  if (response.body && (response.body as v3ResponseBody).certificate) {
+    const cert = (response.body as v3ResponseBody).certificate;
     certificate = await Certificate.create({
       certificate: bufFromBufLike(cert),
       rootKey: agent.rootKey,
@@ -101,12 +103,30 @@ const poll = async (
         break;
       case "rejected": {
         // Find rejection details in the certificate
-        throw new UpdateCallRejectedError(cid, methodName, requestId, response);
+        const reject_code = ReplicaRejectCode.SysFatal; // TODO: get actual reject code
+        const reject_message = "rejected";
+        throw new UpdateCallRejectedError(
+          cid,
+          methodName,
+          requestId,
+          response,
+          reject_code,
+          reject_message,
+        );
       }
     }
   } else if (response.body && "reject_message" in response.body) {
     // handle v2 response errors by throwing an UpdateCallRejectedError object
-    throw new UpdateCallRejectedError(cid, methodName, requestId, response);
+    const reject_code = ReplicaRejectCode.SysFatal;
+    const reject_message = "rejected";
+    throw new UpdateCallRejectedError(
+      cid,
+      methodName,
+      requestId,
+      response,
+      reject_code,
+      reject_message,
+    );
   }
 
   // Fall back to polling if we receive an Accepted response code

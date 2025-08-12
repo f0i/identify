@@ -1,9 +1,17 @@
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
-import { getDelegation } from "./identify/delegation";
+import { getDelegation, ProviderKey } from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { initGsi } from "./identify/google";
 import { Principal } from "@dfinity/principal";
+import {
+  AuthConfig,
+  getAuth0Config,
+  getGoogleConfig,
+  GoogleConfig,
+} from "./auth-config";
+import { DOM_IDS } from "./dom-config";
+import { initAuth0 } from "./auth0";
 
 declare global {
   interface Window {
@@ -16,27 +24,44 @@ const responder = (msg: any) => {
 };
 
 // DOM manipulation
-const setOriginText = (origin: string) => setText("app-origin", origin);
+const setOriginText = (origin: string) => setText(DOM_IDS.appOrigin, origin);
 const setTargetsText = (targets: string) => {
-  showElement("app-scope", targets.length > 0);
-  setText("app-targets", targets);
+  showElement(DOM_IDS.targetsWrapper, targets.length > 0);
+  setText(DOM_IDS.targets, targets);
 };
-const setStatusText = (status: string) => setText("login-status", status);
+const setStatusText = (status: string) => setText(DOM_IDS.loginStatus, status);
 
 let context: Context = DEFAULT_CONTEXT;
 
-export function initICgsi(clientID: string) {
-  showElement("icgsi", true);
+export function initIdentify(provider: ProviderKey, config: AuthConfig) {
+  showElement("identify", true);
   console.log("Waiting for message from opener");
   setStatusText("Connecting to application...");
   let init = true;
 
   context.getAuthToken = async (nonce: string) => {
-    const auth = await initGsi(clientID, nonce, true, "icgsi-google-btn");
-    return auth;
+    switch (provider) {
+      case "google":
+        return await initGsi(
+          getGoogleConfig(config),
+          nonce,
+          DOM_IDS.singinBtn,
+          true,
+        );
+      case "auth0":
+        return await initAuth0(
+          getAuth0Config(config),
+          nonce,
+          DOM_IDS.singinBtn,
+          true,
+        );
+      default:
+        throw "Invalid provider " + provider.toString();
+    }
   };
-  context.provider = "google";
-  context.gsiClientID = clientID;
+  context.provider = provider;
+  context.authConfig = config;
+
   context.statusCallback = setStatusText;
   context.targetsCallback = setTargetsText;
   context.originCallback = setOriginText;
@@ -64,12 +89,7 @@ export function initICgsi(clientID: string) {
         //
         // Handle authorize-client request according to the II-Spec
         //
-        await handleAuthorizeClient(
-          event.origin,
-          event.data,
-          clientID,
-          context,
-        );
+        await handleAuthorizeClient(event.origin, event.data, context);
       } else {
         // Other messages are probably not relevant, e.g. from browser plugins
         console.log("unhandled message (ignore)", event);
@@ -94,7 +114,6 @@ const handleAuthorizeClient = async (
     maxTimeToLive: bigint;
     targets?: Principal[];
   },
-  clientID: string,
   context: Context,
 ): Promise<void> => {
   try {
@@ -107,7 +126,7 @@ const handleAuthorizeClient = async (
     const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
     setStatusText("");
     // Request Google Sign-In and get the JWT token
-    const auth = await initGsi(clientID, nonce, true, "icgsi-google-btn");
+    const auth = await context.getAuthToken(nonce);
 
     // Get delegation from backend using the JWT token
     const msg = await getDelegation(

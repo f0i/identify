@@ -1,14 +1,35 @@
-import { GSI, IDENTITY_PROVIDER } from "./auth-config";
+// This is the entrypoint of the application.
+// Depending on the way the page is opened,
+// it will either show the login form
+// or a minimal demo application to try out the login provider.
+
+import { AUTH0, GSI, IDENTITY_PROVIDER } from "./auth-config";
 import { initDemo } from "./demo";
-import { initICgsi } from "./icgsi";
+import { initIdentify } from "./identify";
 import { showElement } from "./identify/dom";
 
 window.onload = () => {
+  const params = new URLSearchParams(document.location.search);
+  let provider = params.get("provider") || "google";
+
   console.log("onload: opener:", window.opener);
   if (window.opener) {
-    initICgsi(GSI.client_id);
+    switch (provider) {
+      case "google":
+        initIdentify(provider, GSI);
+        break;
+      case "auth0":
+        initIdentify(provider, AUTH0);
+        break;
+      default:
+        console.error(
+          "Invalid provider " + provider + ". Falling back to google.",
+        );
+        initIdentify("google", GSI);
+        break;
+    }
   } else {
-    initDemo(IDENTITY_PROVIDER);
+    initDemo(IDENTITY_PROVIDER + "?provider=" + provider);
   }
 
   document.getElementById("version")!.innerText = process.env.BUILD_TIME!;

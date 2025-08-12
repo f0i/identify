@@ -6,7 +6,7 @@ export async function initAuth0(
   nonce: string,
   buttonId: string,
   autoSignIn: boolean = false,
-): Promise<{ credential: string }> {
+): Promise<string> {
   return new Promise(async (resolve, _reject) => {
     // prompt "none" will try to sliently sign in, "login" will always prompt for re-authentication
     let prompt: "none" | "login" = autoSignIn ? "none" : "login";
@@ -25,7 +25,7 @@ export async function initAuth0(
             );
           }
           //console.log("Auth0 ID Token Claims:", claims);
-          resolve({ credential: claims.__raw });
+          resolve(claims.__raw);
         });
       }
     };
@@ -53,7 +53,7 @@ export async function initAuth0(
 }
 
 /// Example usage:
-window.onload = async () => {
-  const token = await initAuth0(AUTH0, "test-nonce", "auth0-login", false);
-  console.log("auth0 token:", token);
-};
+//window.onload = async () => {
+//  const token = await initAuth0(AUTH0, "test-nonce", "auth0-login", false);
+//  console.log("auth0 token:", token);
+//};

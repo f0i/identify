@@ -1,4 +1,5 @@
 import { Principal } from "@dfinity/principal";
+import { GoogleConfig } from "../auth-config";
 
 declare global {
   interface Window {
@@ -7,16 +8,16 @@ declare global {
 }
 
 export async function initGsi(
-  clientId: string,
+  config: GoogleConfig,
   nonce: string,
-  showPrompt: boolean = true,
   buttonId: string,
+  showPrompt: boolean = true,
 ): Promise<string> {
   await loadGoogleSignInClient();
 
   return new Promise((resolve, _reject) => {
     window.google.accounts.id.initialize({
-      client_id: clientId,
+      ...config,
       callback: (token: { credential: string }) => resolve(token.credential),
       nonce: nonce,
     });

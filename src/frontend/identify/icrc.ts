@@ -8,16 +8,24 @@ import * as icrc49 from "./icrc49_call_canister";
 import * as jsonrpc from "./jsonrpc";
 import { IdentityManager } from "./idenity-manager";
 import { initGsi } from "./google";
+import { initAuth0 } from "../auth0";
 import { getDelegation, ProviderKey } from "./delegation";
 import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
 } from "../agent-js/packages/auth-client/src";
+import {
+  AuthConfig,
+  getAuth0Config,
+  getGoogleConfig,
+  GSI,
+} from "../auth-config";
+import { DOM_IDS } from "../dom-config";
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
   provider: ProviderKey;
-  gsiClientID?: string;
+  authConfig: AuthConfig;
   origin?: string;
   statusCallback: (msg: string) => void;
   targetsCallback: (msg: string) => void;
@@ -27,6 +35,7 @@ export type Context = {
 };
 export const DEFAULT_CONTEXT: Context = {
   provider: "google",
+  authConfig: GSI,
   // Callbacks can be sued to update the UI.
   statusCallback: (msg: string) => console.log("status", msg),
   targetsCallback: (msg: string) => console.log("targets", msg),
@@ -49,19 +58,22 @@ export const loadOrFetchDelegation = async (
   let idManager = new IdentityManager();
   let authRes = await idManager.getDelegation(origin);
   if (!authRes) {
-    if (!context.gsiClientID) throw "Internal error: gsiClientID not set";
     context.statusCallback("Starting a new session...");
     const sessionKey = await idManager.getPublicKeyDer();
     const maxTimeToLive = icrc34.DEFAULT_TTL;
     const targets = undefined;
     const nonce = uint8ArrayToHex(sessionKey);
     context.statusCallback("");
-    const auth = await initGsi(
-      context.gsiClientID,
-      nonce,
-      true,
-      "icgsi-google-btn",
-    );
+    var auth: string = "";
+    if (context.provider === "google") {
+      let config = getGoogleConfig(context.authConfig);
+      auth = await initGsi(config, nonce, DOM_IDS.singinBtn, true);
+    } else if (context.provider === "auth0") {
+      let config = getAuth0Config(context.authConfig);
+      auth = await initAuth0(config, nonce, DOM_IDS.singinBtn, true);
+    } else {
+      throw "Login provider not supported: " + context.provider.toString();
+    }
     console.log("requesting delegation from backend");
     authRes = await getDelegation(
       context.provider,

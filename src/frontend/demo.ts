@@ -55,26 +55,6 @@ async function initAuth(identityProvider: string) {
   }
 }
 
-// Fetch keys for authentication verification
-async function fetchGoogleKeys() {
-  innerText("login-status", "Fetching keys...");
-  try {
-    const isDev = process.env.DFX_NETWORK !== "ic";
-    const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
-    const backend = createActor(canisterId, {
-      agentOptions: { host },
-    });
-    const res = await backend.fetchGoogleKeys();
-    if ("ok" in res) {
-      innerText("login-status", res.ok.keys.length + " keys fetched.");
-    } else {
-      throw res.err;
-    }
-  } catch (err: any) {
-    innerText("login-status", "Error: " + err);
-  }
-}
-
 // Log out
 async function resetAuth() {
   const authClient = await AuthClient.create();
