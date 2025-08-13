@@ -8,10 +8,12 @@ import {
   AuthConfig,
   getAuth0Config,
   getGoogleConfig,
+  getZitadelConfig,
   GoogleConfig,
 } from "./auth-config";
 import { DOM_IDS } from "./dom-config";
 import { initAuth0 } from "./auth0";
+import { initZitadel } from "./zitadel";
 
 declare global {
   interface Window {
@@ -51,6 +53,13 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
       case "auth0":
         return await initAuth0(
           getAuth0Config(config),
+          nonce,
+          DOM_IDS.singinBtn,
+          false,
+        );
+      case "zitadel":
+        return await initZitadel(
+          getZitadelConfig(config),
           nonce,
           DOM_IDS.singinBtn,
           false,

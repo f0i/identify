@@ -9,6 +9,7 @@ import * as jsonrpc from "./jsonrpc";
 import { IdentityManager } from "./idenity-manager";
 import { initGsi } from "./google";
 import { initAuth0 } from "../auth0";
+import { initZitadel } from "../zitadel";
 import { getDelegation, ProviderKey } from "./delegation";
 import {
   AuthClient,

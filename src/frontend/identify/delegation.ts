@@ -13,6 +13,11 @@ export type ProviderKey = Provider extends { [K in string]: null }
   ? keyof Provider
   : never;
 
+export function getProviderName(provider: ProviderKey): string {
+  const p = provider.toString();
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
 /// Get delegation from backend using the auth token
 /// @param idToken The ID token from Google sign-in
 /// @param origin The origin of the request
@@ -37,7 +42,9 @@ export const getDelegation = async (
 
   const backend = createActor(canisterId, { agentOptions: { host } });
 
-  statusCallback("Google sign in succeeded. Authorizing client...");
+  const name = getProviderName(provider);
+
+  statusCallback(name + " sign in succeeded. Authorizing client...");
 
   let prepRes = await backend.prepareDelegation(
     { [provider]: null } as Provider,
@@ -52,7 +59,7 @@ export const getDelegation = async (
   } else {
     throw prepRes.err;
   }
-  statusCallback("Google sign in succeeded. Get client authorization...");
+  statusCallback(name + " sign in succeeded. Get client authorization...");
 
   let authRes = await backend.getDelegation(
     { [provider]: null } as Provider,

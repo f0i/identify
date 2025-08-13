@@ -3,7 +3,7 @@
 // it will either show the login form
 // or a minimal demo application to try out the login provider.
 
-import { AUTH0, GSI, IDENTITY_PROVIDER } from "./auth-config";
+import { AUTH0, GSI, IDENTITY_PROVIDER, ZITADEL } from "./auth-config";
 import { initDemo } from "./demo";
 import { initIdentify } from "./identify";
 import { showElement } from "./identify/dom";
@@ -20,6 +20,9 @@ window.onload = () => {
         break;
       case "auth0":
         initIdentify(provider, AUTH0);
+        break;
+      case "zitadel":
+        initIdentify(provider, ZITADEL);
         break;
       default:
         console.error(

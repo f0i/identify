@@ -72,7 +72,7 @@ persistent actor class Main() = this {
     var fetchAttempts = Stats.newAttemptTracker();
   };
 
-  transient let _zidadelConfig : OAuth2ConnectConfig = {
+  transient let zitadelConfig : OAuth2ConnectConfig = {
     name = "Zitadel";
     provider = #zitadel;
     clientId = "327788236128717664";
@@ -104,6 +104,7 @@ persistent actor class Main() = this {
     switch (provider) {
       case (#google) return googleConfig;
       case (#auth0) return auth0Config;
+      case (#zitadel) return zitadelConfig;
       case (_) trap("Provider " # providerName # " not yet supported.");
     };
   };
@@ -111,6 +112,7 @@ persistent actor class Main() = this {
   private func fetchAllKeys() : async () {
     await fetchKeys(#google);
     await fetchKeys(#auth0);
+    await fetchKeys(#zitadel);
     // TODO: fetch for other providers
   };
 
