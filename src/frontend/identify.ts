@@ -1,6 +1,6 @@
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
-import { getDelegation, ProviderKey } from "./identify/delegation";
+import { getDelegation, ProviderKey, getProviderName } from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { initGsi } from "./identify/google";
 import { Principal } from "@dfinity/principal";
@@ -37,6 +37,13 @@ let context: Context = DEFAULT_CONTEXT;
 
 export function initIdentify(provider: ProviderKey, config: AuthConfig) {
   showElement("identify", true);
+  const signInButtonContainer = document.getElementById(DOM_IDS.singinBtn);
+  if (signInButtonContainer) {
+    const actualButton = signInButtonContainer.querySelector('button');
+    if (actualButton) {
+      actualButton.innerText = `Sign in with ${getProviderName(provider)}`;
+    }
+  }
   console.log("Waiting for message from opener");
   setStatusText("Connecting to application...");
   let init = true;
