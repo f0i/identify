@@ -5,7 +5,7 @@ import Nat "mo:core/Nat";
 import Text "mo:core/Text";
 import CanisterSignature "../src/backend/CanisterSignature";
 import Delegation "../src/backend/Delegation";
-import Hex "../src/backend/Hex";
+import Hex "mo:hex";
 
 print("# CanisterSignature");
 

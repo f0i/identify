@@ -1,14 +1,12 @@
 import Bench "mo:bench";
 import Time "mo:core/Time";
 import Nat "mo:core/Nat";
-import Iter "mo:core/Iter";
 import Text "mo:core/Text";
 import HashTree "../src/backend/HashTree";
 import CertTree "mo:ic-certification/CertTree";
 import CanisterSigs "mo:ic-certification/CanisterSigs";
 import Sha256 "mo:sha2/Sha256";
 import Runtime "mo:core/Runtime";
-import Nat "mo:core/Nat";
 
 module {
   type HashTree = HashTree.HashTree;

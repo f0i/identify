@@ -293,8 +293,16 @@ persistent actor class Main() = this {
     let appCount = Nat.toText(Stats.getSubCount(stats, "signup")) # " apps connected";
     let keyCount = Nat.toText(Map.size(users)) # " identities created";
     let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
-
     return [appCount, keyCount, loginCount];
+  };
+
+  public shared query ({ caller }) func info() : async Text {
+    if (not hasPermission(caller)) Stats.logBalance(stats, "getStats");
+
+    let g = Array.map(googleConfig.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
+    let a = Array.map(auth0Config.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
+    let z = Array.map(zitadelConfig.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
+    return debug_show [g, a, z];
   };
 
   var mods : Set.Set<Principal> = Set.new();
