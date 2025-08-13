@@ -7,7 +7,6 @@ export async function initAuth0(
   buttonId: string,
   autoSignIn: boolean = true,
 ): Promise<string> {
-  console.log("Auth0: initAuth0 called with autoSignIn:", autoSignIn);
   return new Promise(async (resolve, reject) => {
     let prompt: "none" | "login" = "login"; // Always prompt for interactive login if triggered
     let auth0Client = await createAuth0Client({
@@ -37,25 +36,30 @@ export async function initAuth0(
       return true; // Indicate success
     };
 
-    // --- Core Logic for Auto-triggering ---
-    try {
-      await signin();
-    } catch (e: any) {
-      if (
-        !e.toString().startsWith("Unable to open a popup for loginWithPopup")
-      ) {
-        throw e;
-      }
-      console.log("Auth0: Popup failed. Attaching listener to button.", e);
-      // If autoSignIn is false, attach listener to button for manual trigger
+    const attachButton = () => {
       const login = document.getElementById(buttonId);
       if (login) {
         console.log("Adding listner to login button", login);
         login.addEventListener("click", () => signin());
       } else {
         console.error("Login button not found");
-        throw e;
       }
+    };
+
+    if (autoSignIn) {
+      try {
+        await signin();
+      } catch (e: any) {
+        if (e.toString().startsWith("Unable to open a popup")) {
+          // if popup failed, enable the button.
+          attachButton();
+        } else {
+          throw e;
+        }
+      }
+    } else {
+      // only attetch
+      attachButton();
     }
   });
 }
