@@ -19,6 +19,7 @@ import {
   AuthConfig,
   getAuth0Config,
   getGoogleConfig,
+  getZitadelConfig,
   GSI,
 } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
@@ -72,6 +73,9 @@ export const loadOrFetchDelegation = async (
     } else if (context.provider === "auth0") {
       let config = getAuth0Config(context.authConfig);
       auth = await initAuth0(config, nonce, DOM_IDS.singinBtn, true);
+    } else if (context.provider === "zitadel") {
+      let config = getZitadelConfig(context.authConfig);
+      auth = await initZitadel(config, nonce, DOM_IDS.singinBtn, true);
     } else {
       throw "Login provider not supported: " + context.provider.toString();
     }

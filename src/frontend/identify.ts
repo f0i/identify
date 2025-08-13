@@ -1,6 +1,10 @@
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
-import { getDelegation, ProviderKey, getProviderName } from "./identify/delegation";
+import {
+  getDelegation,
+  ProviderKey,
+  getProviderName,
+} from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { initGsi } from "./identify/google";
 import { Principal } from "@dfinity/principal";
@@ -39,7 +43,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
   showElement("identify", true);
   const signInButtonContainer = document.getElementById(DOM_IDS.singinBtn);
   if (signInButtonContainer) {
-    const actualButton = signInButtonContainer.querySelector('button');
+    const actualButton = signInButtonContainer.querySelector("button");
     if (actualButton) {
       actualButton.innerText = `Sign in with ${getProviderName(provider)}`;
     }
@@ -62,7 +66,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
           getAuth0Config(config),
           nonce,
           DOM_IDS.singinBtn,
-          false,
+          true,
         );
       case "zitadel":
         return await initZitadel(

@@ -1,42 +1,22 @@
 import { createAuth0Client } from "@auth0/auth0-spa-js";
-import { AUTH0 } from "./auth-config";
+import { Auth0Config } from "./auth-config";
 
 export async function initAuth0(
-  auth0Config: { clientId: string; domain: string },
+  auth0Config: Auth0Config,
   nonce: string,
   buttonId: string,
-  autoSignIn: boolean = false,
+  autoSignIn: boolean = true,
 ): Promise<string> {
-  return new Promise(async (resolve, _reject) => {
-    // prompt "none" will try to sliently sign in, "login" will always prompt for re-authentication
-    let prompt: "none" | "login" = autoSignIn ? "none" : "login";
+  console.log("Auth0: initAuth0 called with autoSignIn:", autoSignIn);
+  return new Promise(async (resolve, reject) => {
+    let prompt: "none" | "login" = "login"; // Always prompt for interactive login if triggered
     let auth0Client = await createAuth0Client({
       ...auth0Config,
       authorizationParams: { nonce, prompt },
     });
+    const signin = async (): Promise<boolean> => {
+      console.log("Auth0: signin called");
 
-    const checkAuth = async () => {
-      if (await auth0Client.isAuthenticated()) {
-        //console.log("client is authenticated");
-        auth0Client.getIdTokenClaims().then((claims) => {
-          if (!claims) {
-            throw new Error(
-              "Authentication errror: Authentication provider Auth0 did not return an ID token",
-            );
-          }
-          //console.log("Auth0 ID Token Claims:", claims);
-          resolve(claims.__raw);
-        });
-      }
-    };
-
-    if (autoSignIn) {
-      await checkAuth();
-    } else if (await auth0Client.isAuthenticated()) {
-      console.log("User was signed in, but autoSignIn is disabled.");
-    }
-    // Connect signin function to login button
-    const signin = async () => {
       await auth0Client.loginWithPopup({
         authorizationParams: {
           redirect_uri: window.location.href,
@@ -44,16 +24,39 @@ export async function initAuth0(
           prompt,
         },
       });
-
-      await checkAuth();
+      console.log("Auth0: loginWithPopup successful.");
+      const claims = await auth0Client.getIdTokenClaims();
+      if (!claims) {
+        console.error("Auth0: No claims after popup login");
+        throw new Error(
+          "Authentication error: Auth0 did not return an ID token after popup.",
+        );
+      }
+      console.log("Auth0: Claims obtained after popup, resolving with token.");
+      resolve(claims.__raw);
+      return true; // Indicate success
     };
-    const login = document.getElementById(buttonId)!;
-    login.addEventListener("click", () => signin());
+
+    // --- Core Logic for Auto-triggering ---
+    try {
+      await signin();
+    } catch (e: any) {
+      if (
+        !e.toString().startsWith("Unable to open a popup for loginWithPopup")
+      ) {
+        throw e;
+      }
+      console.log("Auth0: Popup failed. Attaching listener to button.", e);
+      // If autoSignIn is false, attach listener to button for manual trigger
+      const login = document.getElementById(buttonId);
+      if (login) {
+        console.log("Adding listner to login button", login);
+        login.addEventListener("click", () => signin());
+      } else {
+        console.error("Login button not found");
+        throw e;
+      }
+    }
   });
 }
 
-/// Example usage:
-//window.onload = async () => {
-//  const token = await initAuth0(AUTH0, "test-nonce", "auth0-login", false);
-//  console.log("auth0 token:", token);
-//};
