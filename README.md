@@ -143,7 +143,8 @@ sequenceDiagram
 The following web2 authentication providers are supported
 
 - [x] Google (JWT from JS SDK)
-- [ ] Auth0 (JWT from JS SDK)
+- [x] Auth0 (JWT from JS SDK)
+- [x] Zitadel (JWT via OIDC)
 - [ ] GitHub (PKCE)
 - [ ] X (PKCE)
 - [ ] Apple (PKCE + JWT)
