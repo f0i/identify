@@ -53,7 +53,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
           getAuth0Config(config),
           nonce,
           DOM_IDS.singinBtn,
-          true,
+          false,
         );
       default:
         throw "Invalid provider " + provider.toString();

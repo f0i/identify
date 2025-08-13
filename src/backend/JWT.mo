@@ -28,11 +28,12 @@ module {
   /// Data sturcture of a decoded JWT token's payload
   public type Payload = {
     iss : Text; // issuer
-    sub : Text; // subject (Google user ID)
+    sub : Text; // subject (Google user ID, )
     aud : Text; // audience (Google client ID)
     exp : Nat; // expiration time in seconds since Unix epoch
     iat : Nat; // issued at time
-    jti : Text; // JWT token ID
+    jti : ?Text; // JWT token ID
+    sid : ?Text; // OIDC Session ID
     email : ?Text; // user email
     email_verified : ?Bool; // email verified by auth provider
     name : ?Text; // user full name
@@ -107,7 +108,10 @@ module {
     if (header.typ != "JWT") return #err("invalid JWT header: typ must be JWT");
 
     // select RSA key
-    let ?pubKey = Array.find(pubKeys, func(k : RSA.PubKey) : Bool = (k.kid == header.kid)) else return #err("no matching key found");
+    let ?pubKey = Array.find(pubKeys, func(k : RSA.PubKey) : Bool = (k.kid == header.kid)) else {
+      let available = Array.map(pubKeys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
+      return #err("no matching key found for keyID " # header.kid # " (available keys: " # available # ")");
+    };
     if (pubKey.kty != "RSA") return #err("invalid key: kty must be RSA");
     if (pubKey.alg != "RS256") return #err("invalid key: alg must be RS256");
     if (pubKey.use != "sig") return #err("invalid key: use must be sig");

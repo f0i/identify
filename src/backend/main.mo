@@ -17,6 +17,8 @@ import { setTimer; recurringTimer } = "mo:core/Timer";
 import AuthProvider "AuthProvider";
 import { trap } "mo:core/Runtime";
 import Debug "mo:core/Debug";
+import Array "mo:core/Array";
+import Text "mo:core/Text";
 import User "User";
 
 persistent actor class Main() = this {
@@ -117,7 +119,7 @@ persistent actor class Main() = this {
     let res = await AuthProvider.fetchKeys(providerConfig, transform);
     let providerName = AuthProvider.providerName(provider);
     switch (res) {
-      case (#ok(keys)) Debug.print(Nat.toText(keys.size()) # " keys loaded for " # providerName);
+      case (#ok(keys)) Debug.print(Nat.toText(keys.size()) # " keys loaded for " # providerName # " (" # (Array.map(keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals())) # ")");
       case (#err(err)) Debug.print(err);
     };
   };
@@ -186,12 +188,7 @@ persistent actor class Main() = this {
 
     // load Provider config
     let providerName = AuthProvider.providerName(provider);
-    let providerConfig = switch (provider) {
-      case (#google) googleConfig;
-      case (_) trap("Provider " # providerName # " not yet supported.");
-    };
-
-    // check preconditions
+    let providerConfig = getProviderConfig(provider);
 
     // verify token
     if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerName);
@@ -199,7 +196,7 @@ persistent actor class Main() = this {
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token must not be issued more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, googleConfig.keys, Time.now(), #minutes(5), [googleConfig.clientId], nonce)) {
+    let jwt = switch (Jwt.decode(token, providerConfig.keys, Time.now(), #minutes(5), [providerConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
         return #err("failed to decode token: " # err);
@@ -258,6 +255,7 @@ persistent actor class Main() = this {
 
     let userInfo = switch (Map.get(users, Principal.compare, caller)) {
       case (?user) {
+        "Signed in with " # AuthProvider.providerName(user.provider) # ". " #
         "User found, " # (
           if (user.email == null) {
             "Email not set";

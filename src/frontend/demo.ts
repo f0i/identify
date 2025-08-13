@@ -9,12 +9,6 @@ export function initDemo(identityProvider: string) {
   const logout = document.getElementById("demo-logout")!;
   logout.addEventListener("click", resetAuth);
 
-  const fetchKeys = document.getElementById("demo-fetch-keys")!;
-  fetchKeys.addEventListener("click", fetchGoogleKeys);
-  if (document.location.hash === "#admin") {
-    show("demo-admin");
-  }
-
   innerText("demo-build-time", process.env.BUILD_TIME!);
   innerText("demo-network", process.env.DFX_NETWORK!);
   const isDev = process.env.DFX_NETWORK !== "ic";
