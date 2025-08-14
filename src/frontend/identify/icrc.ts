@@ -10,7 +10,7 @@ import { IdentityManager } from "./idenity-manager";
 import { initGsi } from "./google";
 import { initAuth0 } from "../auth0";
 import { initZitadel } from "../zitadel";
-import { getDelegation, ProviderKey } from "./delegation";
+import { getDelegationJwt, ProviderKey } from "./delegation";
 import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
@@ -23,6 +23,7 @@ import {
   GSI,
 } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
+import { generateCodeChallenge, PkceAuthData } from "../pkce";
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
@@ -33,7 +34,8 @@ export type Context = {
   targetsCallback: (msg: string) => void;
   originCallback: (msg: string) => void;
   confirm: (msg: string) => Promise<boolean>;
-  getAuthToken: (nonce: string) => Promise<string>;
+  getJwtToken: (nonce: string) => Promise<string>;
+  getPkceAuthData: (nonce: string) => Promise<PkceAuthData>;
 };
 export const DEFAULT_CONTEXT: Context = {
   provider: "google",
@@ -45,8 +47,12 @@ export const DEFAULT_CONTEXT: Context = {
   // Default confirmation function allows all requests.
   // This is ok, because each origin gets its own identity.
   confirm: async (msg: string) => true,
-  getAuthToken: async (nonce: string) => {
-    console.error("getAuthToken not set in context (nonce:", nonce, ")");
+  getJwtToken: async (nonce: string) => {
+    console.error("getJwtToken not set in context (nonce:", nonce, ")");
+    throw "Authentication mechanism not set";
+  },
+  getPkceAuthData: async (nonce: string) => {
+    console.error("getPkceAuthData not set in context (nonce:", nonce, ")");
     throw "Authentication mechanism not set";
   },
 };
@@ -80,7 +86,7 @@ export const loadOrFetchDelegation = async (
       throw "Login provider not supported: " + context.provider.toString();
     }
     console.log("requesting delegation from backend");
-    authRes = await getDelegation(
+    authRes = await getDelegationJwt(
       context.provider,
       auth,
       origin,

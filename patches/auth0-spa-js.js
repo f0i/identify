@@ -11,6 +11,12 @@ const path =
 // Read the file
 let source = fs.readFileSync(path, "utf8");
 
+// Check if the patch is already applied
+if (source.includes('"_blank"')) {
+  console.log("✅ Patch already applied. Skipping.");
+  process.exit(0);
+}
+
 // Regex to match the whole window.open(...) call
 const regex = /window\.open\(e, [^)]*\)/g;
 

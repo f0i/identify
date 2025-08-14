@@ -9,7 +9,7 @@
     "test:backend": "./test/run.sh",
     "test:backend:fast": "./test/run.sh --fast",
     "bench": "mops bench",
-    "postinstall": "node patch/auth0-spa-js.js"
+    "postinstall": "node patches/auth0-spa-js.js"
   },
   "keywords": [],
   "author": "",

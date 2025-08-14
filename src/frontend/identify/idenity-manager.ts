@@ -7,18 +7,7 @@
  * - Provides a DelegationIdentity compatible with DFINITY agent APIs.
  */
 
-import {
-  Delegation,
-  DelegationChain,
-  DelegationIdentity,
-  SignedDelegation,
-} from "@dfinity/identity";
-import {
-  DerEncodedPublicKey,
-  PublicKey,
-  Signature,
-  SignIdentity,
-} from "@dfinity/agent";
+import { PublicKey, Signature, SignIdentity } from "@dfinity/agent";
 import { Principal } from "@dfinity/principal";
 import { AuthResponseUnwrapped } from "./utils";
 

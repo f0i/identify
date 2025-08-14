@@ -30,25 +30,40 @@ module {
     };
   };
 
+  public type AuthParams = {
+    #jwt : {
+      clientId : Text;
+      keysUrl : Text;
+    };
+    #pkce : {
+      authorizationUrl : Text;
+      tokenUrl : Text;
+      userInfoEndpoint : Text;
+      clientId : Text;
+      redirectUri : Text;
+    };
+  };
+
   public type OAuth2ConnectConfig = {
     provider : Provider;
     name : Text;
-    clientId : Text;
-    keysUrl : Text;
+    auth : AuthParams;
     var keys : [RSA.PubKey];
     var fetchAttempts : Stats.AttemptTracker;
   };
 
-  type Transform = shared query Http.TransformArgs -> async Http.TransformResult;
+  type TransformFn = Http.TransformFn;
 
-  public func fetchKeys(config : OAuth2ConnectConfig, transform : Transform) : async Result<[RSA.PubKey]> {
+  public func fetchKeys(config : OAuth2ConnectConfig, transform : TransformFn) : async Result<[RSA.PubKey]> {
     let attempts = config.fetchAttempts;
     attempts.count += 1;
     attempts.lastAttempt := Time.now();
 
-    Debug.print("fetching keys from " # config.keysUrl);
+    let #jwt(params) = config.auth else return #err("Not a JWT config");
+
+    Debug.print("fetching keys from " # params.keysUrl);
     try {
-      let fetched = await Http.getRequest(config.keysUrl, 5000, transform);
+      let fetched = await Http.getRequest(params.keysUrl, [], 5000, transform, true);
 
       config.keys := RSA.deserializeKeys(fetched.data);
 

@@ -22,6 +22,7 @@ esbuild
       "src/frontend/callback.ts", // OAuth callback
       "src/frontend/auth0.ts", // OAuth via Auth0
       "src/frontend/candid.ts", // Candid decoder
+      "src/frontend/pkce-callback.ts", // PKCE callback
     ],
     bundle: true, // Bundle all dependencies into a single file
     outdir: "out/frontend/", // Output file
@@ -46,6 +47,7 @@ esbuild
   .then(() => copyWithCacheBuster("auth0", "auth0"))
   .then(() => copyWithCacheBuster("candid", "candid"))
   .then(() => copyWithCacheBuster("callback", "callback"))
+  .then(() => copyWithCacheBuster("pkce-callback", "pkce-callback"))
   .then(() => {
     // copy static files
     execSync(`cp -r src/frontend/img out/frontend/img`);

@@ -1,10 +1,6 @@
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
-import {
-  getDelegation,
-  ProviderKey,
-  getProviderName,
-} from "./identify/delegation";
+import { ProviderKey, getProviderName } from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { initGsi } from "./identify/google";
 import { Principal } from "@dfinity/principal";
@@ -13,11 +9,68 @@ import {
   getAuth0Config,
   getGoogleConfig,
   getZitadelConfig,
-  GoogleConfig,
+  getGithubConfig,
+  getXConfig,
+  getPKCEConfig,
 } from "./auth-config";
 import { DOM_IDS } from "./dom-config";
 import { initAuth0 } from "./auth0";
+import { generateCodeChallenge, PkceAuthData } from "./pkce";
 import { initZitadel } from "./zitadel";
+import { getDelegationJwt, getDelegationPkce } from "./identify/delegation";
+
+export async function initPkce(
+  config: AuthConfig,
+  code_challenge: string,
+  buttonId: string,
+  autoSignIn: boolean = true,
+): Promise<PkceAuthData> {
+  return new Promise(async (resolve, reject) => {
+    const pkceConfig = getPKCEConfig(config);
+
+    // Redirect to the authorization endpoint in a popup
+    const state = Array.from(
+      window.crypto.getRandomValues(new Uint8Array(16)),
+      (b) => b.toString(16).padStart(2, "0"),
+    ).join("");
+    const authUrl =
+      `${pkceConfig.authorizationUrl}?` +
+      `client_id=${pkceConfig.clientId}&` +
+      `redirect_uri=${pkceConfig.redirect}&` +
+      `response_type=code&` +
+      `scope=users.read&` +
+      `code_challenge=${code_challenge}&` +
+      `code_challenge_method=S256&` +
+      `state=${state}`;
+
+    const popup = window.open(authUrl, "_blank", "width=500,height=600");
+
+    if (!popup) {
+      reject(
+        new Error(
+          "Failed to open popup window. Please allow popups for this site.",
+        ),
+      );
+      return;
+    }
+
+    const messageListener = (event: MessageEvent) => {
+      if (event.source === popup) {
+        window.removeEventListener("message", messageListener);
+        if (event.data.type === "pkce_auth_success") {
+          resolve({ code: event.data.code, state: event.data.state });
+        } else if (event.data.type === "pkce_auth_error") {
+          reject(new Error(event.data.error));
+        }
+        popup.close();
+      }
+    };
+
+    window.addEventListener("message", messageListener);
+
+    // This promise will be resolved when the popup sends a message back
+  });
+}
 
 declare global {
   interface Window {
@@ -52,7 +105,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
   setStatusText("Connecting to application...");
   let init = true;
 
-  context.getAuthToken = async (nonce: string) => {
+  context.getJwtToken = async (nonce: string) => {
     switch (provider) {
       case "google":
         return await initGsi(
@@ -76,9 +129,33 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
           false,
         );
       default:
-        throw "Invalid provider " + provider.toString();
+        throw "Invalid provider for JWT: " + provider.toString();
     }
   };
+
+  context.getPkceAuthData = async (nonce: string) => {
+    const code_verifier = nonce;
+    const code_challenge = await generateCodeChallenge(code_verifier);
+    switch (provider) {
+      case "github":
+        return await initPkce(
+          getGithubConfig(config),
+          code_challenge,
+          DOM_IDS.singinBtn,
+          true,
+        );
+      case "x":
+        return await initPkce(
+          getXConfig(config),
+          code_challenge,
+          DOM_IDS.singinBtn,
+          true,
+        );
+      default:
+        throw "Invalid provider for PKCE: " + provider.toString();
+    }
+  };
+
   context.provider = provider;
   context.authConfig = config;
 
@@ -145,19 +222,33 @@ const handleAuthorizeClient = async (
     context.targetsCallback(authRequest.targets?.slice()?.join(",\n") || "");
     const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
     setStatusText("");
-    // Request Google Sign-In and get the JWT token
-    const auth = await context.getAuthToken(nonce);
 
-    // Get delegation from backend using the JWT token
-    const msg = await getDelegation(
-      context.provider,
-      auth,
-      origin,
-      authRequest.sessionPublicKey,
-      authRequest.maxTimeToLive,
-      authRequest.targets,
-      setStatusText,
-    );
+    // Get delegation from backend
+    let msg;
+    if (context.provider === "github" || context.provider === "x") {
+      const pkceAuthData = await context.getPkceAuthData(nonce);
+      msg = await getDelegationPkce(
+        context.provider,
+        pkceAuthData.code,
+        nonce,
+        origin,
+        authRequest.sessionPublicKey,
+        authRequest.maxTimeToLive,
+        authRequest.targets,
+        setStatusText,
+      );
+    } else {
+      const idToken = await context.getJwtToken(nonce);
+      msg = await getDelegationJwt(
+        context.provider,
+        idToken,
+        origin,
+        authRequest.sessionPublicKey,
+        authRequest.maxTimeToLive,
+        authRequest.targets,
+        setStatusText,
+      );
+    }
 
     // send response; window will be closed by opener
     responder(msg);

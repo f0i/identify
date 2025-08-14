@@ -15,6 +15,7 @@
   ],
   "exclude": [
     "node_modules",            // Exclude node_modules
+    "src/frontend/agent-js",  // Exclude agent-js submodule
     "out",                    // Exclude the build directory
     "**/*.test.ts"             // Optionally exclude test files
   ]

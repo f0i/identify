@@ -20,6 +20,7 @@ import Debug "mo:core/Debug";
 import Array "mo:core/Array";
 import Text "mo:core/Text";
 import User "User";
+import PKCE "PKCE";
 
 persistent actor class Main() = this {
   type Duration = Time.Duration;
@@ -57,8 +58,10 @@ persistent actor class Main() = this {
   transient let googleConfig : OAuth2ConnectConfig = {
     name = "Google";
     provider = #google;
-    clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
-    keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
+    auth = #jwt({
+      clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
+      keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
+    });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
   };
@@ -66,8 +69,10 @@ persistent actor class Main() = this {
   transient let auth0Config : OAuth2ConnectConfig = {
     name = "Auth0";
     provider = #auth0;
-    clientId = "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ";
-    keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
+    auth = #jwt({
+      clientId = "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ";
+      keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
+    });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
   };
@@ -75,8 +80,38 @@ persistent actor class Main() = this {
   transient let zitadelConfig : OAuth2ConnectConfig = {
     name = "Zitadel";
     provider = #zitadel;
-    clientId = "327788236128717664";
-    keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
+    auth = #jwt({
+      clientId = "327788236128717664";
+      keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
+    });
+    var keys : [RSA.PubKey] = [];
+    var fetchAttempts = Stats.newAttemptTracker();
+  };
+
+  transient let githubConfig : OAuth2ConnectConfig = {
+    name = "GitHub";
+    provider = #github;
+    auth = #pkce({
+      authorizationUrl = "https://github.com/login/oauth/authorize";
+      tokenUrl = "https://github.com/login/oauth/access_token";
+      userInfoEndpoint = "https://api.github.com/user";
+      clientId = "TODO";
+      redirectUri = "https://login.f0i.de/pkce-callback.html";
+    });
+    var keys : [RSA.PubKey] = [];
+    var fetchAttempts = Stats.newAttemptTracker();
+  };
+
+  transient let xConfig : OAuth2ConnectConfig = {
+    name = "X";
+    provider = #x;
+    auth = #pkce({
+      authorizationUrl = "https://x.com/i/oauth2/authorize";
+      tokenUrl = "https://api.x.com/2/oauth2/token";
+      userInfoEndpoint = "https://api.x.com/2/users/me";
+      clientId = "c1Y3cWhOekU1SFlwVkJCNlFmbWU6MTpjaQ";
+      redirectUri = "https://login.f0i.de/pkce-callback.html";
+    });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
   };
@@ -95,6 +130,11 @@ persistent actor class Main() = this {
   Map.add(trustedApps, Principal.compare, Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"), btcGiftCardsDemo);
 
   // Transform http request by sorting keys by key ID
+  public query func transformKeys(raw : Http.TransformArgs) : async Http.TransformResult {
+    Http.transformKeys(raw);
+  };
+
+  // Transform http request without changing anything
   public query func transform(raw : Http.TransformArgs) : async Http.TransformResult {
     Http.transform(raw);
   };
@@ -105,7 +145,8 @@ persistent actor class Main() = this {
       case (#google) return googleConfig;
       case (#auth0) return auth0Config;
       case (#zitadel) return zitadelConfig;
-      case (_) trap("Provider " # providerName # " not yet supported.");
+      case (#github) return githubConfig;
+      case (#x) return xConfig;
     };
   };
 
@@ -118,7 +159,7 @@ persistent actor class Main() = this {
 
   private func fetchKeys(provider : Provider) : async () {
     let providerConfig = getProviderConfig(provider);
-    let res = await AuthProvider.fetchKeys(providerConfig, transform);
+    let res = await AuthProvider.fetchKeys(providerConfig, transformKeys);
     let providerName = AuthProvider.providerName(provider);
     switch (res) {
       case (#ok(keys)) Debug.print(Nat.toText(keys.size()) # " keys loaded for " # providerName # " (" # (Array.map(keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals())) # ")");
@@ -137,6 +178,7 @@ persistent actor class Main() = this {
 
     // load Provider config
     let providerConfig = getProviderConfig(provider);
+    let #jwt(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
 
     // check preconditions
     if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerConfig.name);
@@ -147,7 +189,7 @@ persistent actor class Main() = this {
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, providerConfig.keys, now, #seconds(60), [providerConfig.clientId], nonce)) {
+    let jwt = switch (Jwt.decode(token, providerConfig.keys, now, #minutes(5), [authConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
@@ -191,6 +233,7 @@ persistent actor class Main() = this {
     // load Provider config
     let providerName = AuthProvider.providerName(provider);
     let providerConfig = getProviderConfig(provider);
+    let #jwt(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
 
     // verify token
     if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerName);
@@ -198,7 +241,7 @@ persistent actor class Main() = this {
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token must not be issued more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, providerConfig.keys, Time.now(), #minutes(5), [providerConfig.clientId], nonce)) {
+    let jwt = switch (Jwt.decode(token, providerConfig.keys, Time.now(), #minutes(5), [authConfig.clientId], nonce)) {
       case (#err err) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
         return #err("failed to decode token: " # err);
@@ -212,6 +255,83 @@ persistent actor class Main() = this {
     let auth = CanisterSignature.getDelegation(sigStore, sub, origin, sessionKey, expireAt, targets);
 
     return #ok({ auth });
+  };
+
+  public shared func prepareDelegationPKCE(provider : Provider, code : Text, verifier : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
+    Stats.logBalance(stats, "prepareDelegationPKCE");
+
+    // load Provider config
+    let providerConfig = getProviderConfig(provider);
+    let #pkce(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
+
+    // check preconditions
+    if (expireIn > toNanos(MAX_EXPIRATION_TIME)) return #err("Expiration time to long");
+    if (expireIn < toNanos(MIN_EXPIRATION_TIME)) return #err("Expiration time to short");
+    let now = Time.now();
+    let expireAt = now + expireIn;
+
+    let nonce = Hex.toText(sessionKey);
+    if (nonce != verifier) return #err("Code verifier does not match the session key.");
+    // Time of JWT token from google must not be more than 5 minutes in the future
+
+    // TODO: Exchange code for token!
+    let response = await PKCE.exchangeToken(providerConfig, code, verifier, transform);
+
+    let token = switch (response) {
+      case (#ok(bearer)) { bearer };
+      case (#err(err)) { return #err("Failed to get the bearer auth token.") };
+    };
+
+    let userInfo = await PKCE.getUserInfo(providerConfig, token, transform);
+
+    trap("TODO: implement PKCE " # debug_show { response; userInfo });
+
+    /*
+    let sub =
+    // This is adding a signature to the sigTree and storing its hash in certified data.
+    let pubKey = CanisterSignature.prepareDelegation(sigStore, sub, origin, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
+
+    // store user data
+    let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
+
+    let user = switch (Map.get(users, Principal.compare, principal)) {
+      case (?old) {
+        User.update(old, origin, provider, jwt);
+      };
+      case (null) {
+        Stats.inc(stats, "signup", origin);
+        User.create(origin, provider, jwt);
+      };
+    };
+    Map.add(users, Principal.compare, principal, user);
+    Stats.inc(stats, "signin", origin);
+
+    return #ok({
+      pubKey;
+      expireAt;
+    });
+    */
+  };
+
+  public shared query func getDelegationPKCE(provider : Provider, code : Text, verifier : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
+    // The log statements will only show up if this function is called as an update call
+    Stats.logBalance(stats, "getDelegations");
+
+    // If called as an update call, the getCertificate function returns null
+    if (CertifiedData.getCertificate() == null) return #err("This function must only be called using query calls");
+
+    // load Provider config
+    let providerName = AuthProvider.providerName(provider);
+    let providerConfig = getProviderConfig(provider);
+    let #jwt(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
+
+    // verify token
+    if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerName);
+    if (expireAt < Time.now()) return #err("Expired");
+
+    let nonce = ?Hex.toText(sessionKey);
+
+    trap("TODO: implement");
   };
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {

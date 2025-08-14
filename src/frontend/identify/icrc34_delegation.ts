@@ -11,7 +11,7 @@ import {
   delegationToJsonRPC,
   uint8ArrayToHex,
 } from "./utils";
-import { getDelegation } from "./delegation";
+import { getDelegationJwt } from "./delegation";
 import { Context } from "./icrc";
 import { Scope } from "./icrc25_signer_integration";
 
@@ -44,8 +44,8 @@ export const delegation = async (
   context.statusCallback("");
   context.targetsCallback(req.params.targets?.slice()?.join(",\n") || "");
   const nonce = uint8ArrayToHex(publicKey);
-  const token = await context.getAuthToken(nonce);
-  const msg = await getDelegation(
+  const token = await context.getJwtToken(nonce);
+  const msg = await getDelegationJwt(
     context.provider,
     token,
     origin,
@@ -54,6 +54,7 @@ export const delegation = async (
     targets,
     context.statusCallback,
   );
+
 
   return setResult(req, {
     publicKey: base64encode(msg.userPublicKey),
