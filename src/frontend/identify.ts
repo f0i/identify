@@ -38,7 +38,7 @@ export async function initPkce(
       `client_id=${pkceConfig.clientId}&` +
       `redirect_uri=${pkceConfig.redirect}&` +
       `response_type=code&` +
-      `scope=users.read&` +
+      `scope=users.read%20tweet.read&` +
       `code_challenge=${code_challenge}&` +
       `code_challenge_method=S256&` +
       `state=${state}`;
@@ -58,6 +58,7 @@ export async function initPkce(
       if (event.source === popup) {
         window.removeEventListener("message", messageListener);
         if (event.data.type === "pkce_auth_success") {
+          // TODO: verify state matches
           resolve({ code: event.data.code, state: event.data.state });
         } else if (event.data.type === "pkce_auth_error") {
           reject(new Error(event.data.error));

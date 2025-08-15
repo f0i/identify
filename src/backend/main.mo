@@ -8,6 +8,7 @@ import RSA "RSA";
 import Delegation "Delegation";
 import Principal "mo:core/Principal";
 import Nat "mo:core/Nat";
+import Nat8 "mo:core/Nat8";
 import CertifiedData "mo:core/CertifiedData";
 import Http "Http";
 import Stats "Stats";
@@ -19,6 +20,7 @@ import { trap } "mo:core/Runtime";
 import Debug "mo:core/Debug";
 import Array "mo:core/Array";
 import Text "mo:core/Text";
+import Order "mo:core/Order";
 import User "User";
 import PKCE "PKCE";
 
@@ -108,7 +110,7 @@ persistent actor class Main() = this {
     auth = #pkce({
       authorizationUrl = "https://x.com/i/oauth2/authorize";
       tokenUrl = "https://api.x.com/2/oauth2/token";
-      userInfoEndpoint = "https://api.x.com/2/users/me";
+      userInfoEndpoint = "https://api.x.com/2/users/me?user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,public_metrics,url,username,verified,withheld";
       clientId = "c1Y3cWhOekU1SFlwVkJCNlFmbWU6MTpjaQ";
       redirectUri = "https://login.f0i.de/pkce-callback.html";
     });
@@ -257,6 +259,8 @@ persistent actor class Main() = this {
     return #ok({ auth });
   };
 
+  transient var pkceSignIns = Map.empty<[Nat8], { sub : Text; origin : Text; signin : Time }>();
+
   public shared func prepareDelegationPKCE(provider : Provider, code : Text, verifier : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
     Stats.logBalance(stats, "prepareDelegationPKCE");
 
@@ -274,26 +278,32 @@ persistent actor class Main() = this {
     if (nonce != verifier) return #err("Code verifier does not match the session key.");
     // Time of JWT token from google must not be more than 5 minutes in the future
 
-    // TODO: Exchange code for token!
+    // Exchange code for token!
     let response = await PKCE.exchangeToken(providerConfig, code, verifier, transform);
 
     let token = switch (response) {
       case (#ok(bearer)) { bearer };
-      case (#err(err)) { return #err("Failed to get the bearer auth token.") };
+      case (#err(err)) {
+        return #err("Failed to get the bearer auth token: " # err);
+      };
     };
 
-    let userInfo = await PKCE.getUserInfo(providerConfig, token, transform);
+    let userResult = await PKCE.getUserInfo(providerConfig, token, transform);
 
-    trap("TODO: implement PKCE " # debug_show { response; userInfo });
+    let sub = switch (userResult) {
+      case (#ok(userInfo)) userInfo.id;
+      case (#err(err)) return #err("Could not get user info: " # err);
+    };
+    Map.add(pkceSignIns, compareKey, sessionKey, { sub; origin; signin = Time.now() });
 
-    /*
-    let sub =
     // This is adding a signature to the sigTree and storing its hash in certified data.
     let pubKey = CanisterSignature.prepareDelegation(sigStore, sub, origin, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
 
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
 
+    // TODO: set user data!
+    /*
     let user = switch (Map.get(users, Principal.compare, principal)) {
       case (?old) {
         User.update(old, origin, provider, jwt);
@@ -304,13 +314,13 @@ persistent actor class Main() = this {
       };
     };
     Map.add(users, Principal.compare, principal, user);
+    */
     Stats.inc(stats, "signin", origin);
 
     return #ok({
       pubKey;
       expireAt;
     });
-    */
   };
 
   public shared query func getDelegationPKCE(provider : Provider, code : Text, verifier : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
@@ -320,18 +330,19 @@ persistent actor class Main() = this {
     // If called as an update call, the getCertificate function returns null
     if (CertifiedData.getCertificate() == null) return #err("This function must only be called using query calls");
 
+    let ?signInInfo = Map.get(pkceSignIns, compareKey, sessionKey) else return #err("Delegation not prepared. Call prepareDelegationPKCE first.");
+
     // load Provider config
     let providerName = AuthProvider.providerName(provider);
     let providerConfig = getProviderConfig(provider);
-    let #jwt(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
+    let #pkce(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support PKCE based sing in");
 
     // verify token
-    if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerName);
     if (expireAt < Time.now()) return #err("Expired");
 
-    let nonce = ?Hex.toText(sessionKey);
+    let auth = CanisterSignature.getDelegation(sigStore, signInInfo.sub, signInInfo.origin, sessionKey, expireAt, targets);
 
-    trap("TODO: implement");
+    return #ok({ auth });
   };
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
@@ -424,6 +435,8 @@ persistent actor class Main() = this {
     let z = Array.map(zitadelConfig.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
     return debug_show [g, a, z];
   };
+
+  func compareKey(a : [Nat8], b : [Nat8]) : Order.Order = Array.compare(a, b, Nat8.compare);
 
   var mods : Set.Set<Principal> = Set.new();
   public shared ({ caller }) func addMod(user : Principal) : async Result.Result<(), Text> {
