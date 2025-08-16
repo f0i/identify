@@ -168,6 +168,10 @@
         padding: 2em 6em;
       }
 
+      .hidden {
+        display: none;
+      }
+
     </style>
   </head>
   <body>
@@ -180,6 +184,8 @@
 
       <div class="body-content">
         <div id="identify" style="display: none;">
+          <div id="spinner" class="hidden">Loading...</div>
+          <div id="error" class="hidden"></div>
           <div id="sign-in-btn" class="flex-center">
             <button>Sign in</button>
           </div>
@@ -191,6 +197,7 @@
             Whitelisted backend IDs:<br/>
             <strong id="app-targets">-</strong>
           </div>
+          <button id="cancel" class="hidden">Cancel</button>
         </div>
 
         <div id="demo" style="display: none;">

@@ -76,7 +76,7 @@ Currently the following ICRCs are implemented or will be considered for implemen
 
 # Authentication flow
 
-Asside from JSON-RPC calls, Identify supports the authentication flow currently used by [Internet Identity](https://identity.ic0.app/) and the [@dfinity/auth-client](https://www.npmjs.com/package/@dfinity/auth-client) (v2.x.x)
+Aside from JSON-RPC calls, Identify supports the authentication flow currently used by [Internet Identity](https://identity.ic0.app/) and the [@dfinity/auth-client](https://www.npmjs.com/package/@dfinity/auth-client) (v2.x.x)
 
 1. **Identify Backend** pre-fetches OAuth2 keys from **Google server**
 2. **User** clicks "Sign In" button inside the dApp
@@ -145,8 +145,8 @@ The following web2 authentication providers are supported
 - [x] Google (JWT from JS SDK)
 - [x] Auth0 (JWT from JS SDK)
 - [x] Zitadel (JWT via OIDC)
-- [ ] GitHub (PKCE)
-- [ ] X (PKCE)
+- [x] GitHub (PKCE)
+- [x] X (PKCE)
 - [ ] Apple (PKCE + JWT)
 - [ ] Microsoft (PKCE + JWT)
 
@@ -169,12 +169,24 @@ https://auth0.com/docs/get-started/authentication-and-authorization-flow/authori
 
 ## GitHub
 
-Github does not support JWT based sign in for users, so PKCE (Proof Key for Code Exchange extension to the OAuth 2.0) must be used.
+GitHub does not support JWT based sign in for users, so PKCE (Proof Key for Code Exchange extension to the OAuth 2.0) must be used.
 This requires additional HTTP outcalls from the backend.
+
+Currently there are two security concerns you should be aware of, before using this authentication method:
+
+- HTTP outcalls to exchange the token and retrieve user info can not be replicated (meaning they will only performed by a single node machine), because only the first request is accepted by GitHub.
+  The node performing the outcall could manipulate the result and e.g. pretend to sign in an arbitrary user.
+- GitHub PKCE flow requires a client_secret to be stored in the backend (in the case of Identify in the canister).
+  The secret could be extracted from the backend and other sites could impersonate the Identify app.
+
+To summarize, you have to trust that there are no malicious node providers in the subnet.
 
 https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
 
 ## X
+
+X is also using PKCE with HTTP outcalls that can not be replicated.
+However PKCE on X does not require a client secret, so there is one less attack vector.
 
 https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/authorization-code
 

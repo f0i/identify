@@ -69,10 +69,10 @@ async function getFromStore<T = any>(key: string): Promise<T | null> {
 class WebCryptoIdentity extends SignIdentity {
   constructor(
     private keyPair: CryptoKeyPair,
-    private publicKeyDer: Uint8Array,
+    private publicKeyDer: ArrayBuffer,
   ) {
     super();
-    this._principal = Principal.selfAuthenticating(publicKeyDer);
+    this._principal = Principal.selfAuthenticating(new Uint8Array(publicKeyDer));
   }
 
   async sign(blob: ArrayBuffer): Promise<Signature> {
@@ -100,7 +100,7 @@ class WebCryptoIdentity extends SignIdentity {
  */
 export class IdentityManager {
   private keyPair: CryptoKeyPair | null = null;
-  private publicKeyDer: Uint8Array | null = null;
+  private publicKeyDer: ArrayBuffer | null = null;
   private authRes: AuthResponseUnwrapped | null = null;
 
   /**
@@ -128,7 +128,7 @@ export class IdentityManager {
     );
 
     const spki = await crypto.subtle.exportKey("spki", this.keyPair.publicKey);
-    this.publicKeyDer = new Uint8Array(spki);
+    this.publicKeyDer = spki;
 
     await saveToStore("keyPair", this.keyPair);
     await saveToStore("publicKeyDer", this.publicKeyDer);
@@ -147,7 +147,7 @@ export class IdentityManager {
    * Gets the DER-encoded public key.
    * @returns DER-encoded public key as Uint8Array.
    */
-  async getPublicKeyDer(): Promise<Uint8Array> {
+  async getPublicKeyDer(): Promise<ArrayBuffer> {
     await this.loadSessionKey(false);
     return this.publicKeyDer!;
   }

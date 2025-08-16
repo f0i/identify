@@ -18,6 +18,7 @@ import { initAuth0 } from "./auth0";
 import { generateChallenge, PkceAuthData } from "./pkce";
 import { initZitadel } from "./zitadel";
 import { getDelegationJwt, getDelegationPkce } from "./identify/delegation";
+import { StatusUpdate } from "./identify/icrc";
 
 export async function initPkce(
   config: AuthConfig,
@@ -94,7 +95,39 @@ const setTargetsText = (targets: string) => {
   showElement(DOM_IDS.targetsWrapper, targets.length > 0);
   setText(DOM_IDS.targets, targets);
 };
-const setStatusText = (status: string) => setText(DOM_IDS.loginStatus, status);
+
+const setStatusText = (update: StatusUpdate) => {
+  const status = "login-status";
+  const spinner = "spinner";
+  const errorEl = "error";
+  const signInBtn = "sign-in-btn";
+  const cancelBtn = "cancel";
+
+  setText(status, update.message || "");
+
+  if (update.status === "loading") {
+    showElement(spinner, true);
+    showElement(errorEl, false);
+    showElement(signInBtn, false);
+    showElement(cancelBtn, false);
+  } else if (update.status === "error") {
+    showElement(spinner, false);
+    showElement(errorEl, true);
+    setText(errorEl, update.error || "Unknown error");
+    showElement(signInBtn, false);
+    showElement(cancelBtn, true);
+  } else if (update.status === "ready") {
+    showElement(spinner, false);
+    showElement(errorEl, false);
+    showElement(signInBtn, true);
+    showElement(cancelBtn, false);
+  } else if (update.status === "signing-in") {
+    showElement(spinner, true);
+    showElement(errorEl, false);
+    showElement(signInBtn, false);
+    showElement(cancelBtn, true);
+  }
+};
 
 let context: Context = DEFAULT_CONTEXT;
 
@@ -108,7 +141,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
     }
   }
   console.log("Waiting for message from opener");
-  setStatusText("Connecting to application...");
+  setStatusText({ status: "loading", message: "Connecting to application..." });
   let init = true;
 
   context.getJwtToken = async (nonce: string) => {
@@ -166,9 +199,15 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
   context.provider = provider;
   context.authConfig = config;
 
-  context.statusCallback = setStatusText;
+  context.statusCallback = (update) => setStatusText(update);
   context.targetsCallback = setTargetsText;
   context.originCallback = setOriginText;
+  context.cancel = () => {
+    window.close();
+  };
+  const cancelBtn = document.getElementById("cancel");
+  cancelBtn?.addEventListener("click", () => context.cancel?.());
+
   console.log("context:", context);
 
   window.addEventListener("message", async (event) => {
@@ -180,7 +219,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
       // first message from opener
       if (init) {
         console.log("Received message from opener:", event);
-        setStatusText("Connected to " + origin);
+        setStatusText({ status: "loading", message: "Connected to " + origin });
         init = false;
       }
 
@@ -228,7 +267,7 @@ const handleAuthorizeClient = async (
     context.targetsCallback("");
     context.targetsCallback(authRequest.targets?.slice()?.join(",\n") || "");
     const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
-    setStatusText("");
+    context.statusCallback({ status: "signing-in", message: "Signing in..." });
 
     // Get delegation from backend
     let msg;
@@ -244,7 +283,7 @@ const handleAuthorizeClient = async (
         authRequest.sessionPublicKey,
         authRequest.maxTimeToLive,
         authRequest.targets,
-        setStatusText,
+        context.statusCallback,
       );
     } else {
       const idToken = await context.getJwtToken(nonce);
@@ -255,7 +294,7 @@ const handleAuthorizeClient = async (
         authRequest.sessionPublicKey,
         authRequest.maxTimeToLive,
         authRequest.targets,
-        setStatusText,
+        context.statusCallback,
       );
     }
 
@@ -263,7 +302,7 @@ const handleAuthorizeClient = async (
     responder(msg);
   } catch (err: any) {
     console.error("Error handling authorize-client request:", err);
-    setStatusText(err.toString());
+    context.statusCallback({ status: "error", error: err.toString() });
     responder({ kind: "authorize-error", error: err.toString() });
   }
 };

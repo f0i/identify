@@ -79,7 +79,7 @@ const poll = async (
   console.log("Calling canister", cid.toText(), methodName, arg);
   const { requestId, response, requestDetails } = await agent.call(cid, {
     methodName,
-    arg: arg.buffer,
+    arg: (arg as Uint8Array).buffer,
     effectiveCanisterId: cid,
   });
   console.log("Call canister response", requestId, response, requestDetails);
@@ -89,7 +89,7 @@ const poll = async (
   if (response.body && (response.body as v3ResponseBody).certificate) {
     const cert = (response.body as v3ResponseBody).certificate;
     certificate = await Certificate.create({
-      certificate: bufFromBufLike(cert),
+      certificate: bufFromBufLike(new Uint8Array(cert).buffer),
       rootKey: agent.rootKey,
       canisterId: Principal.from(canisterId),
     });

@@ -41,7 +41,7 @@ export const delegation = async (
   const targets = req.params.targets?.map(
     (p: string): Principal => Principal.fromText(p),
   );
-  context.statusCallback("");
+  context.statusCallback({ status: "ready" });
   context.targetsCallback(req.params.targets?.slice()?.join(",\n") || "");
   const nonce = uint8ArrayToHex(publicKey);
   const token = await context.getJwtToken(nonce);

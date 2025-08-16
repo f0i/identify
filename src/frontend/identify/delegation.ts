@@ -2,6 +2,7 @@ import { Principal } from "@dfinity/principal";
 import { canisterId, createActor } from "../../declarations/backend";
 import { AuthResponseUnwrapped, unwrapTargets, wrapOpt } from "./utils";
 import { Provider } from "../../declarations/backend/backend.did";
+import { StatusUpdate } from "./icrc";
 
 export type DelegationParams = {
   publicKey: string;
@@ -31,7 +32,7 @@ export const getDelegationJwt = async (
   sessionPublicKey: Uint8Array,
   maxTimeToLive: bigint,
   targets: undefined | Principal[],
-  statusCallback: (msg: string) => void,
+  statusCallback: (update: StatusUpdate) => void,
 ): Promise<AuthResponseUnwrapped> => {
   // decode payload
   const payload = JSON.parse(atob(idToken.split(".")[1]));
@@ -44,7 +45,7 @@ export const getDelegationJwt = async (
 
   const name = getProviderName(provider);
 
-  statusCallback(name + " sign in succeeded. Authorizing client...");
+  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Authorizing client..." });
 
   let prepRes = await backend.prepareDelegation(
     { [provider]: null } as Provider,
@@ -59,7 +60,7 @@ export const getDelegationJwt = async (
   } else {
     throw prepRes.err;
   }
-  statusCallback(name + " sign in succeeded. Get client authorization...");
+  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Get client authorization..." });
 
   let authRes = await backend.getDelegation(
     { [provider]: null } as Provider,
@@ -74,7 +75,7 @@ export const getDelegationJwt = async (
 
   if ("ok" in authRes) {
     console.log("authRes", authRes.ok);
-    statusCallback("Login completed");
+    statusCallback({ status: "signing-in", message: "Login completed" });
     const msg = unwrapTargets(authRes.ok.auth);
     console.log("getDelegation response unwrapped:", msg);
     return msg;
@@ -92,7 +93,7 @@ export const getDelegationPkce = async (
   sessionPublicKey: Uint8Array,
   maxTimeToLive: bigint,
   targets: undefined | Principal[],
-  statusCallback: (msg: string) => void,
+  statusCallback: (update: StatusUpdate) => void,
 ): Promise<AuthResponseUnwrapped> => {
   const isDev = process.env.DFX_NETWORK !== "ic";
   const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
@@ -101,7 +102,7 @@ export const getDelegationPkce = async (
 
   const name = getProviderName(provider);
 
-  statusCallback(name + " sign in succeeded. Authorizing client...");
+  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Authorizing client..." });
 
   let prepRes = await backend.prepareDelegationPKCE(
     { [provider]: null } as Provider,
@@ -117,7 +118,7 @@ export const getDelegationPkce = async (
   } else {
     throw prepRes.err;
   }
-  statusCallback(name + " sign in succeeded. Get client authorization...");
+  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Get client authorization..." });
 
   let authRes = await backend.getDelegationPKCE(
     { [provider]: null } as Provider,
@@ -133,7 +134,7 @@ export const getDelegationPkce = async (
 
   if ("ok" in authRes) {
     console.log("authRes", authRes.ok);
-    statusCallback("Login completed");
+    statusCallback({ status: "signing-in", message: "Login completed" });
     const msg = unwrapTargets(authRes.ok.auth);
     console.log("getDelegationPkce response unwrapped:", msg);
     return msg;

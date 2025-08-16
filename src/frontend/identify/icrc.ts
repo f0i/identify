@@ -25,23 +25,31 @@ import {
 import { DOM_IDS } from "../dom-config";
 import { generateChallenge, PkceAuthData } from "../pkce";
 
+export type Status = "loading" | "ready" | "error" | "signing-in";
+export type StatusUpdate = {
+  status: Status;
+  message?: string;
+  error?: string;
+};
+
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
   provider: ProviderKey;
   authConfig: AuthConfig;
   origin?: string;
-  statusCallback: (msg: string) => void;
+  statusCallback: (update: StatusUpdate) => void;
   targetsCallback: (msg: string) => void;
   originCallback: (msg: string) => void;
   confirm: (msg: string) => Promise<boolean>;
   getJwtToken: (nonce: string) => Promise<string>;
   getPkceAuthData: (sessionKey: Uint8Array) => Promise<PkceAuthData>;
+  cancel: () => void;
 };
 export const DEFAULT_CONTEXT: Context = {
   provider: "google",
   authConfig: GSI,
   // Callbacks can be sued to update the UI.
-  statusCallback: (msg: string) => console.log("status", msg),
+  statusCallback: (update: StatusUpdate) => console.log("status", update),
   targetsCallback: (msg: string) => console.log("targets", msg),
   originCallback: (msg: string) => console.log("origin", msg),
   // Default confirmation function allows all requests.
@@ -59,6 +67,9 @@ export const DEFAULT_CONTEXT: Context = {
     );
     throw "Authentication mechanism not set";
   },
+  cancel: () => {
+    console.log("cancel not set in context");
+  },
 };
 
 // Restore a delegation or fetch a new one if it does not exist.
@@ -70,12 +81,12 @@ export const loadOrFetchDelegation = async (
   let idManager = new IdentityManager();
   let authRes = await idManager.getDelegation(origin);
   if (!authRes) {
-    context.statusCallback("Starting a new session...");
+    context.statusCallback({ status: "loading", message: "Starting a new session..." });
     const sessionKey = await idManager.getPublicKeyDer();
     const maxTimeToLive = icrc34.DEFAULT_TTL;
     const targets = undefined;
-    const nonce = uint8ArrayToHex(sessionKey);
-    context.statusCallback("");
+    const nonce = uint8ArrayToHex(new Uint8Array(sessionKey));
+    context.statusCallback({ status: "ready" });
     var auth: string = "";
     if (context.provider === "google") {
       let config = getGoogleConfig(context.authConfig);
@@ -94,7 +105,7 @@ export const loadOrFetchDelegation = async (
       context.provider,
       auth,
       origin,
-      sessionKey,
+      new Uint8Array(sessionKey),
       maxTimeToLive,
       targets,
       context.statusCallback,
@@ -130,19 +141,19 @@ export const handleJSONRPC = async (
   try {
     switch (data.method) {
       case "icrc25_request_permissions": {
-        context.statusCallback("Requesting permission...");
+        context.statusCallback({ status: "loading", message: "Requesting permission..." });
         responder(await icrc25.requestPermissions(data));
         break;
       }
 
       case "icrc25_permissions": {
-        context.statusCallback("Loading permissions...");
+        context.statusCallback({ status: "loading", message: "Loading permissions..." });
         responder(await icrc25.permissions(data));
         break;
       }
 
       case "icrc25_supported_standards": {
-        context.statusCallback("Loading supported standards...");
+        context.statusCallback({ status: "loading", message: "Loading supported standards..." });
         responder(await icrc25.supportedStandards(data));
         break;
       }
@@ -159,27 +170,27 @@ export const handleJSONRPC = async (
       }
 
       case "icrc27_accounts": {
-        context.statusCallback("Loading accounts...");
+        context.statusCallback({ status: "loading", message: "Loading accounts..." });
         responder(await icrc27.accounts(data, context));
         break;
       }
 
       case "icrc49_call_canister": {
-        context.statusCallback("Calling canister...");
+        context.statusCallback({ status: "loading", message: "Calling canister..." });
         responder(await icrc49.callCanister(data, context));
         break;
       }
 
       default: {
         console.warn("unhandled JSONRPC call", data);
-        context.statusCallback("Unhandled request: " + data.method);
+        context.statusCallback({ status: "error", error: "Unhandled request: " + data.method });
         await sleep(1000);
         responder(jsonrpc.methodNotFound(data));
       }
     }
   } catch (e: any) {
     console.error("Error handling JSONRPC request", data, e);
-    context.statusCallback("Error: " + e);
+    context.statusCallback({ status: "error", error: e.toString() });
     responder(jsonrpc.internalError(data, e.toString()));
   }
 };

@@ -15,7 +15,11 @@ export const setText = (id: string, text: string) => {
 export const showElement = (id: string, show: boolean) => {
   const el = document.getElementById(id);
   if (el) {
-    el.style.display = show ? "block" : "none";
+    if (show) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
   } else if (id !== "" && id !== "authorize") {
     console.error(
       "showElement() did not find DOM element",

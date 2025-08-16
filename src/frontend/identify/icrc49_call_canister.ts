@@ -50,14 +50,16 @@ export const callCanister = async (
       ")";
   }
 
-  context.statusCallback(
-    "Calling canister " +
+  context.statusCallback({
+    status: "loading",
+    message:
+      "Calling canister " +
       req.params.canisterId.toString() +
       "\nmethod: " +
       req.params.method +
       "\narg: " +
       argText,
-  );
+  });
 
   const origin = context.origin;
   if (!origin) throw "App origin is not set";
@@ -74,14 +76,16 @@ export const callCanister = async (
     (await agent.getPrincipal()).toString(),
   );
 
-  context.statusCallback(
-    "Calling canister " +
+  context.statusCallback({
+    status: "loading",
+    message:
+      "Calling canister " +
       req.params.canisterId.toString() +
       "\nmethod: " +
       req.params.method +
       "\narg: " +
       argText,
-  );
+  });
 
   // TODO?: ask for confimation before calling the canister
   await new Promise<void>((resolve) => setTimeout(resolve, 300)); // wait some seconds for debugging
