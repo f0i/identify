@@ -21,7 +21,7 @@ export const GITHUB = {
   authorizationUrl: "https://github.com/login/oauth/authorize",
   tokenUrl: "https://github.com/login/oauth/access_token",
   userInfoEndpoint: "https://api.github.com/user",
-  clientId: "TODO",
+  clientId: "Ov23liMbdP36K0AIWTgl",
   redirect: IDENTITY_PROVIDER + "/pkce-callback.html",
 };
 

@@ -20,7 +20,7 @@ module PKCE {
 
   public type Bearer = {
     token_type : Text;
-    expires_in : Nat; // in seconds;
+    expires_in : ?Nat; // in seconds;
     access_token : Text;
     scope : Text;
   };
@@ -197,12 +197,13 @@ module PKCE {
 
     let #pkce(pkceParams) = config.auth else return #err(config.name # " does not support PKCE.");
 
-    let body : Text = [
+    var body : Text = [
       ("grant_type", "authorization_code"),
       ("code", code),
       ("redirect_uri", pkceParams.redirectUri),
       ("client_id", pkceParams.clientId),
       ("code_verifier", verifier),
+      ("client_secret", Option.get(pkceParams.clientSecret, "")),
     ]
     |> Iter.map(
       _.vals(),
@@ -215,7 +216,7 @@ module PKCE {
       { name = "Accept"; value = "application/json" },
     ];
 
-    let response = await Http.postRequest(pkceParams.tokenUrl, ?body, headers, 3000, transform);
+    let response = await Http.postRequest(pkceParams.tokenUrl, ?body, headers, 9000, transform);
 
     // Parse JSON response and extract the access_token
     let tokenJSON = response.data;
@@ -223,7 +224,7 @@ module PKCE {
       case (#ok data) data;
       case (#err err) return #err("could not decode token: " # err # " >" # tokenJSON # "<");
     };
-    let ?token : ?Bearer = from_candid (tokenBlob) else return #err("missing field in token. " # tokenJSON);
+    let ?token : ?Bearer = from_candid (tokenBlob) else return #err("missing field in token. " # tokenJSON # " " # body);
     return #ok(token);
   };
 

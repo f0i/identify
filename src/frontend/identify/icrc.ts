@@ -23,7 +23,7 @@ import {
   GSI,
 } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
-import { generateCodeChallenge, PkceAuthData } from "../pkce";
+import { generateChallenge, PkceAuthData } from "../pkce";
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
@@ -35,7 +35,7 @@ export type Context = {
   originCallback: (msg: string) => void;
   confirm: (msg: string) => Promise<boolean>;
   getJwtToken: (nonce: string) => Promise<string>;
-  getPkceAuthData: (nonce: string) => Promise<PkceAuthData>;
+  getPkceAuthData: (sessionKey: Uint8Array) => Promise<PkceAuthData>;
 };
 export const DEFAULT_CONTEXT: Context = {
   provider: "google",
@@ -51,8 +51,12 @@ export const DEFAULT_CONTEXT: Context = {
     console.error("getJwtToken not set in context (nonce:", nonce, ")");
     throw "Authentication mechanism not set";
   },
-  getPkceAuthData: async (nonce: string) => {
-    console.error("getPkceAuthData not set in context (nonce:", nonce, ")");
+  getPkceAuthData: async (sessionKey: Uint8Array) => {
+    console.error(
+      "getPkceAuthData not set in context (nonce:",
+      sessionKey,
+      ")",
+    );
     throw "Authentication mechanism not set";
   },
 };

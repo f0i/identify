@@ -5,18 +5,19 @@ window.onload = () => {
   const code = params.get("code");
   const state = params.get("state"); // Not strictly needed for PKCE, but good practice
 
-  if (code) {
-    // Send the code and state back to the opener
-    window.opener.postMessage(
-      { type: "pkce_auth_success", code, state },
-      "*",
-    );
-    window.close();
-  } else {
-    window.opener.postMessage(
-      { type: "pkce_auth_error", error: "Authorization code not found" },
-      "*",
-    );
-    window.close();
-  }
+  if (confirm("Continue?\n\n" + window.location.search))
+    if (code) {
+      // Send the code and state back to the opener
+      window.opener.postMessage(
+        { type: "pkce_auth_success", code, state },
+        "*",
+      );
+      window.close();
+    } else {
+      window.opener.postMessage(
+        { type: "pkce_auth_error", error: "Authorization code not found" },
+        "*",
+      );
+      window.close();
+    }
 };

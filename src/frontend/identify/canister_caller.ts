@@ -66,7 +66,7 @@ const poll = async (
   canisterId: string,
   methodName: string,
   agent: Agent,
-  arg: ArrayBuffer,
+  arg: Uint8Array,
 ): Promise<{
   certificate: Uint8Array;
   contentMap: CallRequest | undefined;
@@ -79,7 +79,7 @@ const poll = async (
   console.log("Calling canister", cid.toText(), methodName, arg);
   const { requestId, response, requestDetails } = await agent.call(cid, {
     methodName,
-    arg,
+    arg: arg.buffer,
     effectiveCanisterId: cid,
   });
   console.log("Call canister response", requestId, response, requestDetails);

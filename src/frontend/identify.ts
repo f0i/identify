@@ -15,13 +15,14 @@ import {
 } from "./auth-config";
 import { DOM_IDS } from "./dom-config";
 import { initAuth0 } from "./auth0";
-import { generateCodeChallenge, PkceAuthData } from "./pkce";
+import { generateChallenge, PkceAuthData } from "./pkce";
 import { initZitadel } from "./zitadel";
 import { getDelegationJwt, getDelegationPkce } from "./identify/delegation";
 
 export async function initPkce(
   config: AuthConfig,
   code_challenge: string,
+  verifier: string,
   buttonId: string,
   autoSignIn: boolean = true,
 ): Promise<PkceAuthData> {
@@ -59,7 +60,11 @@ export async function initPkce(
         window.removeEventListener("message", messageListener);
         if (event.data.type === "pkce_auth_success") {
           // TODO: verify state matches
-          resolve({ code: event.data.code, state: event.data.state });
+          resolve({
+            code: event.data.code,
+            state: event.data.state,
+            verifier: verifier,
+          });
         } else if (event.data.type === "pkce_auth_error") {
           reject(new Error(event.data.error));
         }
@@ -134,21 +139,22 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
     }
   };
 
-  context.getPkceAuthData = async (nonce: string) => {
-    const code_verifier = nonce;
-    const code_challenge = await generateCodeChallenge(code_verifier);
+  context.getPkceAuthData = async (sessionKey: Uint8Array) => {
+    const code = await generateChallenge(sessionKey);
     switch (provider) {
       case "github":
         return await initPkce(
           getGithubConfig(config),
-          code_challenge,
+          code.challenge,
+          code.verifier,
           DOM_IDS.singinBtn,
           true,
         );
       case "x":
         return await initPkce(
           getXConfig(config),
-          code_challenge,
+          code.challenge,
+          code.verifier,
           DOM_IDS.singinBtn,
           true,
         );
@@ -227,11 +233,13 @@ const handleAuthorizeClient = async (
     // Get delegation from backend
     let msg;
     if (context.provider === "github" || context.provider === "x") {
-      const pkceAuthData = await context.getPkceAuthData(nonce);
+      const pkceAuthData = await context.getPkceAuthData(
+        authRequest.sessionPublicKey,
+      );
       msg = await getDelegationPkce(
         context.provider,
         pkceAuthData.code,
-        nonce,
+        pkceAuthData.verifier,
         origin,
         authRequest.sessionPublicKey,
         authRequest.maxTimeToLive,

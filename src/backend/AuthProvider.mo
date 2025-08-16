@@ -41,6 +41,7 @@ module {
       userInfoEndpoint : Text;
       clientId : Text;
       redirectUri : Text;
+      clientSecret : ?Text;
     };
   };
 

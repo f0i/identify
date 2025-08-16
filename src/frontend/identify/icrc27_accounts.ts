@@ -1,8 +1,6 @@
 import { Scope } from "./icrc25_signer_integration";
 import { JsonRpcRequest, setResult } from "./jsonrpc";
 import { Context, loadOrFetchDelegation } from "./icrc";
-import { IdentityManager } from "./idenity-manager";
-import { getDelegation } from "./delegation";
 
 export const STANDARD = {
   name: "ICRC-27",

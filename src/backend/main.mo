@@ -19,10 +19,12 @@ import AuthProvider "AuthProvider";
 import { trap } "mo:core/Runtime";
 import Debug "mo:core/Debug";
 import Array "mo:core/Array";
+import Blob "mo:core/Blob";
 import Text "mo:core/Text";
 import Order "mo:core/Order";
 import User "User";
 import PKCE "PKCE";
+import Sha256 "mo:sha2/Sha256";
 
 persistent actor class Main() = this {
   type Duration = Time.Duration;
@@ -97,8 +99,9 @@ persistent actor class Main() = this {
       authorizationUrl = "https://github.com/login/oauth/authorize";
       tokenUrl = "https://github.com/login/oauth/access_token";
       userInfoEndpoint = "https://api.github.com/user";
-      clientId = "TODO";
+      clientId = "Ov23liMbdP36K0AIWTgl";
       redirectUri = "https://login.f0i.de/pkce-callback.html";
+      clientSecret = ?"<hidden>";
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -113,6 +116,7 @@ persistent actor class Main() = this {
       userInfoEndpoint = "https://api.x.com/2/users/me?user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,public_metrics,url,username,verified,withheld";
       clientId = "c1Y3cWhOekU1SFlwVkJCNlFmbWU6MTpjaQ";
       redirectUri = "https://login.f0i.de/pkce-callback.html";
+      clientSecret = null;
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -274,8 +278,11 @@ persistent actor class Main() = this {
     let now = Time.now();
     let expireAt = now + expireIn;
 
-    let nonce = Hex.toText(sessionKey);
-    if (nonce != verifier) return #err("Code verifier does not match the session key.");
+    if (sessionKey.size() < 30) return #err("Session key is too short. It is " # Nat.toText(sessionKey.size()) # " bytes.");
+
+    let keyHash = Sha256.fromArray(#sha256, sessionKey);
+    let nonce = Hex.toText(Blob.toArray(keyHash));
+    if (not Text.startsWith(verifier, #text nonce)) return #err("Code verifier does not match the session key. " # verifier # " does not start with " # nonce);
     // Time of JWT token from google must not be more than 5 minutes in the future
 
     // Exchange code for token!
