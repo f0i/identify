@@ -10,7 +10,7 @@ import { IdentityManager } from "./idenity-manager";
 import { initGsi } from "./google";
 import { initAuth0 } from "../auth0";
 import { initZitadel } from "../zitadel";
-import { getDelegationJwt, ProviderKey } from "./delegation";
+import { getDelegationJwt, getDelegationPkce, ProviderKey } from "./delegation";
 import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
@@ -81,35 +81,57 @@ export const loadOrFetchDelegation = async (
   let idManager = new IdentityManager();
   let authRes = await idManager.getDelegation(origin);
   if (!authRes) {
-    context.statusCallback({ status: "loading", message: "Starting a new session..." });
+    context.statusCallback({
+      status: "loading",
+      message: "Starting a new session...",
+    });
     const sessionKey = await idManager.getPublicKeyDer();
     const maxTimeToLive = icrc34.DEFAULT_TTL;
     const targets = undefined;
     const nonce = uint8ArrayToHex(new Uint8Array(sessionKey));
     context.statusCallback({ status: "ready" });
-    var auth: string = "";
-    if (context.provider === "google") {
-      let config = getGoogleConfig(context.authConfig);
-      auth = await initGsi(config, nonce, DOM_IDS.singinBtn, true);
-    } else if (context.provider === "auth0") {
-      let config = getAuth0Config(context.authConfig);
-      auth = await initAuth0(config, nonce, DOM_IDS.singinBtn, true);
-    } else if (context.provider === "zitadel") {
-      let config = getZitadelConfig(context.authConfig);
-      auth = await initZitadel(config, nonce, DOM_IDS.singinBtn, true);
+    let msg;
+    if (context.provider === "github" || context.provider === "x") {
+      const pkceAuthData = await context.getPkceAuthData(
+        new Uint8Array(sessionKey),
+      );
+      msg = await getDelegationPkce(
+        context.provider,
+        pkceAuthData.code,
+        pkceAuthData.verifier,
+        origin,
+        new Uint8Array(sessionKey),
+        maxTimeToLive,
+        targets,
+        context.statusCallback,
+      );
     } else {
-      throw "Login provider not supported: " + context.provider.toString();
+      var auth: string = "";
+      if (context.provider === "google") {
+        let config = getGoogleConfig(context.authConfig);
+        auth = await initGsi(config, nonce, DOM_IDS.singinBtn, true);
+      } else if (context.provider === "auth0") {
+        let config = getAuth0Config(context.authConfig);
+        auth = await initAuth0(config, nonce, DOM_IDS.singinBtn, true);
+      } else if (context.provider === "zitadel") {
+        let config = getZitadelConfig(context.authConfig);
+        auth = await initZitadel(config, nonce, DOM_IDS.singinBtn, true);
+      } else {
+        throw "Login provider not supported: " + context.provider.toString();
+      }
+      console.log("requesting delegation from backend");
+      msg = await getDelegationJwt(
+        context.provider,
+        auth,
+        origin,
+        new Uint8Array(sessionKey),
+        maxTimeToLive,
+        targets,
+        context.statusCallback,
+      );
     }
-    console.log("requesting delegation from backend");
-    authRes = await getDelegationJwt(
-      context.provider,
-      auth,
-      origin,
-      new Uint8Array(sessionKey),
-      maxTimeToLive,
-      targets,
-      context.statusCallback,
-    );
+    authRes = msg;
+
     await idManager.setDelegation(authRes, origin);
   }
 
@@ -141,19 +163,28 @@ export const handleJSONRPC = async (
   try {
     switch (data.method) {
       case "icrc25_request_permissions": {
-        context.statusCallback({ status: "loading", message: "Requesting permission..." });
+        context.statusCallback({
+          status: "loading",
+          message: "Requesting permission...",
+        });
         responder(await icrc25.requestPermissions(data));
         break;
       }
 
       case "icrc25_permissions": {
-        context.statusCallback({ status: "loading", message: "Loading permissions..." });
+        context.statusCallback({
+          status: "loading",
+          message: "Loading permissions...",
+        });
         responder(await icrc25.permissions(data));
         break;
       }
 
       case "icrc25_supported_standards": {
-        context.statusCallback({ status: "loading", message: "Loading supported standards..." });
+        context.statusCallback({
+          status: "loading",
+          message: "Loading supported standards...",
+        });
         responder(await icrc25.supportedStandards(data));
         break;
       }
@@ -170,20 +201,29 @@ export const handleJSONRPC = async (
       }
 
       case "icrc27_accounts": {
-        context.statusCallback({ status: "loading", message: "Loading accounts..." });
+        context.statusCallback({
+          status: "loading",
+          message: "Loading accounts...",
+        });
         responder(await icrc27.accounts(data, context));
         break;
       }
 
       case "icrc49_call_canister": {
-        context.statusCallback({ status: "loading", message: "Calling canister..." });
+        context.statusCallback({
+          status: "loading",
+          message: "Calling canister...",
+        });
         responder(await icrc49.callCanister(data, context));
         break;
       }
 
       default: {
         console.warn("unhandled JSONRPC call", data);
-        context.statusCallback({ status: "error", error: "Unhandled request: " + data.method });
+        context.statusCallback({
+          status: "error",
+          error: "Unhandled request: " + data.method,
+        });
         await sleep(1000);
         responder(jsonrpc.methodNotFound(data));
       }

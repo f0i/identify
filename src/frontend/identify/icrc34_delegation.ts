@@ -11,7 +11,7 @@ import {
   delegationToJsonRPC,
   uint8ArrayToHex,
 } from "./utils";
-import { getDelegationJwt } from "./delegation";
+import { getDelegationJwt, getDelegationPkce } from "./delegation";
 import { Context } from "./icrc";
 import { Scope } from "./icrc25_signer_integration";
 
@@ -44,17 +44,36 @@ export const delegation = async (
   context.statusCallback({ status: "ready" });
   context.targetsCallback(req.params.targets?.slice()?.join(",\n") || "");
   const nonce = uint8ArrayToHex(publicKey);
-  const token = await context.getJwtToken(nonce);
-  const msg = await getDelegationJwt(
-    context.provider,
-    token,
-    origin,
-    publicKey,
-    maxTimeToLive,
-    targets,
-    context.statusCallback,
-  );
+  const origin = context.origin; // Get origin from context
+  if (!origin) {
+    throw "App origin is not set in context."; // Handle case where origin is not set
+  }
 
+  let msg;
+  if (context.provider === "github" || context.provider === "x") {
+    const pkceAuthData = await context.getPkceAuthData(publicKey);
+    msg = await getDelegationPkce(
+      context.provider,
+      pkceAuthData.code,
+      pkceAuthData.verifier,
+      origin,
+      publicKey,
+      maxTimeToLive,
+      targets,
+      context.statusCallback,
+    );
+  } else {
+    const idToken = await context.getJwtToken(nonce);
+    msg = await getDelegationJwt(
+      context.provider,
+      idToken,
+      origin,
+      publicKey,
+      maxTimeToLive,
+      targets,
+      context.statusCallback,
+    );
+  }
 
   return setResult(req, {
     publicKey: base64encode(msg.userPublicKey),
