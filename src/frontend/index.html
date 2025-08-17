@@ -40,6 +40,7 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        position: relative; /* Added this line */
       }
 
       .header {
@@ -123,7 +124,7 @@
           transform 0.2s ease; /* Smooth transitions */
       }
 
-      button {
+      button:hover {
         background: linear-gradient(
           135deg,
           #66bb6a,
@@ -146,6 +147,50 @@
       button:focus {
         outline: none; /* Remove focus outline */
         box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3); /* Greenish glow for accessibility */
+      }
+
+      /* Styles for the cancel button (now a close button) */
+      #cancel {
+        position: absolute; /* Position it relative to the header */
+        top: 10px;
+        right: 10px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50% !important; /* Make it circular */
+        background-color: #f0f0f0; /* Light background */
+        background-image: none; /* Ensure no gradient */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        font-size: 18px; /* Size of the 'x' */
+        font-weight: bold;
+        padding: 10px; /* Added padding */
+        color: #555; /* Color of the 'x' */
+        transition: background-color 0.3s ease;
+        border: none; /* Remove default button border */
+        box-shadow: none; /* Remove default button shadow */
+        outline: none; /* Remove focus outline */
+        overflow: hidden; /* Hide overflow content */
+      }
+
+      #cancel::before {
+        content: "×"; /* Multiplication sign for 'x' */
+      }
+
+      #cancel:hover {
+        background-color: #e0e0e0; /* Slightly darker on hover */
+        transform: none; /* Override default button hover transform */
+      }
+
+      #cancel:active {
+        background-color: #d0d0d0; /* Even darker on active */
+        transform: none; /* Override default button active transform */
+      }
+
+      #cancel:focus {
+        outline: none; /* Remove focus outline */
+        box-shadow: 0 0 0 2px rgba(170, 170, 170, 0.3); /* Grayish glow for accessibility */
       }
 
       .flex-center {
@@ -179,11 +224,12 @@
       <div class="header">
         <img src="img/id.png" alt="logo" height="26px" />
         Identify
+        <button id="cancel" class="hidden"></button>
       </div>
       <hr />
 
       <div class="body-content">
-        <div id="identify" style="display: none;">
+        <div id="identify" class="hidden">
           <div id="spinner" class="hidden">Loading...</div>
           <div id="error" class="hidden"></div>
           <div id="sign-in-btn" class="flex-center">
@@ -193,16 +239,15 @@
             Sign in to <strong id="app-origin">-</strong>
           </div>
 
-          <div id="app-scope" style="margin-top: 1em; display: none;">
+          <div id="app-scope" style="margin-top: 1em;" class="hidden">
             Whitelisted backend IDs:<br/>
             <strong id="app-targets">-</strong>
           </div>
-          <button id="cancel" class="hidden">Cancel</button>
         </div>
 
-        <div id="demo" style="display: none;">
+        <div id="demo" class="hidden">
           <button id="demo-login">Log in</button>
-          <button id="demo-logout" style="display: none;">Log out</button>
+          <button id="demo-logout" class="hidden">Log out</button>
           <div id="demo-build-info" style="padding-top: 6em;">
             <div>Network: <span id="demo-network">-</span></div>
             <div>API endpoint: <span id="demo-api">-</span></div>
@@ -220,7 +265,7 @@
         <a href="#security" onclick="showInfo('security')">Security</a>
         <a href="#about" onclick="showInfo('about')">About</a>
       </div>
-      <div id="info" style="display: none;">
+      <div id="info" class="hidden">
         <div id="help">
           <h2>Help</h2>
 
@@ -290,26 +335,39 @@
 
           <h2>Risks</h2>
 
-          <h3>Canister control</h3>
+          <h3>Canister Control</h3>
           <p>
-            Canister control is currently with a single developer. SNS/DAO could be an option to mitigate this risk, but require further consideration to not introduce new attack vectors.
+            This system is currently controlled by a single developer. However, you can run your own instance or deploy it alongside your dApp. This eliminates the need to trust an additional controller for your specific deployment. Instructions for self-setup are available in the <a href="https://github.com/f0i/identify">f0i/identify GitHub repository</a>. While SNS/DAO could offer decentralization, it introduces new complexities and potential attack vectors.
           </p>
-          <h3>Google account</h3>
+
+          <h3>Account Takeover</h3>
           <p>
-            Anyone with access to your Google account could login as you. E.g. an attacker could take over your Google account and log in as you. If Google locks you out of your account, you also can't log in here anymore.
+            If your external identity provider account (e.g., Google, Auth0, GitHub, X) is compromised, an attacker could log in as you. If the provider locks your account, you may lose access here too.
           </p>
-          <h3>DNS</h3>
+
+          <h3>DNS Attacks</h3>
           <p>
-            Taking control over the domain of the auth provider can hand over control over the front-end.
-            This would allow the attacker to inject his own session key or performing a MITM attack during authentication.
-            The service worker provides some limited protection against this.
+            Control over the authentication provider's domain could allow an attacker to inject malicious code or perform Man-in-the-Middle (MITM) attacks during authentication. A service worker offers limited protection.
           </p>
-          <h3>No security audit</h3>
+
+          <h3>HTTP Outcall Vulnerabilities (PKCE Providers like GitHub, X)</h3>
           <p>
-            The code has not been audited. 
-            Critical path in libraries has been reviewed by myself to make sure no obvious issues are present.
-            There also has been some informal discussion with DFINITY team members which lead to additional measures to prevent theoretical attacks from gateways and node provider.
-            Review by third party can be arranged when it is economically viable a.k.a. somebody pays for it.
+            For providers using PKCE (e.g., GitHub, X), the backend makes HTTP outcalls that are not replicated across all nodes. A malicious node could potentially manipulate the authentication response or impersonate the application if a client secret is involved (like with GitHub). You must trust the node providers in the subnet.
+          </p>
+
+          <h3>No Security Audit</h3>
+          <p>
+            The code has not undergone a formal security audit. While critical paths have been reviewed and discussions held with DFINITY team members to address theoretical attacks, a third-party audit would provide more assurance.
+          </p>
+
+          <h3>Browser and Network Security</h3>
+          <p>
+            This system assumes your browser is secure, free from malicious extensions, and that your connection to the external identity provider is secure. It also assumes the external identity providers themselves are secure.
+          </p>
+
+          <h3>Data Visibility</h3>
+          <p>
+            HTTP gateways can read, block, or delay requests. Node providers can read canister state and data during HTTP outcalls. While they cannot modify execution, sensitive information could be exposed.
           </p>
         </div>
 

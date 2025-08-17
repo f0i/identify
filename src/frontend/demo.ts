@@ -1,9 +1,10 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
+import { showElement } from "./identify/dom";
 
 // Initialize the demo application
 export function initDemo(identityProvider: string) {
-  show("demo");
+  showElement("demo", true);
   const login = document.getElementById("demo-login")!;
   login.addEventListener("click", () => initAuth(identityProvider));
   const logout = document.getElementById("demo-logout")!;
@@ -78,12 +79,12 @@ async function checkAuth() {
       await backend.getStats().catch((e: any): string[] => ["Error: " + e]),
     );
 
-    hide("demo-login");
-    show("demo-logout");
+    showElement("demo-login", false);
+    showElement("demo-logout", true);
   } else {
     innerText("demo-status", "Status: not authenticated");
-    show("demo-login");
-    hide("demo-logout");
+    showElement("demo-login", true);
+    showElement("demo-logout", false);
   }
 }
 
@@ -116,22 +117,4 @@ function innerText(id: string, text: string) {
   }
 }
 
-// Set an element visible
-function show(id: string) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.style.display = "initial";
-  } else {
-    console.log("Element not found", id, "to show");
-  }
-}
 
-// Set an element invisible
-function hide(id: string) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.style.display = "none";
-  } else {
-    console.log("Element not found", id, "to show");
-  }
-}

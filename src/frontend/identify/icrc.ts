@@ -79,8 +79,9 @@ export const loadOrFetchDelegation = async (
   const origin = context.origin;
   if (!origin) throw "Internea error: app origin not set";
   let idManager = new IdentityManager();
-  let authRes = await idManager.getDelegation(origin);
-  if (!authRes) {
+  let idAuthRes = await idManager.getDelegation(origin);
+  let authRes: AuthResponseUnwrapped = idAuthRes!;
+  if (!idAuthRes) {
     context.statusCallback({
       status: "loading",
       message: "Starting a new session...",
@@ -90,12 +91,11 @@ export const loadOrFetchDelegation = async (
     const targets = undefined;
     const nonce = uint8ArrayToHex(new Uint8Array(sessionKey));
     context.statusCallback({ status: "ready" });
-    let msg;
     if (context.provider === "github" || context.provider === "x") {
       const pkceAuthData = await context.getPkceAuthData(
         new Uint8Array(sessionKey),
       );
-      msg = await getDelegationPkce(
+      authRes = await getDelegationPkce(
         context.provider,
         pkceAuthData.code,
         pkceAuthData.verifier,
@@ -120,7 +120,7 @@ export const loadOrFetchDelegation = async (
         throw "Login provider not supported: " + context.provider.toString();
       }
       console.log("requesting delegation from backend");
-      msg = await getDelegationJwt(
+      authRes = await getDelegationJwt(
         context.provider,
         auth,
         origin,
@@ -130,7 +130,6 @@ export const loadOrFetchDelegation = async (
         context.statusCallback,
       );
     }
-    authRes = msg;
 
     await idManager.setDelegation(authRes, origin);
   }

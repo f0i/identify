@@ -56,8 +56,8 @@ window.onload = () => {
   }
 };
 
-function showInfo(sectionId: string) {
-  const active = document.getElementById(sectionId)?.style.display === "block";
+(window as any).showInfo = (sectionId: string) => {
+  const active = !document.getElementById(sectionId)?.classList.contains("hidden");
   // Hide all sections
   showElement("help", false);
   showElement("security", false);
