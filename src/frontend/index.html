@@ -40,7 +40,7 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        position: relative; /* Added this line */
+        position: relative;
       }
 
       .header {
@@ -84,7 +84,7 @@
         background: #f0f0f0;
       }
 
-      /* For screens larger than 800px */
+      
       @media (min-width: 800px) {
         .content {
           width: 70%;
@@ -95,7 +95,7 @@
         }
       }
 
-      /* For screens 800px or smaller */
+      
       @media (max-width: 800px) {
         .content {
           width: 100%;
@@ -109,19 +109,19 @@
           135deg,
           #4caf50,
           #2e7d32
-        ); /* Gradient background */
-        color: white; /* White text */
-        padding: 12px 24px; /* Padding for size */
-        font-size: 16px; /* Font size */
-        font-weight: bold; /* Bold text */
-        border: none; /* Remove default border */
-        border-radius: 8px; /* Rounded corners */
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-        cursor: pointer; /* Pointer cursor on hover */
+        );
+        color: white;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
         transition:
           background 0.3s ease,
           box-shadow 0.3s ease,
-          transform 0.2s ease; /* Smooth transitions */
+          transform 0.2s ease;
       }
 
       button:hover {
@@ -129,9 +129,9 @@
           135deg,
           #66bb6a,
           #388e3c
-        ); /* Lighter gradient on hover */
-        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Stronger shadow on hover */
-        transform: translateY(-2px); /* Slight lift on hover */
+        );
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
       }
 
       button:active {
@@ -165,13 +165,13 @@
         cursor: pointer;
         font-size: 18px; /* Size of the 'x' */
         font-weight: bold;
-        padding: 10px; /* Added padding */
+        padding: 10px;
         color: #555; /* Color of the 'x' */
         transition: background-color 0.3s ease;
-        border: none; /* Remove default button border */
-        box-shadow: none; /* Remove default button shadow */
-        outline: none; /* Remove focus outline */
-        overflow: hidden; /* Hide overflow content */
+        border: none;
+        box-shadow: none;
+        outline: none;
+        overflow: hidden;
       }
 
       #cancel::before {

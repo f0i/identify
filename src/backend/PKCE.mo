@@ -25,7 +25,9 @@ module PKCE {
     scope : Text;
   };
 
-  type GitHubUser = {
+  public type PKCEUser = { #github : GitHubUser; #x : XUser };
+
+  public type GitHubUser = {
     login : Text;
     id : Nat;
     node_id : Text;
@@ -60,7 +62,7 @@ module PKCE {
     updated_at : Text;
   };
 
-  type XUser = {
+  public type XUser = {
     data : {
       entities : ?{
         url : ?{
@@ -90,100 +92,6 @@ module PKCE {
       verified : Bool;
       protected : Bool;
       created_at : Text;
-    };
-  };
-
-  // Normalized user type: prefer X.com fields; fallback to GitHub fields
-  public type NormalizedUser = {
-    id : Text;
-    username : Text;
-    name : Text;
-    bio : ?Text;
-    avatar_url : ?Text;
-    website : ?Text;
-    location : ?Text;
-    created_at : ?Text;
-    followers_count : ?Nat;
-    following_count : ?Nat;
-    tweet_count : ?Nat;
-    public_repos : ?Nat;
-    public_gists : ?Nat;
-    verified : ?Bool;
-  };
-
-  public func optOr<T>(a : ?T, b : ?T) : ?T = if (Option.isSome(a)) { a } else {
-    b;
-  };
-
-  public func normalizeXUser(user : XUser) : NormalizedUser {
-    type URLObject = {
-      start : Nat;
-      end : Nat;
-      url : Text;
-      expanded_url : Text;
-      display_url : Text;
-    };
-
-    type URL = {
-      urls : ?[URLObject];
-    };
-
-    type Entities = {
-      url : ?URL;
-    };
-
-    type PublicMetrics = {
-      followers_count : Nat;
-      following_count : Nat;
-      tweet_count : Nat;
-    };
-
-    func firstUrl(entities : ?Entities) : ?Text {
-      let ?ents = entities else return null;
-      let ?url = ents.url else return null;
-      let ?urls = url.urls else return null;
-      if (urls == []) return null;
-      return ?urls[0].expanded_url;
-    };
-
-    let followersCount : ?Nat = ?user.data.public_metrics.followers_count;
-    let followingCount : ?Nat = ?user.data.public_metrics.following_count;
-    let tweetCount : ?Nat = ?user.data.public_metrics.tweet_count;
-
-    {
-      id = user.data.id;
-      username = user.data.username;
-      name = user.data.name;
-      bio = user.data.description;
-      avatar_url = ?user.data.profile_image_url;
-      website = optOr(user.data.url, firstUrl(user.data.entities));
-      location = null;
-      created_at = ?user.data.created_at;
-      followers_count = followersCount;
-      following_count = followingCount;
-      tweet_count = tweetCount;
-      public_repos = null;
-      public_gists = null;
-      verified = ?user.data.verified;
-    };
-  };
-
-  public func normalizeGithubUser(user : GitHubUser) : NormalizedUser {
-    {
-      id = Nat.toText(user.id);
-      username = user.login;
-      name = user.name;
-      bio = user.bio;
-      avatar_url = ?user.avatar_url; // TODO: change to not optional?
-      website = user.blog;
-      location = user.location;
-      created_at = ?user.created_at;
-      followers_count = ?user.followers;
-      following_count = ?user.following;
-      tweet_count = null;
-      public_repos = ?user.public_repos;
-      public_gists = ?user.public_gists;
-      verified = null;
     };
   };
 
@@ -233,7 +141,7 @@ module PKCE {
     config : OAuth2ConnectConfig,
     token : Bearer,
     transform : TransformFn,
-  ) : async Result.Result<NormalizedUser, Text> {
+  ) : async Result.Result<PKCEUser, Text> {
 
     let #pkce(pkceParams) = config.auth else return #err(config.name # " does not support PKCE.");
 
@@ -255,11 +163,11 @@ module PKCE {
     switch (config.provider) {
       case (#x) {
         let ?xUser : ?XUser = from_candid (userBlob) else return #err("missing field in token. " # userJSON);
-        return #ok(normalizeXUser(xUser));
+        return #ok(#x(xUser));
       };
       case (#github) {
         let ?githubUser : ?GitHubUser = from_candid (userBlob) else return #err("missing field in token. " # userJSON);
-        return #ok(normalizeGithubUser(githubUser));
+        return #ok(#github(githubUser));
       };
       case (_) {
         return #err("No user type defined for " # config.name);
@@ -268,4 +176,3 @@ module PKCE {
   };
 
 };
-

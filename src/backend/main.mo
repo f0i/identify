@@ -101,7 +101,7 @@ persistent actor class Main() = this {
       userInfoEndpoint = "https://api.github.com/user";
       clientId = "Ov23liMbdP36K0AIWTgl";
       redirectUri = "https://login.f0i.de/pkce-callback.html";
-      clientSecret = ?"<hidden>";
+      clientSecret = ?"b58638c2d453de538bc72e5b3b3d4ca7f23b2faa";
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -211,13 +211,15 @@ persistent actor class Main() = this {
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
 
-    let user = switch (Map.get(users, Principal.compare, principal)) {
+    let newUser = User.fromJWT(origin, provider, jwt); // New line
+
+    let user : User = switch (Map.get(users, Principal.compare, principal)) {
       case (?old) {
-        User.update(old, origin, provider, jwt);
+        User.update(old, origin, provider, newUser); // Changed
       };
       case (null) {
         Stats.inc(stats, "signup", origin);
-        User.create(origin, provider, jwt);
+        newUser;
       };
     };
     Map.add(users, Principal.compare, principal, user);
@@ -295,33 +297,32 @@ persistent actor class Main() = this {
       };
     };
 
-    let userResult = await PKCE.getUserInfo(providerConfig, token, transform);
-
-    let sub = switch (userResult) {
-      case (#ok(userInfo)) userInfo.id;
+    let user_data_from_pkce = switch (await PKCE.getUserInfo(providerConfig, token, transform)) {
+      // Pass origin
+      case (#ok(data)) data;
       case (#err(err)) return #err("Could not get user info: " # err);
     };
-    Map.add(pkceSignIns, compareKey, sessionKey, { sub; origin; signin = Time.now() });
+
+    let newUser = User.fromPKCE(origin, provider, user_data_from_pkce);
+
+    Map.add(pkceSignIns, compareKey, sessionKey, { sub = newUser.id; origin; signin = Time.now() }); // Use user_data_from_pkce.id for sub
 
     // This is adding a signature to the sigTree and storing its hash in certified data.
-    let pubKey = CanisterSignature.prepareDelegation(sigStore, sub, origin, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
+    let pubKey = CanisterSignature.prepareDelegation(sigStore, newUser.id, origin, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets); // Use user_data_from_pkce.id for sub
 
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
 
-    // TODO: set user data!
-    /*
-    let user = switch (Map.get(users, Principal.compare, principal)) {
+    let user : User = switch (Map.get(users, Principal.compare, principal)) {
       case (?old) {
-        User.update(old, origin, provider, jwt);
+        User.update(old, origin, provider, newUser);
       };
       case (null) {
         Stats.inc(stats, "signup", origin);
-        User.create(origin, provider, jwt);
+        newUser;
       };
     };
     Map.add(users, Principal.compare, principal, user);
-    */
     Stats.inc(stats, "signin", origin);
 
     return #ok({
