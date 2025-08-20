@@ -13,7 +13,7 @@ url-kit = "1.0.1"
 
 [toolchain]
 wasmtime = "35.0.0"
-moc = "0.15.1"
+moc = "0.16.0"
 
 [dev-dependencies]
 bench = "1.0.0"

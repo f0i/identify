@@ -15,69 +15,10 @@ import {
 } from "./auth-config";
 import { DOM_IDS } from "./dom-config";
 import { initAuth0 } from "./auth0";
-import { generateChallenge, PkceAuthData } from "./pkce";
+import { generateChallenge, initPkce, PkceAuthData } from "./pkce";
 import { initZitadel } from "./zitadel";
 import { getDelegationJwt, getDelegationPkce } from "./identify/delegation";
 import { StatusUpdate } from "./identify/icrc";
-
-export async function initPkce(
-  config: AuthConfig,
-  code_challenge: string,
-  verifier: string,
-  buttonId: string,
-  autoSignIn: boolean = true,
-): Promise<PkceAuthData> {
-  return new Promise(async (resolve, reject) => {
-    const pkceConfig = getPKCEConfig(config);
-
-    // Redirect to the authorization endpoint in a popup
-    const state = Array.from(
-      window.crypto.getRandomValues(new Uint8Array(16)),
-      (b) => b.toString(16).padStart(2, "0"),
-    ).join("");
-    const authUrl =
-      `${pkceConfig.authorizationUrl}?` +
-      `client_id=${pkceConfig.clientId}&` +
-      `redirect_uri=${pkceConfig.redirect}&` +
-      `response_type=code&` +
-      `scope=users.read%20tweet.read&` +
-      `code_challenge=${code_challenge}&` +
-      `code_challenge_method=S256&` +
-      `state=${state}`;
-
-    const popup = window.open(authUrl, "_blank", "width=500,height=600");
-
-    if (!popup) {
-      reject(
-        new Error(
-          "Failed to open popup window. Please allow popups for this site.",
-        ),
-      );
-      return;
-    }
-
-    const messageListener = (event: MessageEvent) => {
-      if (event.source === popup) {
-        window.removeEventListener("message", messageListener);
-        if (event.data.type === "pkce_auth_success") {
-          // TODO: verify state matches
-          resolve({
-            code: event.data.code,
-            state: event.data.state,
-            verifier: verifier,
-          });
-        } else if (event.data.type === "pkce_auth_error") {
-          reject(new Error(event.data.error));
-        }
-        popup.close();
-      }
-    };
-
-    window.addEventListener("message", messageListener);
-
-    // This promise will be resolved when the popup sends a message back
-  });
-}
 
 declare global {
   interface Window {
@@ -190,6 +131,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
           code.verifier,
           DOM_IDS.singinBtn,
           true,
+          context.statusCallback,
         );
       case "x":
         return await initPkce(
@@ -198,6 +140,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
           code.verifier,
           DOM_IDS.singinBtn,
           true,
+          context.statusCallback,
         );
       default:
         throw "Invalid provider for PKCE: " + provider.toString();

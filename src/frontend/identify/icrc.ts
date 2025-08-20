@@ -112,7 +112,13 @@ export const loadOrFetchDelegation = async (
         auth = await initGsi(config, nonce, DOM_IDS.singinBtn, true);
       } else if (context.provider === "auth0") {
         let config = getAuth0Config(context.authConfig);
-        auth = await initAuth0(config, nonce, DOM_IDS.singinBtn, true);
+        auth = await initAuth0(
+          config,
+          nonce,
+          DOM_IDS.singinBtn,
+          true,
+          context.statusCallback,
+        );
       } else if (context.provider === "zitadel") {
         let config = getZitadelConfig(context.authConfig);
         auth = await initZitadel(config, nonce, DOM_IDS.singinBtn, true);

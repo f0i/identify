@@ -21,7 +21,10 @@ module {
       case (#ok data) data;
     };
 
+    Debug.print("parsed keys from: " # content);
+
     let body = RSA.serializeKeys(keys);
+    Debug.print("parsed keys to:   " # body);
 
     return {
       status = response.status;
@@ -32,7 +35,7 @@ module {
 
   public func transform({ context; response } : TransformArgs) : IC.http_request_result {
     ignore context;
-    return response;
+    return { response with headers = [] };
   };
 
   public type TransformArgs = {

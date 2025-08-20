@@ -1,3 +1,6 @@
+import { AuthConfig, getPKCEConfig } from "./auth-config";
+import { StatusUpdate } from "./identify/icrc";
+
 export type PkceAuthData = { code: string; verifier: string; state?: string };
 
 function dec2hex(dec: number) {
@@ -58,3 +61,90 @@ async function sha256Hex(input: Uint8Array): Promise<string> {
   return hashHex;
 }
 
+export async function initPkce(
+  config: AuthConfig,
+  code_challenge: string,
+  verifier: string,
+  buttonId: string,
+  autoSignIn: boolean = true,
+  statusCallback: (update: StatusUpdate) => void,
+): Promise<PkceAuthData> {
+  const pkceConfig = getPKCEConfig(config);
+
+  // Redirect to the authorization endpoint in a popup
+  const state = Array.from(
+    window.crypto.getRandomValues(new Uint8Array(16)),
+    (b) => b.toString(16).padStart(2, "0"),
+  ).join("");
+  const authUrl =
+    `${pkceConfig.authorizationUrl}?` +
+    `client_id=${pkceConfig.clientId}&` +
+    `redirect_uri=${pkceConfig.redirect}&` +
+    `response_type=code&` +
+    `scope=users.read%20tweet.read&` +
+    `code_challenge=${code_challenge}&` +
+    `code_challenge_method=S256&` +
+    `state=${state}`;
+
+  let popup: any;
+  const signin = async (): Promise<PkceAuthData> => {
+    console.log("PKCE: signin called");
+    popup = window.open(authUrl, "_blank", "width=500,height=600");
+    if (!popup) {
+      throw "Could not open popup";
+    }
+
+    return new Promise(async (resolve, reject) => {
+      const messageListener = (event: MessageEvent) => {
+        if (event.source === popup) {
+          window.removeEventListener("message", messageListener);
+          if (event.data.type === "pkce_auth_success") {
+            // TODO: verify state matches
+            resolve({
+              code: event.data.code,
+              state: event.data.state,
+              verifier: verifier,
+            });
+          } else if (event.data.type === "pkce_auth_error") {
+            reject(new Error(event.data.error));
+          }
+          popup.close();
+        }
+      };
+      window.addEventListener("message", messageListener);
+    });
+  };
+
+  const attachButton = (): Promise<PkceAuthData> => {
+    const login = document.getElementById(buttonId);
+    if (login) {
+      console.log("Adding listner to login button", login);
+      return new Promise(async (resolve, reject) => {
+        login.addEventListener("click", () => signin().then(resolve, reject));
+      });
+    } else {
+      console.error("Login button not found");
+      return Promise.reject("Login button not found");
+    }
+  };
+
+  if (autoSignIn) {
+    statusCallback({ status: "signing-in", message: "" });
+    try {
+      return await signin();
+    } catch (e) {
+      // TODO: check if error message should be shown
+      statusCallback({ status: "error", message: `${e}` });
+    }
+  }
+  while (true) {
+    try {
+      statusCallback({ status: "ready", message: "" });
+      return await attachButton();
+    } catch (e) {
+      // TODO: check if error is recoverable
+      statusCallback({ status: "error", message: `${e}` });
+      throw e;
+    }
+  }
+}
