@@ -47,29 +47,29 @@ const setStatusText = (update: StatusUpdate) => {
   const signInBtn = "sign-in-btn";
   const cancelBtn = "cancel";
 
-  setText(statusEl, update.message || "");
+  setText(statusEl, update.message || ""); // Keep the message
 
   if (update.status === "loading") {
-    showElement(statusEl, true);
-    showElement(spinner, true);
+    showElement(statusEl, true); // Keep status message visible
+    showElement(spinner, true); // Show spinner
     showElement(errorEl, false);
     showElement(signInBtn, false);
     showElement(cancelBtn, false);
   } else if (update.status === "ready") {
-    showElement(statusEl, true);
-    showElement(spinner, false);
+    showElement(statusEl, true); // Keep status message visible
+    showElement(spinner, false); // Hide spinner
     showElement(errorEl, false);
     showElement(signInBtn, true);
     showElement(cancelBtn, false);
   } else if (update.status === "signing-in") {
-    showElement(statusEl, true);
-    showElement(spinner, true);
+    showElement(statusEl, true); // Keep status message visible
+    showElement(spinner, true); // Show spinner
     showElement(errorEl, false);
     showElement(signInBtn, false);
     showElement(cancelBtn, true);
   } else if (update.status === "error") {
-    showElement(statusEl, true);
-    showElement(spinner, false);
+    showElement(statusEl, true); // Keep status message visible
+    showElement(spinner, false); // Hide spinner
     showElement(errorEl, true);
     setText(errorEl, update.error || "Unknown error");
     showElement(signInBtn, true);
@@ -115,6 +115,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
           nonce,
           DOM_IDS.singinBtn,
           false,
+          context.statusCallback,
         );
       default:
         throw "Invalid provider for JWT: " + provider.toString();

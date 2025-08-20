@@ -146,7 +146,6 @@ persistent actor class Main() = this {
   };
 
   private func getProviderConfig(provider : Provider) : OAuth2ConnectConfig {
-    let providerName = AuthProvider.providerName(provider);
     switch (provider) {
       case (#google) return googleConfig;
       case (#auth0) return auth0Config;
@@ -160,7 +159,6 @@ persistent actor class Main() = this {
     await fetchKeys(#google);
     await fetchKeys(#auth0);
     await fetchKeys(#zitadel);
-    // TODO: fetch for other providers
   };
 
   private func fetchKeys(provider : Provider) : async () {
@@ -379,39 +377,33 @@ persistent actor class Main() = this {
   /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getUser(principal : Principal, origin : Text) : async ?User {
     Stats.logBalance(stats, "getUser");
-    let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
-    for (o in appInfo.origins.vals()) {
-      if (o == origin) {
-        let ?user = Map.get(users, Principal.compare, principal) else return null;
-        if (user.origin == origin) return ?user;
-      };
-    };
+    //let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
+    //for (o in appInfo.origins.vals()) {
+    //if (o == origin) {
+    let ?user = Map.get(users, Principal.compare, principal) else return null;
+    //if (user.origin == origin)
+    return ?user;
+    //};
+    //};
     // origin was not in appInfo.origions
-    trap("Permission denied for origin " # origin);
+    //trap("Permission denied for origin " # origin);
   };
 
   /// Get principal and some user info of the caller
-  public shared query ({ caller }) func getPrincipal() : async Text {
+  public shared query ({ caller }) func getPrincipal() : async Principal {
     Stats.logBalance(stats, "getPrincipal");
+    return caller;
 
-    let userInfo = switch (Map.get(users, Principal.compare, caller)) {
-      case (?user) {
-        "Signed in with " # AuthProvider.providerName(user.provider) # ". " #
-        "User found, " # (
-          if (user.email == null) {
-            "Email not set";
-          } else if (user.email_verified == ?true) {
-            "Email verified";
-          } else {
-            "Email not verified";
-          }
-        );
-      };
-      case (null) "User not found";
-    };
+    //let userInfo = switch (Map.get(users, Principal.compare, caller)) {
+    //  case (?user) {
+    //    "Signed in with " # AuthProvider.providerName(user.provider) # ". " #
+    //    "User found: " # (debug_show user);
+    //  };
+    //  case (null) "User not found";
+    //};
 
-    if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
-    return "Principal " # Principal.toText(caller) # "\n" # userInfo;
+    //if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
+    //return "Principal " # Principal.toText(caller) # "\n" # userInfo;
   };
 
   /// Get cycle balance of the backend canister

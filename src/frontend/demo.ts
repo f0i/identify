@@ -9,6 +9,7 @@ import {
   X,
   ZITADEL,
 } from "./auth-config"; // Added
+import { Principal } from "@dfinity/candid/lib/cjs/idl";
 
 const ALL_PROVIDERS = [
   { name: "Google", id: "google", config: GSI },
@@ -23,10 +24,12 @@ export function initDemo(identityProvider: string) {
   showElement("demo", true);
   const providerButtonsContainer = document.getElementById("provider-buttons")!; // Get container
 
-  ALL_PROVIDERS.forEach(provider => {
+  ALL_PROVIDERS.forEach((provider) => {
     const button = document.createElement("button");
     button.innerText = `Sign in with ${provider.name}`;
-    button.addEventListener("click", () => initAuth(IDENTITY_PROVIDER + "?provider=" + provider.id));
+    button.addEventListener("click", () =>
+      initAuth(IDENTITY_PROVIDER + "?provider=" + provider.id),
+    );
     providerButtonsContainer.appendChild(button);
   });
 
@@ -93,9 +96,149 @@ async function checkAuth() {
     const backend = createActor(canisterId, {
       agentOptions: { host, identity: authClient.getIdentity() },
     });
-    const msg = await backend.getPrincipal().catch((e: any): string => "" + e);
+    const principal = await backend
+      .getPrincipal()
+      .catch((e: any): string => "" + e);
+    const userInfo = await backend
+      .getUser(principal, origin)
+      .catch((e: any): string => "" + e);
 
-    innerText("login-status", msg);
+    // Populate user card
+    const userCard = document.getElementById("user-card");
+    const userIcon = document.getElementById("user-icon") as HTMLImageElement;
+    const userName = document.getElementById("user-name");
+    const userEmail = document.getElementById("user-email");
+    const userId = document.getElementById("user-id"); // Get user ID element
+    const userPrincipal = document.getElementById("user-principal");
+
+    if (
+      userIcon &&
+      userInfo &&
+      userInfo.length > 0 &&
+      userInfo[0].avatar_url &&
+      userInfo[0].avatar_url.length > 0
+    ) {
+      userIcon.src = userInfo[0].avatar_url[0];
+      showElement("user-icon", true);
+    } else if (userIcon) {
+      showElement("user-icon", false); // Hide if no valid picture
+    }
+
+    if (
+      userName &&
+      userInfo &&
+      userInfo.length > 0 &&
+      userInfo[0].name &&
+      userInfo[0].name.length > 0
+    ) {
+      userName.innerText = userInfo[0].name[0];
+      showElement("user-name", true);
+    } else if (userName) {
+      showElement("user-name", false); // Hide if no name
+    }
+
+    if (
+      userEmail &&
+      userInfo &&
+      userInfo.length > 0 &&
+      userInfo[0].email &&
+      userInfo[0].email.length > 0
+    ) {
+      userEmail.innerText = userInfo[0].email[0];
+      showElement("user-email", true);
+    } else if (userEmail) {
+      showElement("user-email", false); // Hide if no email
+    }
+
+    if (
+      userId &&
+      userInfo &&
+      userInfo.length > 0 &&
+      userInfo[0].id
+    ) {
+      userId.innerText = `User ID: ${userInfo[0].id}`;
+      showElement("user-id", true);
+    } else if (userId) {
+      showElement("user-id", false); // Hide if no ID
+    }
+
+    if (userPrincipal) {
+      userPrincipal.innerText = `Principal: ${principal}`;
+      showElement("user-principal", true);
+    } else if (userPrincipal) {
+      showElement("user-principal", false); // Hide if no principal
+    }
+
+    // Populate additional user info
+    const additionalUserInfoDiv = document.getElementById(
+      "additional-user-info",
+    );
+    if (additionalUserInfoDiv && userInfo && userInfo.length > 0) {
+      additionalUserInfoDiv.innerHTML = ""; // Clear previous content
+
+      const excludedKeys = [
+        "id",
+        "avatar_url",
+        "name",
+        "email",
+        "createdAt",
+        "origin",
+        "principal", // Exclude principal as it's handled separately
+      ];
+
+      for (const key in userInfo[0]) {
+        if (userInfo[0].hasOwnProperty(key) && !excludedKeys.includes(key)) {
+          let value = userInfo[0][key];
+          let displayValue = "";
+          let shouldDisplay = true;
+
+          if (Array.isArray(value)) {
+            if (value.length > 0) {
+              displayValue = value[0];
+            } else {
+              shouldDisplay = false; // Hide if array is empty
+            }
+          } else if (typeof value === "object" && value !== null) {
+            // Handle provider object specifically
+            if (key === "provider") {
+              const providerName = Object.keys(value)[0];
+              if (providerName) {
+                displayValue = providerName;
+              } else {
+                shouldDisplay = false;
+              }
+            } else {
+              displayValue = JSON.stringify(value);
+            }
+          } else {
+            displayValue = value;
+          }
+
+          if (shouldDisplay && displayValue !== "N/A" && displayValue !== "" && displayValue !== "null" && displayValue !== "undefined") {
+            const p = document.createElement("p");
+            p.style.margin = "5px 0";
+            p.style.fontSize = "0.85em";
+            p.style.color = "#777";
+
+            let displayKey = key.replace(/_/g, " ");
+            // Capitalize first letter of each word
+            displayKey = displayKey.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+            if (displayKey === "Provider Created At") {
+              displayKey = "Created At";
+            }
+
+            p.innerHTML = `<strong>${displayKey}:</strong> ${displayValue}`;
+            additionalUserInfoDiv.appendChild(p);
+          }
+        }
+      }
+    }
+
+    showElement("user-card", true); // Show user card
+
+    // Revert login-status to original message or clear it
+    innerText("login-status", "Authenticated..."); // Or clear it: innerText("login-status", "");
 
     updateListById(
       "log",
@@ -105,6 +248,8 @@ async function checkAuth() {
     showElement("provider-buttons", false); // Hide provider buttons
     showElement("demo-logout", true);
   } else {
+    // Hide user card when not authenticated
+    showElement("user-card", false);
     innerText("demo-status", "Status: not authenticated");
     showElement("provider-buttons", true); // Show provider buttons
     showElement("demo-logout", false);
@@ -139,5 +284,3 @@ function innerText(id: string, text: string) {
     console.log("Element not found", id, "to set innerText", text);
   }
 }
-
-

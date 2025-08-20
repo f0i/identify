@@ -121,7 +121,13 @@ export const loadOrFetchDelegation = async (
         );
       } else if (context.provider === "zitadel") {
         let config = getZitadelConfig(context.authConfig);
-        auth = await initZitadel(config, nonce, DOM_IDS.singinBtn, true);
+        auth = await initZitadel(
+          config,
+          nonce,
+          DOM_IDS.singinBtn,
+          true,
+          context.statusCallback,
+        );
       } else {
         throw "Login provider not supported: " + context.provider.toString();
       }
