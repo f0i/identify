@@ -68,7 +68,7 @@ window.onload = () => {
   // remove the hash from the URL if element was active
   if (active) {
     setTimeout(() =>
-      history.replaceState(null, "", document.location.pathname),
+      history.replaceState(null, "", document.location.pathname + document.location.search),
     );
   }
 }

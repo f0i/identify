@@ -23,7 +23,7 @@ import {
   GSI,
 } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
-import { generateChallenge, PkceAuthData } from "../pkce";
+import { PkceAuthData } from "../pkce";
 
 export type Status = "loading" | "ready" | "error" | "signing-in";
 export type StatusUpdate = {

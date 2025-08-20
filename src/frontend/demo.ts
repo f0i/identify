@@ -1,12 +1,35 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 import { showElement } from "./identify/dom";
+import {
+  AUTH0,
+  GITHUB,
+  GSI,
+  IDENTITY_PROVIDER,
+  X,
+  ZITADEL,
+} from "./auth-config"; // Added
+
+const ALL_PROVIDERS = [
+  { name: "Google", id: "google", config: GSI },
+  { name: "Auth0", id: "auth0", config: AUTH0 },
+  { name: "Zitadel", id: "zitadel", config: ZITADEL },
+  { name: "GitHub", id: "github", config: GITHUB },
+  { name: "X", id: "x", config: X },
+];
 
 // Initialize the demo application
 export function initDemo(identityProvider: string) {
   showElement("demo", true);
-  const login = document.getElementById("demo-login")!;
-  login.addEventListener("click", () => initAuth(identityProvider));
+  const providerButtonsContainer = document.getElementById("provider-buttons")!; // Get container
+
+  ALL_PROVIDERS.forEach(provider => {
+    const button = document.createElement("button");
+    button.innerText = `Sign in with ${provider.name}`;
+    button.addEventListener("click", () => initAuth(IDENTITY_PROVIDER + "?provider=" + provider.id));
+    providerButtonsContainer.appendChild(button);
+  });
+
   const logout = document.getElementById("demo-logout")!;
   logout.addEventListener("click", resetAuth);
 
@@ -79,11 +102,11 @@ async function checkAuth() {
       await backend.getStats().catch((e: any): string[] => ["Error: " + e]),
     );
 
-    showElement("demo-login", false);
+    showElement("provider-buttons", false); // Hide provider buttons
     showElement("demo-logout", true);
   } else {
     innerText("demo-status", "Status: not authenticated");
-    showElement("demo-login", true);
+    showElement("provider-buttons", true); // Show provider buttons
     showElement("demo-logout", false);
   }
 }

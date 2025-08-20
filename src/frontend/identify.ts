@@ -97,34 +97,41 @@ const setTargetsText = (targets: string) => {
 };
 
 const setStatusText = (update: StatusUpdate) => {
-  const status = "login-status";
+  console.log(
+    `Status changed to: ${update.status} with message: ${update.message} and error: ${update.error}`,
+  );
+  const statusEl = "login-status";
   const spinner = "spinner";
   const errorEl = "error";
   const signInBtn = "sign-in-btn";
   const cancelBtn = "cancel";
 
-  setText(status, update.message || "");
+  setText(statusEl, update.message || "");
 
   if (update.status === "loading") {
+    showElement(statusEl, true);
     showElement(spinner, true);
     showElement(errorEl, false);
     showElement(signInBtn, false);
     showElement(cancelBtn, false);
-  } else if (update.status === "error") {
-    showElement(spinner, false);
-    showElement(errorEl, true);
-    setText(errorEl, update.error || "Unknown error");
-    showElement(signInBtn, false);
-    showElement(cancelBtn, true);
   } else if (update.status === "ready") {
+    showElement(statusEl, true);
     showElement(spinner, false);
     showElement(errorEl, false);
     showElement(signInBtn, true);
     showElement(cancelBtn, false);
   } else if (update.status === "signing-in") {
+    showElement(statusEl, true);
     showElement(spinner, true);
     showElement(errorEl, false);
     showElement(signInBtn, false);
+    showElement(cancelBtn, true);
+  } else if (update.status === "error") {
+    showElement(statusEl, true);
+    showElement(spinner, false);
+    showElement(errorEl, true);
+    setText(errorEl, update.error || "Unknown error");
+    showElement(signInBtn, true);
     showElement(cancelBtn, true);
   }
 };
@@ -159,6 +166,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
           nonce,
           DOM_IDS.singinBtn,
           true,
+          context.statusCallback,
         );
       case "zitadel":
         return await initZitadel(
@@ -221,6 +229,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
         console.log("Received message from opener:", event);
         setStatusText({ status: "loading", message: "Connected to " + origin });
         init = false;
+        context.statusCallback({ status: "ready" });
       }
 
       if (event.data.jsonrpc === "2.0") {
@@ -264,10 +273,9 @@ const handleAuthorizeClient = async (
       throw "Could not determine app origin.";
     }
     context.originCallback(origin);
-    context.targetsCallback("");
     context.targetsCallback(authRequest.targets?.slice()?.join(",\n") || "");
     const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
-    context.statusCallback({ status: "signing-in", message: "Signing in..." });
+    context.statusCallback({ status: "ready", message: "" });
 
     // Get delegation from backend
     let msg;

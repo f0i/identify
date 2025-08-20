@@ -1,13 +1,15 @@
 import { createAuth0Client } from "@auth0/auth0-spa-js";
 import { Auth0Config } from "./auth-config";
+import { StatusUpdate } from "./identify/icrc";
 
 export async function initAuth0(
   auth0Config: Auth0Config,
   nonce: string,
   buttonId: string,
   autoSignIn: boolean = true,
+  statusCallback: (update: StatusUpdate) => void,
 ): Promise<string> {
-  return new Promise(async (resolve, reject) => {
+  return new Promise(async (resolve, _reject) => {
     let prompt: "none" | "login" = "login"; // Always prompt for interactive login if triggered
     let auth0Client = await createAuth0Client({
       ...auth0Config,
@@ -50,8 +52,13 @@ export async function initAuth0(
       try {
         await signin();
       } catch (e: any) {
-        if (e.toString().startsWith("Unable to open a popup")) {
-          // if popup failed, enable the button.
+        console.log("Singin attempt failed:", e.toString());
+        if (e.toString().indexOf("Unable to open a popup") >= 0) {
+          console.log("popup failed, enable the button.");
+          statusCallback({
+            status: "ready",
+            message: "",
+          });
           attachButton();
         } else {
           throw e;
@@ -63,4 +70,3 @@ export async function initAuth0(
     }
   });
 }
-
