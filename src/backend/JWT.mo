@@ -39,7 +39,9 @@ module {
     email_verified : ?Bool; // email verified by auth provider
     name : ?Text; // user full name
     nonce : ?Text; // nonce (used here to link the session key)
-    amr : ?[Text] // authentication methods references
+    amr : ?[Text]; // authentication methods references
+    picture : ?Text; // profile picture
+    locale : ?Text; // Locale
   };
 
   /// Data sturcture of a decoded JWT token's payload
@@ -56,6 +58,8 @@ module {
     name : ?Text; // user full name
     nonce : ?Text; // nonce (used here to link the session key)
     amr : ?[Text] // authentication methods references
+    picture : ?Text; // profile picture
+    locale : ?Text; // Locale
   };
 
   /// Data sturcture of a decoded JWT token
@@ -199,6 +203,8 @@ module {
       name = alt.name;
       nonce = alt.nonce;
       amr = alt.amr;
+      picture = alt.picture;
+      locale = alt.locale;
     };
   };
 
