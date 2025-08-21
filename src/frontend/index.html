@@ -105,12 +105,6 @@
       }
 
       button {
-        background: linear-gradient(
-          135deg,
-          #4caf50,
-          #2e7d32
-        );
-        color: white;
         padding: 12px 24px;
         font-size: 16px;
         font-weight: bold;
@@ -121,25 +115,17 @@
         transition:
           background 0.3s ease,
           box-shadow 0.3s ease,
-          transform 0.2s ease;
+          transform 0.2s ease,
+          filter 0.2s ease-in-out;
       }
 
       button:hover {
-        background: linear-gradient(
-          135deg,
-          #66bb6a,
-          #388e3c
-        );
+        filter: brightness(90%);
         box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
         transform: translateY(-2px);
       }
 
       button:active {
-        background: linear-gradient(
-          135deg,
-          #388e3c,
-          #2e7d32
-        ); /* Darker gradient on active */
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow on active */
         transform: translateY(0); /* Button returns to normal position */
       }
@@ -147,6 +133,23 @@
       button:focus {
         outline: none; /* Remove focus outline */
         box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.3); /* Greenish glow for accessibility */
+      }
+
+      .btn {
+        background: linear-gradient(
+          135deg,
+          #4caf50,
+          #2e7d32
+        );
+        color: white;
+      }
+
+      .btn:active {
+        background: linear-gradient(
+          135deg,
+          #388e3c,
+          #2e7d32
+        ); /* Darker gradient on active */
       }
 
       /* Styles for the cancel button (now a close button) */
@@ -265,7 +268,7 @@
           <div id="provider-buttons" class="flex-center" style="flex-direction: column; gap: 10px;">
             <!-- Buttons will be dynamically added here -->
           </div>
-          <button id="demo-logout" class="hidden">Log out</button>
+          <button id="demo-logout" class="hidden btn">Log out</button>
           <div id="demo-build-info" style="padding-top: 6em;">
             <div>Network: <span id="demo-network">-</span></div>
             <div>API endpoint: <span id="demo-api">-</span></div>

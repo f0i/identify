@@ -1,3 +1,4 @@
+import { getProviderStyles } from "./provider-styles";
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 import { showElement } from "./identify/dom";
@@ -26,7 +27,26 @@ export function initDemo(identityProvider: string) {
 
   ALL_PROVIDERS.forEach((provider) => {
     const button = document.createElement("button");
-    button.innerText = `Sign in with ${provider.name}`;
+    const styles = getProviderStyles(provider.id);
+    Object.assign(button.style, styles);
+
+    const content = document.createElement("div");
+    content.style.display = "flex";
+    content.style.alignItems = "center";
+
+    const icon = document.createElement("img");
+    icon.src = `img/icons/${provider.id}.${provider.id === 'zitadel' ? 'png' : 'svg'}`;
+    icon.style.width = "24px";
+    icon.style.height = "24px";
+    icon.style.marginRight = "10px";
+    content.appendChild(icon);
+
+    const text = document.createElement("span");
+    text.innerText = `Sign in with ${provider.name}`;
+    content.appendChild(text);
+
+    button.appendChild(content);
+
     button.addEventListener("click", () =>
       initAuth(IDENTITY_PROVIDER + "?provider=" + provider.id),
     );

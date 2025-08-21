@@ -1,3 +1,4 @@
+import { getProviderStyles } from "./provider-styles";
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
 import { ProviderKey, getProviderName } from "./identify/delegation";
@@ -85,7 +86,26 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
   if (signInButtonContainer) {
     const actualButton = signInButtonContainer.querySelector("button");
     if (actualButton) {
-      actualButton.innerText = `Sign in with ${getProviderName(provider)}`;
+      actualButton.innerHTML = ""; // Clear existing content
+      const styles = getProviderStyles(provider);
+      Object.assign(actualButton.style, styles);
+
+      const content = document.createElement("div");
+      content.style.display = "flex";
+      content.style.alignItems = "center";
+
+      const icon = document.createElement("img");
+      icon.src = `img/icons/${provider}.${provider === 'zitadel' ? 'png' : 'svg'}`;
+      icon.style.width = "24px";
+      icon.style.height = "24px";
+      icon.style.marginRight = "10px";
+      content.appendChild(icon);
+
+      const text = document.createElement("span");
+      text.innerText = `Sign in with ${getProviderName(provider)}`;
+      content.appendChild(text);
+
+      actualButton.appendChild(content);
     }
   }
   console.log("Waiting for message from opener");

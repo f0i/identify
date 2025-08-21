@@ -44,8 +44,8 @@ esbuild
   .then(() => copyWithCacheBuster("pkce-callback", "pkce-callback"))
   .then(() => {
     // copy static files
-    execSync(`cp -r src/frontend/img out/frontend/img`);
-    execSync(`cp -r src/frontend/fonts out/frontend/fonts`);
+    execSync(`cp -r src/frontend/img out/frontend/`);
+    execSync(`cp -r src/frontend/fonts out/frontend/`);
   })
   .catch((err) => {
     console.error(err);
