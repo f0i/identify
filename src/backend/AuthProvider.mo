@@ -106,6 +106,7 @@ module {
     let attempts = config.fetchAttempts;
     if (attempts.lastSuccess > (Time.now() - Time.toNanoseconds(#minutes(30)))) return #err("key not found in current keys");
     if (attempts.lastAttempt > (Time.now() - Time.toNanoseconds(#minutes(10)))) return #err("key not found");
+    Debug.print("Key not found for " # config.name # ": " # keyID);
     // Update keys
     do {
       let fetchRes = await fetchKeys(config, transform);

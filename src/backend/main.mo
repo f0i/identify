@@ -226,6 +226,7 @@ persistent actor class Main() = this {
     // This is adding a signature to the sigTree and storing its hash in certified data.
     let userKeySeed = AuthProvider.getUserKeySeed(signInInfo);
     let pubKey = CanisterSignature.prepareDelegation(sigStore, userKeySeed, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
+    Map.add(pkceSignIns, compareKey, sessionKey, signInInfo); // Use user_data_from_pkce.id for sub
 
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
