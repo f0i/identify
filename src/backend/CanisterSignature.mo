@@ -69,28 +69,28 @@ module {
   func shaHashTextToBlob(data : Text) : Blob = Sha256.fromBlob(#sha256, Text.encodeUtf8(data));
 
   /// Generate a seed and it's hash for a given origin and userId.
-  public func encodeSeed(userId : Text, origin : Text) : {
+  public func encodeSeed(userKeySeed : Text) : {
     seed : Blob;
     hashedSeed : Blob;
   } {
-    let seed = shaHashTextToBlob(userId # " " # origin);
+    let seed = shaHashTextToBlob(userKeySeed);
     let hashedSeed = Sha256.fromBlob(#sha256, seed);
     return { seed; hashedSeed };
   };
 
   /// Add a signature to the sigTree and store its hash in certified data.
   /// The signature can be requested by getDelegation in a query call.
-  public func prepareDelegation(store : SignatureStore, userId : Text, origin : Text, sessionKey : [Nat8], now : Time, timePerLogin : Duration, expireAt : Time, targets : ?[Principal]) : [Nat8] {
-    prepareDelegationTo(CertifiedData.set, store, userId, origin, sessionKey, now, timePerLogin, expireAt, targets);
+  public func prepareDelegation(store : SignatureStore, userKeySeed : Text, sessionKey : [Nat8], now : Time, timePerLogin : Duration, expireAt : Time, targets : ?[Principal]) : [Nat8] {
+    prepareDelegationTo(CertifiedData.set, store, userKeySeed, sessionKey, now, timePerLogin, expireAt, targets);
   };
 
   /// Prepare a delegation and set it to a custom cert store.
   /// See prepareDelegation().
   /// This is also used for testing where CertifiedData is not available
-  public func prepareDelegationTo(setCertData : (Blob) -> (), store : SignatureStore, userId : Text, origin : Text, sessionKey : [Nat8], now : Time, timePerLogin : Duration, expireAt : Time, targets : ?[Principal]) : [Nat8] {
+  public func prepareDelegationTo(setCertData : (Blob) -> (), store : SignatureStore, userKeySeed : Text, sessionKey : [Nat8], now : Time, timePerLogin : Duration, expireAt : Time, targets : ?[Principal]) : [Nat8] {
 
     let hash = Delegation.getUnsignedHash(sessionKey, expireAt, targets);
-    let { seed; hashedSeed } = encodeSeed(userId, origin);
+    let { seed; hashedSeed } = encodeSeed(userKeySeed);
 
     // Remove old signatures from sigTree
     while (Option.get(Queue.peekFront(store.sigExpQueue), now) < (now - Time.toNanoseconds(timePerLogin))) {
@@ -110,10 +110,10 @@ module {
 
   /// This function returns the signature for a delegation created with prepareDelegation
   /// Traps if delegation is not prepared for this userId/origin
-  public func getDelegation(store : SignatureStore, userId : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : AuthResponse {
+  public func getDelegation(store : SignatureStore, userKeySeed : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : AuthResponse {
     let ?cert = CertifiedData.getCertificate() else trap("Certificate only available in query calls");
 
-    let { seed; hashedSeed } = encodeSeed(userId, origin);
+    let { seed; hashedSeed } = encodeSeed(userKeySeed);
     let pubKey = DERencodePubKey(store.canister, seed);
 
     //sign delegation

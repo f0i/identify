@@ -45,7 +45,10 @@ export const getDelegationJwt = async (
 
   const name = getProviderName(provider);
 
-  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Authorizing client..." });
+  statusCallback({
+    status: "signing-in",
+    message: name + " sign in succeeded. Authorizing client...",
+  });
 
   let prepRes = await backend.prepareDelegation(
     { [provider]: null } as Provider,
@@ -60,11 +63,13 @@ export const getDelegationJwt = async (
   } else {
     throw prepRes.err;
   }
-  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Get client authorization..." });
+  statusCallback({
+    status: "signing-in",
+    message: name + " sign in succeeded. Get client authorization...",
+  });
 
   let authRes = await backend.getDelegation(
     { [provider]: null } as Provider,
-    idToken,
     origin,
     sessionPublicKey,
     prepRes.ok.expireAt,
@@ -102,7 +107,10 @@ export const getDelegationPkce = async (
 
   const name = getProviderName(provider);
 
-  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Authorizing client..." });
+  statusCallback({
+    status: "signing-in",
+    message: name + " sign in succeeded. Authorizing client...",
+  });
 
   let prepRes = await backend.prepareDelegationPKCE(
     { [provider]: null } as Provider,
@@ -118,12 +126,13 @@ export const getDelegationPkce = async (
   } else {
     throw prepRes.err;
   }
-  statusCallback({ status: "signing-in", message: name + " sign in succeeded. Get client authorization..." });
+  statusCallback({
+    status: "signing-in",
+    message: name + " sign in succeeded. Get client authorization...",
+  });
 
-  let authRes = await backend.getDelegationPKCE(
+  let authRes = await backend.getDelegation(
     { [provider]: null } as Provider,
-    code,
-    code_verifier,
     origin,
     sessionPublicKey,
     prepRes.ok.expireAt,

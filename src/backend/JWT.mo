@@ -13,6 +13,7 @@ import TimeFormat "TimeFormat";
 module {
   type Time = Time.Time;
   type Duration = Time.Duration;
+  type Result<T, E> = Result.Result<T, E>;
 
   /// Data sturcture of a decoded JWT token's header.
   public type Header = {
@@ -57,7 +58,7 @@ module {
     email_verified : ?Bool; // email verified by auth provider
     name : ?Text; // user full name
     nonce : ?Text; // nonce (used here to link the session key)
-    amr : ?[Text] // authentication methods references
+    amr : ?[Text]; // authentication methods references
     picture : ?Text; // profile picture
     locale : ?Text; // Locale
   };
@@ -68,6 +69,8 @@ module {
     payload : Payload;
     signature : Text;
   };
+
+  type GetKey = (Text) -> async* Result<RSA.PubKey, Text>;
 
   /// Decode and validate a JWT token.
   /// The payload of the token is required to contain at least values from `Header` and `Payload`.
@@ -99,8 +102,7 @@ module {
   ///
   /// The function returns a Result type contining the decoded values from a valid JWT token or
   /// the an error result with the reason why the token could not be verified.
-  public func decode(token : Text, pubKeys : [RSA.PubKey], now : Time, issuedTolerance : Duration, audiences : [Text], nonce : ?Text) : Result.Result<JWT, Text> {
-    assert (pubKeys.size() > 0);
+  public func decode(token : Text, getKey : GetKey, now : Time, issuedTolerance : Duration, audiences : [Text], nonce : ?Text) : async* Result.Result<JWT, Text> {
     assert (audiences.size() > 0);
 
     let nowS = now / 1_000_000_000;
@@ -126,10 +128,12 @@ module {
     if (header.typ != "JWT") return #err("invalid JWT header: typ must be JWT");
 
     // select RSA key
-    let ?pubKey = Array.find(pubKeys, func(k : RSA.PubKey) : Bool = (k.kid == header.kid)) else {
-      let available = Array.map(pubKeys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
-      return #err("no matching key found for keyID " # header.kid # " (available keys: " # available # ")");
+    let resKey = await* getKey(header.kid);
+    let pubKey = switch (resKey) {
+      case (#ok(key)) key;
+      case (#err(err)) return #err(err);
     };
+    // Check if key is compatible with current implementation
     if (pubKey.kty != "RSA") return #err("invalid key: kty must be RSA");
     if (pubKey.alg != "RS256") return #err("invalid key: alg must be RS256");
     if (pubKey.use != "sig") return #err("invalid key: use must be sig");

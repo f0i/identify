@@ -7,10 +7,13 @@ import Text "mo:core/Text";
 import Option "mo:core/Option";
 import Debug "mo:core/Debug";
 import Error "mo:core/Error";
+import Array "mo:core/Array";
 import Jwt "JWT";
 
 module {
   type Result<T> = Result.Result<T, Text>;
+  type GetKey = (Text) -> async* Result<RSA.PubKey>;
+  type Time = Time.Time;
 
   public type Provider = {
     #google;
@@ -28,6 +31,17 @@ module {
       case (#github) "GitHub";
       case (#x) "X";
     };
+  };
+
+  public type SignInInfo = {
+    provider : Provider;
+    sub : Text;
+    origin : Text;
+    signin : Time;
+  };
+
+  public func getUserKeySeed(signInInfo : SignInInfo) : Text {
+    providerName(signInInfo.provider) # " " # signInInfo.origin # " " # signInInfo.sub;
   };
 
   public type AuthParams = {
@@ -73,6 +87,39 @@ module {
       return #ok(config.keys);
     } catch (e) {
       return #err("Failed to fetch keys for " # config.name # ": " # Error.message(e));
+    };
+  };
+
+  public func getKeyFn(config : OAuth2ConnectConfig, transform : TransformFn) : (Text) -> async* Result<RSA.PubKey> {
+    return func(keyID : Text) : async* Result<RSA.PubKey> {
+      await* getKey(config, transform, keyID);
+    };
+  };
+
+  public func getKey(config : OAuth2ConnectConfig, transform : TransformFn, keyID : Text) : async* Result<RSA.PubKey> {
+    let optKey = Array.find(config.keys, func(k : RSA.PubKey) : Bool = (k.kid == keyID));
+    switch (optKey) {
+      case (?key) return #ok(key);
+      case (null) {};
+    };
+    // Key not found, fetch current keys
+    let attempts = config.fetchAttempts;
+    if (attempts.lastSuccess > (Time.now() - Time.toNanoseconds(#minutes(30)))) return #err("key not found in current keys");
+    if (attempts.lastAttempt > (Time.now() - Time.toNanoseconds(#minutes(10)))) return #err("key not found");
+    // Update keys
+    do {
+      let fetchRes = await fetchKeys(config, transform);
+      switch (fetchRes) {
+        case (#ok(keys)) {
+          if (keys.size() == 0) return #err("No keys available");
+        };
+        case (#err(err)) { return #err(err) };
+      };
+      let optKey = Array.find(config.keys, func(k : RSA.PubKey) : Bool = (k.kid == keyID));
+      switch (optKey) {
+        case (?key) return #ok(key);
+        case (null) { return #err("key id not found in up to date keys") };
+      };
     };
   };
 

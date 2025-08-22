@@ -48,6 +48,7 @@ persistent actor class Main() = this {
 
   type Time = Time.Time;
   type Provider = AuthProvider.Provider;
+  type Result<T> = Result.Result<T, Text>;
 
   type User = User.User;
   var users : Map.Map<Principal, User> = Map.empty();
@@ -156,22 +157,33 @@ persistent actor class Main() = this {
   };
 
   private func fetchAllKeys() : async () {
-    await fetchKeys(#google);
-    await fetchKeys(#auth0);
-    await fetchKeys(#zitadel);
+    ignore await fetchKeys(#google);
+    ignore await fetchKeys(#auth0);
+    ignore await fetchKeys(#zitadel);
   };
 
-  private func fetchKeys(provider : Provider) : async () {
+  /// Fetch keys for a specific provider.
+  /// Returns the keyids that were fetched.
+  private func fetchKeys(provider : Provider) : async Result<()> {
     let providerConfig = getProviderConfig(provider);
     let res = await AuthProvider.fetchKeys(providerConfig, transformKeys);
     let providerName = AuthProvider.providerName(provider);
     switch (res) {
-      case (#ok(keys)) Debug.print(Nat.toText(keys.size()) # " keys loaded for " # providerName # " (" # (Array.map(keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals())) # ")");
-      case (#err(err)) Debug.print(err);
+      case (#ok(keys)) {
+        let keyIDs = Array.map(keys, func(k : RSA.PubKey) : Text = k.kid);
+        Debug.print(
+          Nat.toText(keys.size()) # " keys loaded for " # providerName # " (" # Text.join(", ", keyIDs.vals()) # ")"
+        );
+        return #ok;
+      };
+      case (#err(err)) {
+        Debug.print(err);
+        return #err(err);
+      };
     };
   };
 
-  type PrepRes = Result.Result<{ pubKey : [Nat8]; expireAt : Time }, Text>;
+  type PrepRes = Result<{ pubKey : [Nat8]; expireAt : Time }>;
 
   transient let sigStore = CanisterSignature.newStore(Principal.fromActor(this));
 
@@ -193,8 +205,9 @@ persistent actor class Main() = this {
 
     let nonce = ?Hex.toText(sessionKey);
     // Time of JWT token from google must not be more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, providerConfig.keys, now, #minutes(5), [authConfig.clientId], nonce)) {
-      case (#err err) {
+    let getKeys = AuthProvider.getKeyFn(providerConfig, transformKeys);
+    let jwt = switch (await* Jwt.decode(token, getKeys, now, #minutes(5), [authConfig.clientId], nonce)) {
+      case (#err(err)) {
         Stats.log(stats, "getDelegations failed: invalid token from " # origin);
         return #err("failed to decode token: " # err);
       };
@@ -202,9 +215,17 @@ persistent actor class Main() = this {
     };
 
     let sub = jwt.payload.sub;
+    // sign delegation
+    let signInInfo : SignInInfo = {
+      provider;
+      sub;
+      origin;
+      signin = Time.now();
+    };
 
     // This is adding a signature to the sigTree and storing its hash in certified data.
-    let pubKey = CanisterSignature.prepareDelegation(sigStore, sub, origin, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
+    let userKeySeed = AuthProvider.getUserKeySeed(signInInfo);
+    let pubKey = CanisterSignature.prepareDelegation(sigStore, userKeySeed, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
 
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
@@ -229,48 +250,38 @@ persistent actor class Main() = this {
     });
   };
 
-  public shared query func getDelegation(provider : Provider, token : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
+  public shared query func getDelegation(provider : Provider, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
     // The log statements will only show up if this function is called as an update call
     Stats.logBalance(stats, "getDelegations");
 
     // If called as an update call, the getCertificate function returns null
     if (CertifiedData.getCertificate() == null) return #err("This function must only be called using query calls");
 
-    // load Provider config
-    let providerName = AuthProvider.providerName(provider);
-    let providerConfig = getProviderConfig(provider);
-    let #jwt(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
+    // check if user prepared a delegation
+    let ?signInInfo = Map.get(pkceSignIns, compareKey, sessionKey) else return #err("Delegation not prepared. Call prepareDelegation or prepareDelegationPKCE first.");
 
     // verify token
-    if (providerConfig.keys.size() == 0) return #err("Keys not loaded for " # providerName);
     if (expireAt < Time.now()) return #err("Expired");
+    if (origin != signInInfo.origin) return #err("Invalid origin");
+    if (provider != signInInfo.provider) return #err("Invalid provider");
 
-    let nonce = ?Hex.toText(sessionKey);
-    // Time of JWT token must not be issued more than 5 minutes in the future
-    let jwt = switch (Jwt.decode(token, providerConfig.keys, Time.now(), #minutes(5), [authConfig.clientId], nonce)) {
-      case (#err err) {
-        Stats.log(stats, "getDelegations failed: invalid token from " # origin # " " # err);
-        return #err("failed to decode token: " # err);
-      };
-      case (#ok data) data;
-    };
+    let userKeySeed = AuthProvider.getUserKeySeed(signInInfo);
+    let auth = CanisterSignature.getDelegation(sigStore, userKeySeed, sessionKey, expireAt, targets);
 
-    let sub = jwt.payload.sub;
-
-    //sign delegation
-    let auth = CanisterSignature.getDelegation(sigStore, sub, origin, sessionKey, expireAt, targets);
+    Map.add(pkceSignIns, compareKey, sessionKey, signInInfo); // Use user_data_from_pkce.id for sub
 
     return #ok({ auth });
   };
 
-  transient var pkceSignIns = Map.empty<[Nat8], { sub : Text; origin : Text; signin : Time }>();
+  type SignInInfo = AuthProvider.SignInInfo;
+  transient var pkceSignIns = Map.empty<[Nat8], SignInInfo>();
 
   public shared func prepareDelegationPKCE(provider : Provider, code : Text, verifier : Text, origin : Text, sessionKey : [Nat8], expireIn : Nat, targets : ?[Principal]) : async PrepRes {
     Stats.logBalance(stats, "prepareDelegationPKCE");
 
     // load Provider config
     let providerConfig = getProviderConfig(provider);
-    let #pkce(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
+    let #pkce(_authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
 
     // check preconditions
     if (expireIn > toNanos(MAX_EXPIRATION_TIME)) return #err("Expiration time to long");
@@ -303,10 +314,17 @@ persistent actor class Main() = this {
 
     let newUser = User.fromPKCE(origin, provider, user_data_from_pkce);
 
-    Map.add(pkceSignIns, compareKey, sessionKey, { sub = newUser.id; origin; signin = Time.now() }); // Use user_data_from_pkce.id for sub
+    let signInInfo : SignInInfo = {
+      provider;
+      sub = newUser.id;
+      origin;
+      signin = Time.now();
+    };
+    Map.add(pkceSignIns, compareKey, sessionKey, signInInfo); // Use user_data_from_pkce.id for sub
 
     // This is adding a signature to the sigTree and storing its hash in certified data.
-    let pubKey = CanisterSignature.prepareDelegation(sigStore, newUser.id, origin, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets); // Use user_data_from_pkce.id for sub
+    let userKeySeed = AuthProvider.getUserKeySeed(signInInfo);
+    let pubKey = CanisterSignature.prepareDelegation(sigStore, userKeySeed, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
 
     // store user data
     let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
@@ -327,28 +345,6 @@ persistent actor class Main() = this {
       pubKey;
       expireAt;
     });
-  };
-
-  public shared query func getDelegationPKCE(provider : Provider, code : Text, verifier : Text, origin : Text, sessionKey : [Nat8], expireAt : Time, targets : ?[Principal]) : async Result.Result<{ auth : Delegation.AuthResponse }, Text> {
-    // The log statements will only show up if this function is called as an update call
-    Stats.logBalance(stats, "getDelegations");
-
-    // If called as an update call, the getCertificate function returns null
-    if (CertifiedData.getCertificate() == null) return #err("This function must only be called using query calls");
-
-    let ?signInInfo = Map.get(pkceSignIns, compareKey, sessionKey) else return #err("Delegation not prepared. Call prepareDelegationPKCE first.");
-
-    // load Provider config
-    let providerName = AuthProvider.providerName(provider);
-    let providerConfig = getProviderConfig(provider);
-    let #pkce(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support PKCE based sing in");
-
-    // verify token
-    if (expireAt < Time.now()) return #err("Expired");
-
-    let auth = CanisterSignature.getDelegation(sigStore, signInInfo.sub, signInInfo.origin, sessionKey, expireAt, targets);
-
-    return #ok({ auth });
   };
 
   public shared query func checkEmail(principal : Principal, email : Text) : async Bool {

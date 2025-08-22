@@ -47,8 +47,8 @@ module {
       createdAt = Time.now();
       name = payload.name;
       username = if (payload.email_verified == ?true) payload.email else null;
+      avatar_url = payload.picture;
       bio = null; // Not available in JWT payload
-      avatar_url = null; // Not available in JWT payload
       website = null; // Not available in JWT payload
       location = null; // Not available in JWT payload
       provider_created_at = null; // Not available in JWT payload

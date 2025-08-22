@@ -95,7 +95,7 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
       content.style.alignItems = "center";
 
       const icon = document.createElement("img");
-      icon.src = `img/icons/${provider}.${provider === 'zitadel' ? 'png' : 'svg'}`;
+      icon.src = `img/icons/${String(provider)}.${provider === "zitadel" ? "png" : "svg"}`;
       icon.style.width = "24px";
       icon.style.height = "24px";
       icon.style.marginRight = "10px";

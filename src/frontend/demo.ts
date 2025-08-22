@@ -35,7 +35,7 @@ export function initDemo(identityProvider: string) {
     content.style.alignItems = "center";
 
     const icon = document.createElement("img");
-    icon.src = `img/icons/${provider.id}.${provider.id === 'zitadel' ? 'png' : 'svg'}`;
+    icon.src = `img/icons/${provider.id}.${provider.id === "zitadel" ? "png" : "svg"}`;
     icon.style.width = "24px";
     icon.style.height = "24px";
     icon.style.marginRight = "10px";
@@ -106,6 +106,12 @@ async function resetAuth() {
 
 // Check authentication status, get principal and load statistics
 async function checkAuth() {
+  // Show spinner, hide everything else
+  showElement("spinner", true);
+  showElement("user-card", false);
+  showElement("provider-buttons", false);
+  showElement("demo-logout", false);
+
   const authClient = await AuthClient.create();
   if (await authClient.isAuthenticated()) {
     console.log("Already authenticated!", authClient.getIdentity());
@@ -118,10 +124,12 @@ async function checkAuth() {
     });
     const principal = await backend
       .getPrincipal()
-      .catch((e: any): string => "" + e);
-    const userInfo = await backend
-      .getUser(principal, origin)
-      .catch((e: any): string => "" + e);
+      .catch((e: any): undefined => undefined);
+    const userInfo = principal
+      ? await backend
+          .getUser(principal, origin)
+          .catch((e: any): undefined => undefined)
+      : [];
 
     // Populate user card
     const userCard = document.getElementById("user-card");
@@ -138,7 +146,7 @@ async function checkAuth() {
       userInfo[0].avatar_url &&
       userInfo[0].avatar_url.length > 0
     ) {
-      userIcon.src = userInfo[0].avatar_url[0];
+      userIcon.src = userInfo[0].avatar_url[0] ?? "";
       showElement("user-icon", true);
     } else if (userIcon) {
       showElement("user-icon", false); // Hide if no valid picture
@@ -151,7 +159,7 @@ async function checkAuth() {
       userInfo[0].name &&
       userInfo[0].name.length > 0
     ) {
-      userName.innerText = userInfo[0].name[0];
+      userName.innerText = userInfo[0].name[0] ?? "";
       showElement("user-name", true);
     } else if (userName) {
       showElement("user-name", false); // Hide if no name
@@ -164,18 +172,13 @@ async function checkAuth() {
       userInfo[0].email &&
       userInfo[0].email.length > 0
     ) {
-      userEmail.innerText = userInfo[0].email[0];
+      userEmail.innerText = userInfo[0].email[0] ?? "";
       showElement("user-email", true);
     } else if (userEmail) {
       showElement("user-email", false); // Hide if no email
     }
 
-    if (
-      userId &&
-      userInfo &&
-      userInfo.length > 0 &&
-      userInfo[0].id
-    ) {
+    if (userId && userInfo && userInfo.length > 0 && userInfo[0].id) {
       userId.innerText = `User ID: ${userInfo[0].id}`;
       showElement("user-id", true);
     } else if (userId) {
@@ -208,7 +211,7 @@ async function checkAuth() {
 
       for (const key in userInfo[0]) {
         if (userInfo[0].hasOwnProperty(key) && !excludedKeys.includes(key)) {
-          let value = userInfo[0][key];
+          let value = (userInfo as any)[0][key];
           let displayValue = "";
           let shouldDisplay = true;
 
@@ -234,7 +237,13 @@ async function checkAuth() {
             displayValue = value;
           }
 
-          if (shouldDisplay && displayValue !== "N/A" && displayValue !== "" && displayValue !== "null" && displayValue !== "undefined") {
+          if (
+            shouldDisplay &&
+            displayValue !== "N/A" &&
+            displayValue !== "" &&
+            displayValue !== "null" &&
+            displayValue !== "undefined"
+          ) {
             const p = document.createElement("p");
             p.style.margin = "5px 0";
             p.style.fontSize = "0.85em";
@@ -242,7 +251,10 @@ async function checkAuth() {
 
             let displayKey = key.replace(/_/g, " ");
             // Capitalize first letter of each word
-            displayKey = displayKey.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+            displayKey = displayKey
+              .split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ");
 
             if (displayKey === "Provider Created At") {
               displayKey = "Created At";
@@ -274,6 +286,8 @@ async function checkAuth() {
     showElement("provider-buttons", true); // Show provider buttons
     showElement("demo-logout", false);
   }
+  // Hide spinner
+  showElement("spinner", false);
 }
 
 // Set list items
