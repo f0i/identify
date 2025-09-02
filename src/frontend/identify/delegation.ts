@@ -109,7 +109,11 @@ export const getDelegationPkce = async (
 
   statusCallback({
     status: "signing-in",
-    message: name + " sign in succeeded. Authorizing client...",
+    message:
+      "User approved sign in. Verify sign in and load user info from " +
+      name +
+      "...\n" +
+      "This can take a while.",
   });
 
   let prepRes = await backend.prepareDelegationPKCE(
