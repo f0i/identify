@@ -123,7 +123,7 @@ module {
     return authResponse;
   };
 
-  type SignatureStore = {
+  public type SignatureStore = {
     var sigTree : HashTree;
     sigExpQueue : Queue.Queue<Time>;
     canister : Principal;

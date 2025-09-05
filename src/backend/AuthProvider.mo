@@ -4,16 +4,17 @@ import Stats "Stats";
 import Time "mo:core/Time";
 import Result "mo:core/Result";
 import Text "mo:core/Text";
-import Option "mo:core/Option";
 import Debug "mo:core/Debug";
 import Error "mo:core/Error";
 import Array "mo:core/Array";
-import Jwt "JWT";
+import Nat "mo:core/Nat";
+import Order "mo:base/Order";
 
 module {
   type Result<T> = Result.Result<T, Text>;
   type GetKey = (Text) -> async* Result<RSA.PubKey>;
   type Time = Time.Time;
+  type Order = Order.Order;
 
   public type Provider = {
     #google;
@@ -48,6 +49,7 @@ module {
     #jwt : {
       clientId : Text;
       keysUrl : Text;
+      preFetch : Bool;
     };
     #pkce : {
       authorizationUrl : Text;
@@ -67,9 +69,18 @@ module {
     var fetchAttempts : Stats.AttemptTracker;
   };
 
+  public func compare(self : OAuth2ConnectConfig, other : OAuth2ConnectConfig) : Order {
+    let name = Text.compare(self.name, other.name);
+    if (name != #equal) return name;
+    let provider = Text.compare(providerName(self.provider), providerName(other.provider));
+    if (provider != #equal) return provider;
+    // compare other fields
+    return Text.compare(debug_show self, debug_show other);
+  };
+
   type TransformFn = Http.TransformFn;
 
-  public func fetchKeys(config : OAuth2ConnectConfig, transform : TransformFn) : async Result<[RSA.PubKey]> {
+  public func fetchKeys(config : OAuth2ConnectConfig, transformKeys : TransformFn) : async* Result<[RSA.PubKey]> {
     let attempts = config.fetchAttempts;
     attempts.count += 1;
     attempts.lastAttempt := Time.now();
@@ -78,24 +89,33 @@ module {
 
     Debug.print("fetching keys from " # params.keysUrl);
     try {
-      let fetched = await Http.getRequest(params.keysUrl, [], 5000, transform, true);
+      let fetched = await Http.getRequest(params.keysUrl, [], 5000, transformKeys, true);
 
       config.keys := RSA.deserializeKeys(fetched.data);
 
       attempts.count := 0;
       attempts.lastSuccess := Time.now();
+
       return #ok(config.keys);
     } catch (e) {
       return #err("Failed to fetch keys for " # config.name # ": " # Error.message(e));
     };
   };
 
+  /// Returns a function that can be used to fetch a public key by its key ID.
+  ///
+  /// The returned function takes a `Text` key ID and returns a Result containing
+  /// either the matching RSA public key or an error message.
   public func getKeyFn(config : OAuth2ConnectConfig, transform : TransformFn) : (Text) -> async* Result<RSA.PubKey> {
     return func(keyID : Text) : async* Result<RSA.PubKey> {
       await* getKey(config, transform, keyID);
     };
   };
 
+  /// Fetches a specific RSA public key by its key ID.
+  /// If a key with the given ID is present locally, it will return that one.
+  /// Otherwise this function will attempt to fetch the keys for this configuration, and then check again.
+  /// Re-fetching is limited to every 10 minutes if the fetch attempt failed, or 30 minutes if it was successful
   public func getKey(config : OAuth2ConnectConfig, transform : TransformFn, keyID : Text) : async* Result<RSA.PubKey> {
     let optKey = Array.find(config.keys, func(k : RSA.PubKey) : Bool = (k.kid == keyID));
     switch (optKey) {
@@ -109,7 +129,7 @@ module {
     Debug.print("Key not found for " # config.name # ": " # keyID);
     // Update keys
     do {
-      let fetchRes = await fetchKeys(config, transform);
+      let fetchRes = await* fetchKeys(config, transform);
       switch (fetchRes) {
         case (#ok(keys)) {
           if (keys.size() == 0) return #err("No keys available");
@@ -123,62 +143,5 @@ module {
       };
     };
   };
-
-  type Identifier = {
-    servie : Text;
-    id : Text;
-    email : ?Text;
-    email_verified : Bool;
-  };
-
-  public func getIdentifier(provider : Provider, jwt : Jwt.JWT) : Result<Identifier> {
-    switch (provider) {
-      case (#google) {
-        return #ok({
-          servie = "google";
-          id = jwt.payload.sub;
-          email = jwt.payload.email;
-          email_verified = Option.get(jwt.payload.email_verified, false);
-        });
-      };
-      case (#zitadel) {
-        if (jwt.payload.amr == ?["pwd"]) {
-          return #ok({
-            servie = "zitadel";
-            id = jwt.payload.sub;
-            email = jwt.payload.email; // TODO: check if email address is available
-            email_verified = Option.get(jwt.payload.email_verified, false);
-          });
-        } else {
-          return #err("Unsupported authentication method in zitadel: " # (debug_show jwt.payload.amr));
-        };
-      };
-      case (#auth0) {
-        let sub = jwt.payload.sub;
-        let subParts = Text.split(sub, #char('|'));
-        let ?auth = subParts.next() else return #err("Invalid Id token: missing dat in subject field " # sub);
-        let ?userId = subParts.next() else return #err("Invalid Id token: missing user id in subject field " # sub);
-        let null = subParts.next() else return #err("Invalid ID token: excess data in subject field " # sub);
-
-        if (auth == "github" or auth == "google-oauth2") {
-          return #ok({
-            servie = auth;
-            id = userId;
-            email = jwt.payload.email;
-            email_verified = Option.get(jwt.payload.email_verified, false);
-          });
-        } else {
-          return #err("Unsupported sub format in auth0: " # jwt.payload.sub);
-        };
-      };
-      case (_) #err("Identifier not implemented for provider " # providerName(provider));
-    };
-  };
-
-  public func getVerifiedEmail(provider : Provider, jwt : Jwt.JWT) : ?Text {
-    let #ok(data) = getIdentifier(provider, jwt) else return null;
-    if (not data.email_verified) return null;
-    return data.email;
-  }
 
 };
