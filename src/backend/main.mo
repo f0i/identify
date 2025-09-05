@@ -282,7 +282,7 @@ persistent actor class Main() = this {
 
     // load Provider config
     let providerConfig = getProviderConfig(provider);
-    let #pkce(_authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
+    let #pkce(_authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support PKCE based sing in");
 
     // check preconditions
     if (expireIn > toNanos(MAX_EXPIRATION_TIME)) return #err("Expiration time to long");
