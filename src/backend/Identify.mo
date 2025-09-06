@@ -51,11 +51,11 @@ module {
     users : Map<Principal, User>;
   };
 
-  public func init(owner : Principal) : Identify {
+  public func init(backend : Principal, owner : Principal) : Identify {
     return {
       providers = List.empty();
       owner;
-      sigStore = CanisterSignature.newStore(owner);
+      sigStore = CanisterSignature.newStore(backend);
       signIns = Map.empty<[Nat8], SignInInfo>();
       users = Map.empty<Principal, User>();
     };

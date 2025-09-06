@@ -20,7 +20,7 @@ import Identify "Identify";
 
 shared ({ caller = initializer }) persistent actor class Main() = this {
   let owner = initializer;
-  let _backend = Principal.fromActor(this);
+  let backend = Principal.fromActor(this);
 
   type Duration = Time.Duration;
 
@@ -60,7 +60,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   };
   Map.add(trustedApps, Principal.compare, Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"), btcGiftCardsDemo);
 
-  let identify = Identify.init(owner);
+  let identify = Identify.init(backend, owner);
 
   private func fetchAllKeys() : async () {
     // Key updates are logged using Debug.print. You can check by calling `dfx canister logs backend`
