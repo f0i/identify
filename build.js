@@ -46,6 +46,7 @@ esbuild
     // copy static files
     execSync(`cp -r src/frontend/img out/frontend/`);
     execSync(`cp -r src/frontend/fonts out/frontend/`);
+    execSync(`cp src/frontend/.ic-assets.json5 out/frontend/`);
   })
   .catch((err) => {
     console.error(err);

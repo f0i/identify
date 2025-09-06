@@ -151,6 +151,8 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getUser(principal : Principal, origin : Text) : async ?User {
     Stats.logBalance(stats, "getUser");
+    ignore caller;
+    ignore origin;
     //let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
     //for (o in appInfo.origins.vals()) {
     //if (o == origin) {
