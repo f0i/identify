@@ -2,9 +2,7 @@ import { JSON } "mo:serde";
 import Http "Http";
 import Text "mo:core/Text";
 import Nat "mo:core/Nat";
-import Debug "mo:core/Debug";
 import Result "mo:core/Result";
-import Runtime "mo:core/Runtime";
 import Iter "mo:core/Iter";
 import Option "mo:core/Option";
 import AuthProvider "AuthProvider";
@@ -16,7 +14,7 @@ module PKCE {
 
   // Define a type for the transform function
   type TransformFn = Http.TransformFn;
-  type OAuth2ConnectConfig = AuthProvider.OAuth2ConnectConfig;
+  type OAuth2Config = AuthProvider.OAuth2Config;
 
   public type Bearer = {
     token_type : Text;
@@ -97,7 +95,7 @@ module PKCE {
 
   /// Function to exchange the authorization code for an access token
   public func exchangeToken(
-    config : OAuth2ConnectConfig,
+    config : OAuth2Config,
     code : Text,
     verifier : Text,
     transform : TransformFn,
@@ -138,7 +136,7 @@ module PKCE {
 
   /// Function to get user info using the access token
   public func getUserInfo(
-    config : OAuth2ConnectConfig,
+    config : OAuth2Config,
     token : Bearer,
     transform : TransformFn,
   ) : async Result.Result<PKCEUser, Text> {

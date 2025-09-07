@@ -17,12 +17,14 @@ import Array "mo:core/Array";
 import Text "mo:core/Text";
 import User "User";
 import Identify "Identify";
+import Whitelist "Whitelist";
 
 shared ({ caller = initializer }) persistent actor class Main() = this {
   let owner = initializer;
   let backend = Principal.fromActor(this);
 
   type Duration = Time.Duration;
+  type User = User.User;
 
   /// Minimum time between updating oAuth keys from provider.
   /// Thisl will limit the amoutn of requests when invalid key-ids are used,
@@ -38,34 +40,10 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   type Result<T> = Result.Result<T, Text>;
   type PrepRes = Identify.PrepRes;
 
-  type User = User.User;
-  var users : Map.Map<Principal, User> = Map.empty();
-
-  type AppInfo = { name : Text; origins : [Text] };
-  var trustedApps : Map.Map<Principal, AppInfo> = Map.empty();
-
   var stats = Stats.new(1000);
   Stats.log(stats, "deploied new backend version.");
 
-  // Reset trusted apps on each deployment
-  trustedApps := Map.empty();
-  transient let btcGiftCards = {
-    name = "Bitcoin Gift Cards";
-    origins = ["https://btc-gift-cards.com", "https://y4leg-vyaaa-aaaah-aq3ra-cai.icp0.io"];
-  };
-  Map.add(trustedApps, Principal.compare, Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"), btcGiftCards);
-  transient let btcGiftCardsDemo = {
-    name = "Bitcoin Gift Cards Demo";
-    origins = ["https://mdh4j-syaaa-aaaah-arcfq-cai.icp0.io"];
-  };
-  Map.add(trustedApps, Principal.compare, Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"), btcGiftCardsDemo);
-
   let identify = Identify.init(backend, owner);
-
-  private func fetchAllKeys() : async () {
-    // Key updates are logged using Debug.print. You can check by calling `dfx canister logs backend`
-    ignore await* Identify.fetchAllKeys(identify, transformKeys);
-  };
 
   /// Verify the token and prepare a delegation.
   /// The delegation can be fetched using an query call to getDelegation.
@@ -81,9 +59,14 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
     let res = await* Identify.prepareDelegation(identify, provider, token, origin, sessionKey, expireIn, targets, transformKeys);
 
+    let #ok(data) = res else return res;
+    if (data.isNew) Stats.inc(stats, "signup", origin);
+    Stats.inc(stats, "signin", origin);
+
     return res;
   };
 
+  // Check PKCE sign in and prepare delegation
   public shared func prepareDelegationPKCE(
     provider : Provider,
     code : Text,
@@ -97,9 +80,14 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
     let res = await* Identify.prepareDelegationPKCE(identify, provider, code, verifier, origin, sessionKey, expireIn, targets, transform);
 
+    let #ok(data) = res else return res;
+    if (data.isNew) Stats.inc(stats, "signup", origin);
+    Stats.inc(stats, "signin", origin);
+
     return res;
   };
 
+  // Get the previously prepared delegation
   public shared query func getDelegation(
     provider : Provider,
     origin : Text,
@@ -125,114 +113,95 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     Http.transform(raw);
   };
 
-  public shared query func checkEmail(principal : Principal, email : Text) : async Bool {
-    Stats.logBalance(stats, "checkEmail");
-    let ?actual = Map.get(users, Principal.compare, principal) else return false;
-    return ?email == actual.email;
-  };
+  /// Whitelist provides helper functions to limit access to user data
+  var whitelist = Whitelist.empty();
+  Whitelist.addApp(
+    whitelist,
+    "Bitcoin Gift Cards",
+    Principal.fromText("yvip2-dqaaa-aaaah-aq3qq-cai"),
+    ["https://btc-gift-cards.com", "https://y4leg-vyaaa-aaaah-aq3ra-cai.icp0.io"],
+  );
+  Whitelist.addApp(
+    whitelist,
+    "Bitcoin Gift Cards Demo",
+    Principal.fromText("meg25-7aaaa-aaaah-arcfa-cai"),
+    ["https://mdh4j-syaaa-aaaah-arcfq-cai.icp0.io"],
+  );
 
   /// Get an email address for a principal
   /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getEmail(principal : Principal, origin : Text) : async ?Text {
     Stats.logBalance(stats, "getEmail");
-    let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
-    for (o in appInfo.origins.vals()) {
-      if (o == origin) {
-        let ?user = Map.get(users, Principal.compare, principal) else return null;
-        if (user.email_verified != ?true) return null;
-        if (user.origin == origin) return user.email;
-      };
+
+    let ?user = Identify.getUser(identify, principal) else return null;
+
+    // Optional: use whitelist to limit access to user data to specific apps.
+    if (not Whitelist.isWhitelisted(whitelist, caller, origin, user.origin)) {
+      // trap("Permission denied for origin " # origin);
     };
-    // origin was not in appInfo.origions
-    trap("Permission denied for origin " # origin);
+    return user.email;
   };
 
   /// Get an email address for a principal
   /// This function can only be called from whitelisted principals, usually the backend canister of an app
   public shared query ({ caller }) func getUser(principal : Principal, origin : Text) : async ?User {
     Stats.logBalance(stats, "getUser");
-    ignore caller;
-    ignore origin;
-    //let ?appInfo = Map.get(trustedApps, Principal.compare, caller) else trap("Permission denied for caller " # Principal.toText(caller));
-    //for (o in appInfo.origins.vals()) {
-    //if (o == origin) {
-    let ?user = Map.get(users, Principal.compare, principal) else return null;
-    //if (user.origin == origin)
+    let ?user = Identify.getUser(identify, principal) else return null;
+
+    // Optional: use whitelist to limit access to user data to specific apps.
+    if (not Whitelist.isWhitelisted(whitelist, caller, origin, user.origin)) {
+      // trap("Permission denied for origin " # origin);
+    };
     return ?user;
-    //};
-    //};
-    // origin was not in appInfo.origions
-    //trap("Permission denied for origin " # origin);
   };
 
   /// Get principal and some user info of the caller
   public shared query ({ caller }) func getPrincipal() : async Principal {
     Stats.logBalance(stats, "getPrincipal");
     return caller;
-
-    //let userInfo = switch (Map.get(users, Principal.compare, caller)) {
-    //  case (?user) {
-    //    "Signed in with " # AuthProvider.providerName(user.provider) # ". " #
-    //    "User found: " # (debug_show user);
-    //  };
-    //  case (null) "User not found";
-    //};
-
-    //if (Principal.isAnonymous(caller)) return "Anonymous user (not signed in) " # Principal.toText(caller);
-    //return "Principal " # Principal.toText(caller) # "\n" # userInfo;
   };
 
   /// Get cycle balance of the backend canister
-  public shared query ({ caller }) func getBalance() : async {
+  public shared query func getBalance() : async {
     val : Nat;
     text : Text;
   } {
-    if (not hasPermission(caller)) {
-      trap("Permisison denied.");
-    };
     let val = Stats.cycleBalanceStart();
     let text = Stats.formatNat(val, "C");
     return { val; text };
   };
 
+  /// Get information about the app
   public shared query func getStats() : async [Text] {
     Stats.logBalance(stats, "getStats");
     let appCount = Nat.toText(Stats.getSubCount(stats, "signup")) # " apps connected";
-    let keyCount = Nat.toText(Map.size(users)) # " identities created";
+    let keyCount = Nat.toText(Map.size(identify.users)) # " identities created";
     let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
     return [appCount, keyCount, loginCount];
   };
 
-  public shared query ({ caller }) func info() : async Text {
-    if (not hasPermission(caller)) Stats.logBalance(stats, "getStats");
-
+  /// Show the latest key IDs
+  public shared query func showKeyIds() : async Text {
     let g = Array.map(googleConfig.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
     let a = Array.map(auth0Config.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
     let z = Array.map(zitadelConfig.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
     return debug_show [g, a, z];
   };
 
-  var mods : Set.Set<Principal> = Set.new();
-  public shared ({ caller }) func addMod(user : Principal) : async Result.Result<(), Text> {
-    Stats.logBalance(stats, "addMod");
-    if (not Principal.isController(caller)) return #err("Permisison denied.");
-    Set.add(mods, phash, user);
-    #ok;
-  };
-  private func hasPermission(user : Principal) : Bool {
-    if (Principal.isController(user)) return true;
-    if (Set.has(mods, phash, user)) return true;
-    return false;
+  // Pre-fetch keys to verify JWT keys.
+  private func fetchAllKeys() : async () {
+    // Key updates are logged using Debug.print. You can check by calling `dfx canister logs --ic backend`
+    ignore await* Identify.prefetchKeys(identify, transformKeys);
   };
 
-  // Update keys now and every 2 days
+  /// Update keys now and every 2 days
   ignore setTimer<system>(#seconds(1), fetchAllKeys);
   ignore recurringTimer<system>(KEY_UPDATE_INTERVAL, fetchAllKeys);
 
   /// Sample configurations
-  type OAuth2ConnectConfig = AuthProvider.OAuth2ConnectConfig;
+  type OAuth2Config = AuthProvider.OAuth2Config;
 
-  transient let googleConfig : OAuth2ConnectConfig = {
+  transient let googleConfig : OAuth2Config = {
     name = "Google";
     provider = #google;
     auth = #jwt({
@@ -244,7 +213,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     var fetchAttempts = Stats.newAttemptTracker();
   };
 
-  transient let auth0Config : OAuth2ConnectConfig = {
+  transient let auth0Config : OAuth2Config = {
     name = "Auth0";
     provider = #auth0;
     auth = #jwt({
@@ -256,7 +225,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     var fetchAttempts = Stats.newAttemptTracker();
   };
 
-  transient let zitadelConfig : OAuth2ConnectConfig = {
+  transient let zitadelConfig : OAuth2Config = {
     name = "Zitadel";
     provider = #zitadel;
     auth = #jwt({
@@ -268,7 +237,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     var fetchAttempts = Stats.newAttemptTracker();
   };
 
-  transient let githubConfig : OAuth2ConnectConfig = {
+  transient let githubConfig : OAuth2Config = {
     name = "GitHub";
     provider = #github;
     auth = #pkce({
@@ -283,7 +252,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     var fetchAttempts = Stats.newAttemptTracker();
   };
 
-  transient let xConfig : OAuth2ConnectConfig = {
+  transient let xConfig : OAuth2Config = {
     name = "X";
     provider = #x;
     auth = #pkce({

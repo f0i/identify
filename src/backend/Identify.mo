@@ -44,7 +44,7 @@ module {
   public type PrepRes = Result<{ pubKey : [Nat8]; expireAt : Time; isNew : Bool }>;
 
   public type Identify = {
-    providers : List<AuthProvider.OAuth2ConnectConfig>;
+    providers : List<AuthProvider.OAuth2Config>;
     owner : Principal;
     sigStore : CanisterSignature.SignatureStore;
     signIns : Map<[Nat8], SignInInfo>;
@@ -61,12 +61,12 @@ module {
     };
   };
 
-  public func addProvider(config : Identify, provider : AuthProvider.OAuth2ConnectConfig, caller : Principal) {
+  public func addProvider(config : Identify, provider : AuthProvider.OAuth2Config, caller : Principal) {
     if (caller != config.owner) Runtime.trap("Permission denied");
     List.add(config.providers, provider);
   };
 
-  public func getConfig(config : Identify, provider : Provider) : ?AuthProvider.OAuth2ConnectConfig {
+  public func getConfig(config : Identify, provider : Provider) : ?AuthProvider.OAuth2Config {
     for (config in List.values(config.providers)) {
       if (config.provider == provider) return ?config;
     };
@@ -74,7 +74,7 @@ module {
     return null;
   };
 
-  public func fetchAllKeys(identify : Identify, transformKeys : TransformFn) : async* [Result<[RSA.PubKey]>] {
+  public func prefetchKeys(identify : Identify, transformKeys : TransformFn) : async* [Result<[RSA.PubKey]>] {
     let results = List.empty<Result<[RSA.PubKey]>>();
     for (config in List.values(identify.providers)) {
       let res = await* fetchKeys(config, transformKeys);
@@ -83,7 +83,7 @@ module {
     return List.toArray(results);
   };
 
-  func fetchKeys(providerConfig : AuthProvider.OAuth2ConnectConfig, transformKeys : Http.TransformFn) : async* Result<[RSA.PubKey]> {
+  func fetchKeys(providerConfig : AuthProvider.OAuth2Config, transformKeys : Http.TransformFn) : async* Result<[RSA.PubKey]> {
     let res = await* AuthProvider.fetchKeys(providerConfig, transformKeys);
 
     // Debug messages
@@ -279,5 +279,9 @@ module {
   };
 
   func compareKey(a : [Nat8], b : [Nat8]) : Order.Order = Array.compare(a, b, Nat8.compare);
+
+  public func getUser(identify : Identify, principal : Principal) : ?User {
+    Map.get(identify.users, Principal.compare, principal);
+  }
 
 };

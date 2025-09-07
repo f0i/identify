@@ -61,7 +61,7 @@ module {
     };
   };
 
-  public type OAuth2ConnectConfig = {
+  public type OAuth2Config = {
     provider : Provider;
     name : Text;
     auth : AuthParams;
@@ -69,7 +69,7 @@ module {
     var fetchAttempts : Stats.AttemptTracker;
   };
 
-  public func compare(self : OAuth2ConnectConfig, other : OAuth2ConnectConfig) : Order {
+  public func compare(self : OAuth2Config, other : OAuth2Config) : Order {
     let name = Text.compare(self.name, other.name);
     if (name != #equal) return name;
     let provider = Text.compare(providerName(self.provider), providerName(other.provider));
@@ -80,7 +80,7 @@ module {
 
   type TransformFn = Http.TransformFn;
 
-  public func fetchKeys(config : OAuth2ConnectConfig, transformKeys : TransformFn) : async* Result<[RSA.PubKey]> {
+  public func fetchKeys(config : OAuth2Config, transformKeys : TransformFn) : async* Result<[RSA.PubKey]> {
     let attempts = config.fetchAttempts;
     attempts.count += 1;
     attempts.lastAttempt := Time.now();
@@ -106,7 +106,7 @@ module {
   ///
   /// The returned function takes a `Text` key ID and returns a Result containing
   /// either the matching RSA public key or an error message.
-  public func getKeyFn(config : OAuth2ConnectConfig, transform : TransformFn) : (Text) -> async* Result<RSA.PubKey> {
+  public func getKeyFn(config : OAuth2Config, transform : TransformFn) : (Text) -> async* Result<RSA.PubKey> {
     return func(keyID : Text) : async* Result<RSA.PubKey> {
       await* getKey(config, transform, keyID);
     };
@@ -116,7 +116,7 @@ module {
   /// If a key with the given ID is present locally, it will return that one.
   /// Otherwise this function will attempt to fetch the keys for this configuration, and then check again.
   /// Re-fetching is limited to every 10 minutes if the fetch attempt failed, or 30 minutes if it was successful
-  public func getKey(config : OAuth2ConnectConfig, transform : TransformFn, keyID : Text) : async* Result<RSA.PubKey> {
+  public func getKey(config : OAuth2Config, transform : TransformFn, keyID : Text) : async* Result<RSA.PubKey> {
     let optKey = Array.find(config.keys, func(k : RSA.PubKey) : Bool = (k.kid == keyID));
     switch (optKey) {
       case (?key) return #ok(key);
