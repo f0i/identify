@@ -77,8 +77,10 @@ module {
   public func prefetchKeys(identify : Identify, transformKeys : TransformFn) : async* [Result<[RSA.PubKey]>] {
     let results = List.empty<Result<[RSA.PubKey]>>();
     for (config in List.values(identify.providers)) {
-      let res = await* fetchKeys(config, transformKeys);
-      List.add(results, res);
+      if (AuthProvider.shouldPrefetch(config)) {
+        let res = await* fetchKeys(config, transformKeys);
+        List.add(results, res);
+      };
     };
     return List.toArray(results);
   };

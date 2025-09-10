@@ -80,6 +80,11 @@ module {
 
   type TransformFn = Http.TransformFn;
 
+  public func shouldPrefetch(config : OAuth2Config) : Bool {
+    let #jwt(conf) = config.auth else return false;
+    return conf.preFetch;
+  };
+
   public func fetchKeys(config : OAuth2Config, transformKeys : TransformFn) : async* Result<[RSA.PubKey]> {
     let attempts = config.fetchAttempts;
     attempts.count += 1;
