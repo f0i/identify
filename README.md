@@ -190,6 +190,10 @@ However PKCE on X does not require a client secret, so there is one less attack 
 
 https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/authorization-code
 
+X uses incredibly restrictive limits on all their APIs.
+This limits the number of times we can request user info during the sign in process, limiting sign ins to 25 times per day.
+See https://docs.x.com/x-api/fundamentals/rate-limits and look for `users/me` to check the current rate limits.
+
 ## Apple
 
 https://developer.apple.com/documentation/sign_in_with_apple
