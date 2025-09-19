@@ -1,9 +1,15 @@
 export const IDENTITY_PROVIDER = "https://login.f0i.de";
 
 export const GSI = {
-  // TODO:? consider loading clientID from the backend to make configuration easier
   client_id:
     "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com",
+  authURL: "https://accounts.google.com/o/oauth2/v2/auth",
+  authScope: "openid profile email",
+  configURL: "https://accounts.google.com/gsi/fedcm.json",
+};
+
+export const GOOGLE = {
+  authority: "https://accounts.google.com/",
 };
 
 export const ZITADEL = {
@@ -33,18 +39,43 @@ export const X = {
   redirect: IDENTITY_PROVIDER + "/pkce-callback.html",
 };
 
+export const APPLE = {
+  client_id: "<TODO>",
+  authority: "https://appleid.apple.com",
+  response_type: "code",
+  scope: "openid email name",
+  redirect_uri: IDENTITY_PROVIDER + "/callback.html",
+};
+
+export const LINKED_IN = {
+  client_id: "<TODO>",
+  authority: "https://www.linkedin.com/oauth/",
+  scope: "oppenid pfrofile email",
+  redirect_uri: IDENTITY_PROVIDER + "/callback.html",
+};
+
 export type GoogleConfig = typeof GSI;
 export type Auth0Config = typeof AUTH0;
 export type ZitadelConfig = typeof ZITADEL;
 export type GithubConfig = typeof GITHUB;
 export type XConfig = typeof X;
+export type AppleConfig = typeof APPLE;
+
+export type OIDCConfig = {
+  client_id: string;
+  authority: string;
+  scope: string;
+  response_type: "code" | "id_token";
+  fedCM_config_url?: string;
+};
 
 export type AuthConfig =
   | GoogleConfig
   | Auth0Config
   | ZitadelConfig
   | GithubConfig
-  | XConfig;
+  | XConfig
+  | OIDCConfig;
 
 export type PKCEConfig = GithubConfig | XConfig;
 
@@ -65,6 +96,18 @@ export function getZitadelConfig(config: AuthConfig): ZitadelConfig {
     "redirect_uri" in config
   )
     return config as ZitadelConfig;
+  throw "Invalid config";
+}
+
+export function getOIDCConfig(config: AuthConfig): OIDCConfig {
+  if (
+    "authority" in config &&
+    "client_id" in config &&
+    "redirect_uri" in config &&
+    "scope" in config &&
+    "response_type" in config
+  )
+    return config as OIDCConfig;
   throw "Invalid config";
 }
 

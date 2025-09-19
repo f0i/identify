@@ -200,6 +200,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   /// Sample configurations
   type OAuth2Config = AuthProvider.OAuth2Config;
+  type OIDCConfig = AuthProvider.OAuth2Config;
 
   transient let googleConfig : OAuth2Config = {
     name = "Google";
@@ -208,6 +209,10 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
       keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
       preFetch = true;
+      authority = null;
+      fedCMConfigUrl = null;
+      responseType = #code;
+      scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -220,6 +225,10 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       clientId = "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ";
       keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
       preFetch = true;
+      authority = null;
+      fedCMConfigUrl = null;
+      responseType = #code;
+      scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -232,6 +241,10 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       clientId = "327788236128717664";
       keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
       preFetch = false;
+      authority = null;
+      fedCMConfigUrl = null;
+      responseType = #code;
+      scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -272,5 +285,23 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   Identify.addProvider(identify, zitadelConfig, owner);
   Identify.addProvider(identify, xConfig, owner);
   Identify.addProvider(identify, githubConfig, owner);
+
+  public shared ({ caller }) func addProvider(name : Text, params : AuthProvider.AuthParams) : async Result<()> {
+    // Permission check.
+    // Permission is also checked inside the addProvider function.
+    // Checking here again is optional, but I prefer to exit as soon as possible.
+    if (not Principal.isController(caller)) trap("Permission denied");
+    if (caller == owner) trap("Permission denied");
+    // Create and add the configuration
+    let config = {
+      provider = #generic(name);
+      name = name;
+      auth = params;
+      var keys : [RSA.PubKey] = [];
+      var fetchAttempts = Stats.newAttemptTracker();
+    };
+    Identify.addProviderFetch(identify, config, caller);
+    return #ok;
+  };
 
 };

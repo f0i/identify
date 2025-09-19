@@ -32,6 +32,8 @@ module {
   type Time = Time.Time;
   type User = User.User;
   type TransformFn = Http.TransformFn;
+  type OAuth2Config = AuthProvider.OAuth2Config;
+  type PartialAuthConf = AuthProvider.PartialAuthConf;
   let toNanos = Time.toNanoseconds;
 
   /// Maximum session time before delegation expires
@@ -61,9 +63,52 @@ module {
     };
   };
 
+  /// Add a provider to the list of configured providers.
+  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
+  /// This function can only be called by the owner (which is provided on init.)
   public func addProvider(config : Identify, provider : AuthProvider.OAuth2Config, caller : Principal) {
     if (caller != config.owner) Runtime.trap("Permission denied");
-    List.add(config.providers, provider);
+
+    // TODO: check if provider.provider is already in the list.
+    switch (List.findIndex(config.providers, AuthProvider.compareProvider, providerConfig)) {
+      case (null) {
+        Debug.print("Adding provider " # provider.name # " with config " # debug_show authProvider);
+        List.add(config.providers, providerConfig);
+      };
+      case (?index) {
+        Debug.print("Replace provider " # provider.name # " with config " # debug_show authProvider);
+        List.put(config.providers, index, providerConfig);
+      };
+    };
+
+  };
+
+  public func addPrividerFetch(config : Identify, provider : OAuth2Config, caller : Principal) : async* Result<()> {
+    if (caller != config.owner) Runtime.trap("Permission denied");
+
+    var providerConfig : AuthProvider.OAuth2Config = provider;
+    label doFetchConfig do {
+      switch (provider.auth) {
+        case (#jwt(conf)) {
+          let ?authority = conf.authority else break doFetchConfig;
+          let partialAuth = switch (AuthProvider.fetchConfig(authority)) {
+            case (#ok(data)) data;
+            case (#err(err)) return #err(err);
+          };
+          providerConfig := {
+            provider with
+            auth = #jwt({
+              partialAuth with
+              clientId = conf.clientId;
+              preFetch = conf.preFetch;
+            });
+          };
+        };
+        case (#pkce(_)) { break doFetchConfig };
+      };
+    };
+    addProvider(config, authProvider, caller);
+    return #ok;
   };
 
   public func getConfig(config : Identify, provider : Provider) : ?AuthProvider.OAuth2Config {

@@ -22,6 +22,7 @@ module {
     #auth0;
     #github;
     #x;
+    #generic : Text;
   };
 
   public func providerName(provider : Provider) : Text {
@@ -31,6 +32,7 @@ module {
       case (#auth0) "Auth0";
       case (#github) "GitHub";
       case (#x) "X";
+      case (#generic(key)) "SignInWith" # key;
     };
   };
 
@@ -46,11 +48,17 @@ module {
   };
 
   public type AuthParams = {
+    /// OpenID Connect params
     #jwt : {
       clientId : Text;
-      keysUrl : Text;
+      keysUrl : Text; // TODO: rename to jwks_uri
       preFetch : Bool;
+      authority : ?Text;
+      fedCMConfigUrl : ?Text;
+      responseType : { #code; #id_token };
+      scope : ?Text;
     };
+    /// PKCE params
     #pkce : {
       authorizationUrl : Text;
       tokenUrl : Text;
@@ -59,6 +67,11 @@ module {
       redirectUri : Text;
       clientSecret : ?Text;
     };
+  };
+
+  /// Configuration values fetched from .well-known/openid-configuration
+  public type PartialAuthConf = {
+    jwks_uri : Text;
   };
 
   public type OAuth2Config = {
@@ -76,6 +89,10 @@ module {
     if (provider != #equal) return provider;
     // compare other fields
     return Text.compare(debug_show self, debug_show other);
+  };
+
+  public func compareProvider(self : OAuth2Config, other : OAuth2Config) : Order {
+    return Text.compare(providerName(self.provider), providerName(other.provider));
   };
 
   type TransformFn = Http.TransformFn;
@@ -104,6 +121,27 @@ module {
       return #ok(config.keys);
     } catch (e) {
       return #err("Failed to fetch keys for " # config.name # ": " # Error.message(e));
+    };
+  };
+
+  func fetchConfig(authority : Text, transform : TransformFn) : async* Result<PartialAuthConf> {
+    if (not Text.endsWith(authority, #char('/'))) {
+      return #err("Invalid configuration: authority must end with '/': " # authority);
+    };
+
+    let url = authority # ".well-known/openid-configuration";
+    try {
+      let fetched = await Http.getRequest(url, [], 5000, transform, true);
+
+      let dataBlob = switch (JSON.fromText(fetched.data, null)) {
+        case (#ok data) data;
+        case (#err err) return #err("could not parse keys: " # err);
+      };
+      let ?data : ?PartialAuthConf = from_candid (dataBlob) else return #err("missing fields in " # fetched.data);
+
+      return #ok(data);
+    } catch (e) {
+      return #err("Failed to fetch configuration from " # url);
     };
   };
 
