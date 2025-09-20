@@ -64,12 +64,11 @@ module {
   };
 
   /// Add a provider to the list of configured providers.
-  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
   /// This function can only be called by the owner (which is provided on init.)
+  /// The config.provider must be unique, otherwise the previous one will be replaced
   public func addProvider(config : Identify, provider : AuthProvider.OAuth2Config, caller : Principal) {
     if (caller != config.owner) Runtime.trap("Permission denied");
 
-    // TODO: check if provider.provider is already in the list.
     switch (List.findIndex(config.providers, AuthProvider.compareProvider, providerConfig)) {
       case (null) {
         Debug.print("Adding provider " # provider.name # " with config " # debug_show authProvider);
@@ -83,6 +82,9 @@ module {
 
   };
 
+  /// Add a provider to the list of configured providers.
+  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
+  ///
   public func addPrividerFetch(config : Identify, provider : OAuth2Config, caller : Principal) : async* Result<()> {
     if (caller != config.owner) Runtime.trap("Permission denied");
 

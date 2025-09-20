@@ -9,6 +9,7 @@ import Error "mo:core/Error";
 import Array "mo:core/Array";
 import Nat "mo:core/Nat";
 import Order "mo:base/Order";
+import { JSON } "mo:serde";
 
 module {
   type Result<T> = Result.Result<T, Text>;
