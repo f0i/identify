@@ -1,8 +1,6 @@
 import Result "mo:core/Result";
 import Time "mo:core/Time";
 import Map "mo:core/Map";
-import { phash } "mo:map/Map";
-import Set "mo:map/Set";
 import RSA "RSA";
 import Delegation "Delegation";
 import Principal "mo:core/Principal";
@@ -286,6 +284,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   Identify.addProvider(identify, xConfig, owner);
   Identify.addProvider(identify, githubConfig, owner);
 
+  /// Function to add a new OAuth2 provider.
   public shared ({ caller }) func addProvider(name : Text, params : AuthProvider.AuthParams) : async Result<()> {
     // Permission check.
     // Permission is also checked inside the addProvider function.
@@ -300,8 +299,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       var keys : [RSA.PubKey] = [];
       var fetchAttempts = Stats.newAttemptTracker();
     };
-    Identify.addProviderFetch(identify, config, caller);
-    return #ok;
+    return await* Identify.addProviderFetch(identify, config, caller, transform);
   };
 
 };

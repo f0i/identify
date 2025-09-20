@@ -7,7 +7,6 @@ import Text "mo:core/Text";
 import Debug "mo:core/Debug";
 import Error "mo:core/Error";
 import Array "mo:core/Array";
-import Nat "mo:core/Nat";
 import Order "mo:base/Order";
 import { JSON } "mo:serde";
 
@@ -26,6 +25,7 @@ module {
     #generic : Text;
   };
 
+  /// Returns a human-readable name for the given provider.
   public func providerName(provider : Provider) : Text {
     switch (provider) {
       case (#google) "Google";
@@ -44,6 +44,7 @@ module {
     signin : Time;
   };
 
+  /// Generates a unique key seed for a user based on their sign-in information.
   public func getUserKeySeed(signInInfo : SignInInfo) : Text {
     providerName(signInInfo.provider) # " " # signInInfo.origin # " " # signInInfo.sub;
   };
@@ -75,6 +76,7 @@ module {
     jwks_uri : Text;
   };
 
+  /// Configuration for an OAuth2 provider.
   public type OAuth2Config = {
     provider : Provider;
     name : Text;
@@ -83,6 +85,7 @@ module {
     var fetchAttempts : Stats.AttemptTracker;
   };
 
+  /// Compares two OAuth2 configurations.
   public func compare(self : OAuth2Config, other : OAuth2Config) : Order {
     let name = Text.compare(self.name, other.name);
     if (name != #equal) return name;
@@ -92,17 +95,20 @@ module {
     return Text.compare(debug_show self, debug_show other);
   };
 
+  /// Compares two OAuth2 configurations by their provider names.
   public func compareProvider(self : OAuth2Config, other : OAuth2Config) : Order {
     return Text.compare(providerName(self.provider), providerName(other.provider));
   };
 
   type TransformFn = Http.TransformFn;
 
+  /// Determines if the keys for the given OAuth2 configuration should be prefetched.
   public func shouldPrefetch(config : OAuth2Config) : Bool {
     let #jwt(conf) = config.auth else return false;
     return conf.preFetch;
   };
 
+  /// Fetches the RSA public keys for the given OAuth2 configuration.
   public func fetchKeys(config : OAuth2Config, transformKeys : TransformFn) : async* Result<[RSA.PubKey]> {
     let attempts = config.fetchAttempts;
     attempts.count += 1;
@@ -125,7 +131,8 @@ module {
     };
   };
 
-  func fetchConfig(authority : Text, transform : TransformFn) : async* Result<PartialAuthConf> {
+  /// Fetches the OpenID Connect configuration from the given authority URL.
+  public func fetchConfig(authority : Text, transform : TransformFn) : async* Result<PartialAuthConf> {
     if (not Text.endsWith(authority, #char('/'))) {
       return #err("Invalid configuration: authority must end with '/': " # authority);
     };
@@ -142,7 +149,7 @@ module {
 
       return #ok(data);
     } catch (e) {
-      return #err("Failed to fetch configuration from " # url);
+      return #err("Failed to fetch configuration from " # url # ": " # Error.message(e));
     };
   };
 

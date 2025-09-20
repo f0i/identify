@@ -53,6 +53,10 @@ module {
     users : Map<Principal, User>;
   };
 
+  /// Initialize a new Identify state.
+  /// Parameters:
+  /// - backend: The principal of the canister that will be used to sign delegations.
+  /// - owner: The principal of the user that is allowed to add and update providers.
   public func init(backend : Principal, owner : Principal) : Identify {
     return {
       providers = List.empty();
@@ -66,16 +70,16 @@ module {
   /// Add a provider to the list of configured providers.
   /// This function can only be called by the owner (which is provided on init.)
   /// The config.provider must be unique, otherwise the previous one will be replaced
-  public func addProvider(config : Identify, provider : AuthProvider.OAuth2Config, caller : Principal) {
+  public func addProvider(config : Identify, providerConfig : AuthProvider.OAuth2Config, caller : Principal) {
     if (caller != config.owner) Runtime.trap("Permission denied");
 
-    switch (List.findIndex(config.providers, AuthProvider.compareProvider, providerConfig)) {
+    switch (List.findIndex(config.providers, func(other : OAuth2Config) : Bool = AuthProvider.compareProvider(providerConfig, other) == #equal)) {
       case (null) {
-        Debug.print("Adding provider " # provider.name # " with config " # debug_show authProvider);
+        Debug.print("Adding provider " # providerConfig.name # " with config " # debug_show providerConfig);
         List.add(config.providers, providerConfig);
       };
       case (?index) {
-        Debug.print("Replace provider " # provider.name # " with config " # debug_show authProvider);
+        Debug.print("Replace provider " # providerConfig.name # " with config " # debug_show providerConfig);
         List.put(config.providers, index, providerConfig);
       };
     };
@@ -84,8 +88,11 @@ module {
 
   /// Add a provider to the list of configured providers.
   /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
-  ///
-  public func addPrividerFetch(config : Identify, provider : OAuth2Config, caller : Principal) : async* Result<()> {
+  /// Parameters:
+  /// - config: The Identify state.
+  /// - provider: The provider configuration to add. If the auth field contains a authority, the configuration will be fetched from there.
+  /// - caller: The principal of the caller. Must be the owner.
+  public func addProviderFetch(config : Identify, provider : OAuth2Config, caller : Principal, transform : TransformFn) : async* Result<()> {
     if (caller != config.owner) Runtime.trap("Permission denied");
 
     var providerConfig : AuthProvider.OAuth2Config = provider;
@@ -93,23 +100,25 @@ module {
       switch (provider.auth) {
         case (#jwt(conf)) {
           let ?authority = conf.authority else break doFetchConfig;
-          let partialAuth = switch (AuthProvider.fetchConfig(authority)) {
+          let partialAuth = switch (await* AuthProvider.fetchConfig(authority, transform)) {
             case (#ok(data)) data;
             case (#err(err)) return #err(err);
           };
           providerConfig := {
-            provider with
+            provider = provider.provider;
+            name = provider.name;
             auth = #jwt({
-              partialAuth with
-              clientId = conf.clientId;
-              preFetch = conf.preFetch;
+              conf with
+              keysUrl = partialAuth.jwks_uri;
             });
+            var keys = provider.keys;
+            var fetchAttempts = provider.fetchAttempts;
           };
         };
         case (#pkce(_)) { break doFetchConfig };
       };
     };
-    addProvider(config, authProvider, caller);
+    addProvider(config, providerConfig, caller);
     return #ok;
   };
 
