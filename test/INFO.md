@@ -8,12 +8,12 @@ Use `test/run.sh` to execute all of the tests, or `test/run.sh <filter>` to run 
 ## Mode
 
 Tests can be run using different test modes.
-Currently not all modes support `fromCandid` or `async` calls, therefore some tests are executed using the interpreter, and some using wasi mode.
+The default is interpreter test mode. which does not support `fromCandid`.
+Using the mode `wasi` supports `fromCandid`, but does not support `async` calls.
 
-Specifically the following files use wasi test mode, all others use interpreter test mode:
+Specifically the following files use wasi test mode:
 
-- jwt
-- http
+- rsa
 
 ## Slow tests
 
@@ -23,5 +23,9 @@ You can exclude those by running `test/run.sh --fast`.
 - delegation
 - ed25519
 - jwt
-- http
 
+## Disabled tests
+
+Tests using both fromCandid and async calls are currently disabled:
+
+- jwt

@@ -207,7 +207,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
       keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
       preFetch = true;
-      authority = null;
+      authority = "https://accounts.google.com/";
       fedCMConfigUrl = null;
       responseType = #code;
       scope = ?"openid email profile";
@@ -223,7 +223,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       clientId = "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ";
       keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
       preFetch = true;
-      authority = null;
+      authority = "https://identify.uk.auth0.com/";
       fedCMConfigUrl = null;
       responseType = #code;
       scope = ?"openid email profile";
@@ -239,7 +239,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       clientId = "327788236128717664";
       keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
       preFetch = false;
-      authority = null;
+      authority = "https://identify-ci5vmz.us1.zitadel.cloud";
       fedCMConfigUrl = null;
       responseType = #code;
       scope = ?"openid email profile";
@@ -278,11 +278,28 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     var fetchAttempts = Stats.newAttemptTracker();
   };
 
+  transient let linkedInConfig : OAuth2Config = {
+    name = "LinkedIn";
+    provider = #generic("LinkedIn");
+    auth = #jwt({
+      clientId = "771z70izpz7nq7";
+      keysUrl = "https://www.linkedin.com/oauth/openid/jwks";
+      preFetch = true;
+      authority = "https://www.linkedin.com/oauth/";
+      fedCMConfigUrl = null;
+      responseType = #code;
+      scope = ?"openid email profile";
+    });
+    var keys : [RSA.PubKey] = [];
+    var fetchAttempts = Stats.newAttemptTracker();
+  };
+
   Identify.addProvider(identify, googleConfig, owner);
   Identify.addProvider(identify, auth0Config, owner);
   Identify.addProvider(identify, zitadelConfig, owner);
   Identify.addProvider(identify, xConfig, owner);
   Identify.addProvider(identify, githubConfig, owner);
+  Identify.addProvider(identify, linkedInConfig, owner);
 
   /// Function to add a new OAuth2 provider.
   public shared ({ caller }) func addProvider(name : Text, params : AuthProvider.AuthParams) : async Result<()> {

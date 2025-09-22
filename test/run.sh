@@ -23,6 +23,7 @@ extract_section() {
 # Get wasi and slow test names
 readarray -t WASI_NAMES < <(extract_section "Mode")
 readarray -t SLOW_NAMES < <(extract_section "Slow tests")
+readarray -t DISABLED_NAMES < <(extract_section "Disabled tests")
 
 # Parse args
 FILTER_NAMES=()
@@ -36,6 +37,11 @@ done
 
 should_run() {
   local name="$1"
+
+  if ( [[ " ${DISABLED_NAMES[*]} " == *" $name "* ]] ); then
+    echo "Skipping disabled test: $name"
+    return 1
+  fi
 
   # Skip if slow and --fast was given
   if (( FAST_MODE )); then
@@ -62,6 +68,7 @@ for f in "$SCRIPT_DIR"/*.test.mo; do
 
   mode=interpreter
   [[ " ${WASI_NAMES[*]} " == *" $name "* ]] && mode=wasi
+  [[ " ${ACTOR_NAMES[*]} " == *" $name "* ]] && mode=wasi
 
   echo mops test "$name" --mode "$mode"
   mops test "$name" --mode "$mode"

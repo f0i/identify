@@ -38,14 +38,14 @@ do {
   var lastCert : Blob = "";
   let dummySetCert = func(data : Blob) = lastCert := data;
 
-  ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, userId, origin, sessionKey, now, timePerLogin, expireAt, targets);
+  ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, userId # " " # origin, sessionKey, now, timePerLogin, expireAt, targets);
 
   assert store.sigExpQueue.size == 1;
   assert Text.size(debug_show store.sigTree) > 200;
   assert Text.size(debug_show store.sigTree) < 400;
 
   for (i in Nat.range(1, 7)) {
-    ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, "user" # Nat.toText(i), origin, sessionKey, now, timePerLogin, expireAt, targets);
+    ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, "user" # Nat.toText(i) # " " # origin, sessionKey, now, timePerLogin, expireAt, targets);
   };
 
   assert store.sigExpQueue.size == 7;
@@ -53,7 +53,7 @@ do {
   assert Text.size(debug_show store.sigTree) < 2000;
 
   let now2 = now + 61_000_000_000;
-  ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, userId, origin, sessionKey, now2, timePerLogin, expireAt, targets);
+  ignore CanisterSignature.prepareDelegationTo(dummySetCert, store, userId # " " # origin, sessionKey, now2, timePerLogin, expireAt, targets);
 
   assert store.sigExpQueue.size == 1;
   assert Text.size(debug_show store.sigTree) > 200;

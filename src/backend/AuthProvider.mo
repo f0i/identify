@@ -55,7 +55,7 @@ module {
       clientId : Text;
       keysUrl : Text; // TODO: rename to jwks_uri
       preFetch : Bool;
-      authority : ?Text;
+      authority : Text;
       fedCMConfigUrl : ?Text;
       responseType : { #code; #id_token };
       scope : ?Text;

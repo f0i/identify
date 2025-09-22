@@ -2,6 +2,9 @@ import { print } "mo:core/Debug";
 import { trap } "mo:core/Runtime";
 import Jwt "../src/backend/JWT";
 import RSA "../src/backend/RSA";
+import Result "mo:core/Result";
+
+type Result<T, E> = Result.Result<T, E>;
 
 let testJWT1 = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjVhYWZmNDdjMjFkMDZlMjY2Y2NlMzk1YjIxNDVjN2M2ZDQ3MzBlYTUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiIzNzY2NTA1NzExMjctdnBvdGtyNGt0N2Q3Nm84bWtpMDlmN2Eydm9wYXRkcDYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiIzNzY2NTA1NzExMjctdnBvdGtyNGt0N2Q3Nm84bWtpMDlmN2Eydm9wYXRkcDYuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTQ4MDgxMjIyNDk0OTIxNTI3ODQiLCJlbWFpbCI6ImYwaWRlc2lyZUBnb29nbGVtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYmYiOjE3MjcxNzMzNjgsIm5hbWUiOiJNYXJ0aW4gUy4iLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jSmRXWU1SRGFuU0NxdlpmdDlpQ0lhNHYydEdlX241SmFGNm03WU9vRDZZdV9wS1N3UlBzZz1zOTYtYyIsImdpdmVuX25hbWUiOiJNYXJ0aW4iLCJmYW1pbHlfbmFtZSI6IlMuIiwiaWF0IjoxNzI3MTczNjY4LCJleHAiOjE3MjcxNzcyNjgsImp0aSI6IjBhZGU5YWZlOGFlMTk5ZTMyYzQxZGJiMTBlODU5NDllZDUxN2Y1YmIifQ.Gq3-E3VuSCBMWrUEpAwWSuL7rx7b-mjHIy31TJLpyKqcPr5_NLXd-Z5Vp7OVW4Dq-XzlTfid6RVoHcx2Rbko0S1qqlWKy3D6o7xL_XJs2GXDFWnFdQSGwRO20drFzEX3C44UKAv6SaSrcKZuCiHJkNYfS90FBrbBImwM3DS3X7nOMQf-IKMvZ6GemW9huciECApbDhqB7N1C1He9R8NNK7BIUIqV0EBnGhvCouRvrjyLRjuclSnUSOQw7Bchp_Iwp6Ld0YWTwoUmiD9aji4sdn_BHRtITyz_e27BPbECcD6DXR1WMRDJPGmzkjCoFB5w7rRYKcQiXavksl-FpkCAaA";
 
@@ -57,20 +60,30 @@ let nowNanos2 = 1727527187123456789;
 //   iat token2 1727525312
 //   exp token2 1727528912
 
-let keysAuth0 = switch (RSA.pubKeysFromJSON(auth0Keys)) {
+let _keysAuth0 = switch (RSA.pubKeysFromJSON(auth0Keys)) {
   case (#err err) trap("failed to parse keys: " # err);
   case (#ok data) data;
 };
 
+// Helper to select key by "kid"
+func getKey(kid : Text) : async* Result<RSA.PubKey, Text> {
+  for (key in keys.vals()) {
+    if (key.kid == kid) {
+      return #ok(key);
+    };
+  };
+  return #err("key not found: " # kid);
+};
+
 print("- token 1");
-let data1 = switch (Jwt.decode(testJWT1, keys, nowNanos1, #seconds(10), [clientId], null)) {
+let data1 = switch (await* Jwt.decode(testJWT1, getKey, nowNanos1, #seconds(10), [clientId], null)) {
   case (#err err) trap("failed to decode jwt 1: " # err);
   case (#ok data) data;
 };
 assert data1.payload.name == ?"Martin S.";
 
 print("- token 2");
-let data2 = switch (Jwt.decode(testJWT2, keys, nowNanos2, #seconds(10), [clientId], null)) {
+let data2 = switch (await* Jwt.decode(testJWT2, getKey, nowNanos2, #seconds(10), [clientId], null)) {
   case (#err err) trap("failed to decode jwt 2: " # err);
   case (#ok data) data;
 };

@@ -3,7 +3,14 @@ name = "identify"
 version = "0.1.0"
 description = "OAuth2 authentication and identity management for OpenID Connect and PKCE"
 repository = "https://github.com/f0i/identify"
-keywords = [ "authentication", "identity", "auth", "login", "openid", "oauth" ]
+keywords = [
+  "authentication",
+  "identity",
+  "auth",
+  "login",
+  "openid",
+  "oauth"
+]
 license = "MIT"
 
 [dependencies]

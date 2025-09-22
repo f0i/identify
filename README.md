@@ -149,6 +149,7 @@ The following web2 authentication providers are supported
 - [x] X (PKCE)
 - [ ] Apple (PKCE + JWT)
 - [ ] Microsoft (PKCE + JWT)
+- [ ] LinkedIn (JWT)
 
 ## Google
 
@@ -176,7 +177,7 @@ Currently there are two security concerns you should be aware of, before using t
 
 - HTTP outcalls to exchange the token and retrieve user info can not be replicated (meaning they will only performed by a single node machine), because only the first request is accepted by GitHub.
   The node performing the outcall could manipulate the result and e.g. pretend to sign in an arbitrary user.
-- GitHub PKCE flow requires a client_secret to be stored in the backend (in the case of Identify in the canister).
+- GitHub PKCE flow requires a client_secret to be stored in the backend canister.
   The secret could be extracted from the backend and other sites could impersonate the Identify app.
 
 To summarize, you have to trust that there are no malicious node providers in the subnet.
@@ -206,6 +207,9 @@ https://learn.microsoft.com/azure/active-directory/develop/v2-oauth2-auth-code-f
 
 https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow
 
+## LinkedIn
+
+https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2
 
 # Resources and Related projects
 

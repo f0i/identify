@@ -99,7 +99,8 @@ module {
     label doFetchConfig do {
       switch (provider.auth) {
         case (#jwt(conf)) {
-          let ?authority = conf.authority else break doFetchConfig;
+          if (conf.keysUrl != "") break doFetchConfig;
+          let authority = conf.authority;
           let partialAuth = switch (await* AuthProvider.fetchConfig(authority, transform)) {
             case (#ok(data)) data;
             case (#err(err)) return #err(err);
