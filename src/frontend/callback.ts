@@ -1,6 +1,5 @@
-import { UserManager } from "oidc-client-ts";
-import { ZITADEL } from "./auth-config";
+import { OidcClientSettings, UserManager } from "oidc-client-ts";
 
-const userManager = new UserManager(ZITADEL);
+const userManager = new UserManager({} as OidcClientSettings);
 
 userManager.signinPopupCallback().catch(console.error);

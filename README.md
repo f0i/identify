@@ -1,8 +1,31 @@
-# Identify
+# Identify - Sign in with OAuth2
 
-Identify is an authentication provider for the Internet Computer, providing an endpoint for the standard authentication client to request Sign In with Google.
+Identify is an authentication provider for the Internet Computer.
 
-It also lets whitelisted apps look up the email address for a specific principal.
+Users can sign in with existing web2 accounts:
+
+- Sign in with OpenID Connect (OIDC/JWT provider)
+  - Sign in with Google
+  - Sign in with Auth0
+  - Sign in with Zitadel
+  - Sign in with Apple
+  - Sign in with Microsoft
+  - Sign in with LinkedIn
+  - Sign in with Facebook
+  - ...
+- Sign in with PKCE (generic OAuth2 provider)
+  - Sign in with GitHub
+  - Sign in with X
+
+Developers can easily integrate Identify into their own apps by useing any of the IC's authentication client libraries.
+
+Dapps can access user information provided by the authentication services, enabling richer user experiences on the Internet Computer.
+The available fields include:
+
+- **Username**
+- **Email address**
+- **Profile picture**
+- ...
 
 # Integration
 
@@ -11,7 +34,13 @@ It also lets whitelisted apps look up the email address for a specific principal
 To integrate Identify into your own app, you just have to point the auth-client to one of the supported login urls.
 
 - Integrate the auth-client into your app.
-- Instead of "identity.ic0.app" point the auth client to one of the public instances of Identify (e.g. "https://login.f0i.de").
+- Point the auth client to one of the public instances of Identify (e.g. `{identityProvider: "https://login.f0i.de"}`).
+
+For more details for your prefered authentication client see one of the following guides:
+
+- [Use with @dfinity/auth-client](docs/use-with-auth-client.md).
+- [Use with ic-use-internet-identity](docs/use-with-ic-use-internet-identity.md).
+- [Use with IdentityKit](docs/use-with-identitykit.md).
 
 ## Self deployed
 
@@ -22,6 +51,8 @@ Follow this steps if you want full control over the login process.
 - Configure the canister to use the client ID
 - Periodically update the google public keys
 - Follow the same steps as for the section [Managed Setup](#Managed-Setup) to configure the auth-client
+
+For more details see the [Self deploy guide](docs/self-deploy.md).
 
 # Apps that use Identify
 
