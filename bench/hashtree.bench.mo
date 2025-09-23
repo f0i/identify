@@ -3,9 +3,6 @@ import Time "mo:core/Time";
 import Nat "mo:core/Nat";
 import Text "mo:core/Text";
 import HashTree "../src/backend/HashTree";
-import CertTree "mo:ic-certification/CertTree";
-import CanisterSigs "mo:ic-certification/CanisterSigs";
-import Sha256 "mo:sha2/Sha256";
 import Runtime "mo:core/Runtime";
 
 module {
@@ -17,7 +14,7 @@ module {
     bench.name("HashTree implementations");
     bench.description("Add signatures to the sig-tree and calculate root hash");
 
-    bench.rows(["f0i:identify", "ic-certification", "ic-certification:manager"]);
+    bench.rows(["f0i:identify"]);
     bench.cols(["1", "3", "10", "100"]);
 
     let time : Time.Time = 123456789_000_000_000;
@@ -34,31 +31,6 @@ module {
             tree := HashTree.addSig(tree, seed, hash, time + i);
           };
           assert HashTree.hash(tree) != [];
-        };
-
-        if (row == "ic-certification") {
-          let cert_store : CertTree.Store = CertTree.newStore();
-          let ct = CertTree.Ops(cert_store);
-          for (i in Nat.range(0, n)) {
-            let seed = Text.encodeUtf8("test" # Nat.toText(i));
-            let hash : Blob = "1234";
-            let seedHash = Sha256.fromBlob(#sha256, seed);
-            ct.put(["sig", seedHash, hash], "");
-          };
-          assert ct.treeHash() != "";
-        };
-
-        if (row == "ic-certification:manager") {
-          let cert_store : CertTree.Store = CertTree.newStore();
-          let ct = CertTree.Ops(cert_store);
-          let csm = CanisterSigs.Manager(ct, null);
-
-          for (i in Nat.range(0, n)) {
-            let seed = Text.encodeUtf8("test" # Nat.toText(i));
-            //let hash : [Nat8] = [1, 2, 3, 4];
-            let hash : Blob = "1234";
-            csm.prepare(seed, hash);
-          };
         };
       }
     );

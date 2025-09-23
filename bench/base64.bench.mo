@@ -3,8 +3,6 @@ import Nat "mo:core/Nat";
 import Result "mo:core/Result";
 import { trap } "mo:core/Runtime";
 import Base64 "../src/backend/Base64";
-import MopsBase64 "mo:base64";
-import BaseXEncoder "mo:base-x-encoder";
 
 module {
   /// Test data that decodes to [0, 1, 2, ..., 255]
@@ -16,7 +14,7 @@ module {
     bench.name("Base64 implementations");
     bench.description("Decode a base46 string that decodes to [0, 1, 2, ..., 255] n times");
 
-    bench.rows(["f0i:identify", "mops:base-x-encoder", "mops:base64"]);
+    bench.rows(["f0i:identify"]);
     bench.cols(["1", "100", "10000"]);
 
     bench.runner(
@@ -30,20 +28,6 @@ module {
           };
         };
 
-        if (row == "mops:base-x-encoder") {
-          for (i in Nat.range(0, n)) {
-            let data = BaseXEncoder.fromBase64(testData);
-            assert Result.isOk(data);
-          };
-        };
-
-        if (row == "mops:base64") {
-          let base64 = MopsBase64.Base64(#version(MopsBase64.V2), ?true);
-          for (i in Nat.range(0, n)) {
-            let data = base64.decode(testData);
-            assert data != [];
-          };
-        };
       }
     );
 

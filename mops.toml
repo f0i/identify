@@ -14,17 +14,17 @@ keywords = [
 license = "MIT"
 
 [dependencies]
-core = "0.6.0"
-base = "0.15.1"
+core = "1.0.0"
+base = "0.16.0"
 serde = "3.3.2"
 sha2 = "0.1.6"
 tweetnacl = "1.1.2"
 prng = "0.0.5"
 hash = "1.0.0"
-cbor = "4.0.0"
+cbor = "4.1.0"
 email = "0.1.0"
 hex = "1.0.1"
-url-kit = "1.0.1"
+url-kit = "3.0.0"
 
 [toolchain]
 wasmtime = "37.0.0"
@@ -32,8 +32,6 @@ moc = "0.16.2"
 
 [dev-dependencies]
 bench = "1.0.0"
-base64 = "1.0.1"
 test = "2.1.1"
-ic-certification = "https://github.com/f0i/ic-certification#main@0e807b295ac2f804eb9641296b78334345390ec4"
 itertools = "0.2.2"
-candid = "2.0.0"
+candid = "2.1.0"
