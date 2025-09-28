@@ -84,7 +84,8 @@ module {
     return hash;
   };
 
-  /// Generate a delegation structure for given keys.
+  /// Generate a delegation structure for given Ed25519 keys.
+  ///
   /// sessionKey is alreadfy DER encoded and used as is.
   /// identityKeyPair is handing the delegation to the sessionKey
   /// the princial is determined by the identityKeyPair
