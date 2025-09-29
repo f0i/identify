@@ -6,7 +6,7 @@ import Result "mo:core/Result";
 import Iter "mo:core/Iter";
 import Option "mo:core/Option";
 import AuthProvider "AuthProvider";
-import UrlKit "mo:url-kit";
+import URL "URL";
 
 module PKCE {
 
@@ -113,7 +113,7 @@ module PKCE {
     ]
     |> Iter.map(
       _.vals(),
-      func((key : Text, value : Text)) : Text = UrlKit.encodeText(key) # "=" # UrlKit.encodeText(value),
+      func((key : Text, value : Text)) : Text = URL.urlEncode(key) # "=" # URL.urlEncode(value),
     )
     |> Text.join("&", _);
 

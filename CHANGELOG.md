@@ -1,5 +1,27 @@
 # Changelog
 
+## 2025-09-28
+
+### Authentication & Identity
+*   **LinkedIn Provider:** Added support for LinkedIn as an authentication provider.
+*   **Generic OIDC Provider:** Implemented a generic OIDC provider for easier integration with other OIDC-compliant services.
+*   **Whitelist Helper:** Added a whitelist helper for managing access control.
+*   **Custom Providers:** Refactored the authentication flow to prepare for custom providers.
+*   **PKCE Flow:** Updated the PKCE sign-in message and fixed an error message for providers that don't support PKCE.
+*   **JWT Flow:** Fixed an issue with delegation preparation in the JWT flow and implemented key fetching when a `keyId` is not found.
+*   **Performance:** JWT keys are now only fetched if pre-fetch is requested.
+
+### Core System & Performance
+*   **Dependency Updates:** Updated various dependencies to their latest versions.
+*   **Build & Deployment:** Prepared `mops.toml` for publishing and removed benchmark tests for alternative libraries.
+*   **Refactoring:** Simplified `main.mo` and refactored configuration naming.
+*   **Security:** Updated the security policy.
+
+### Documentation
+*   **Documentation Structure:** Prepared the documentation structure for new content.
+*   **Provider Information:** Added information about rate limits for the X provider.
+*   **General Updates:** Updated and refactored existing documentation.
+
 ## 2025-08-12
 
 ### Authentication & Identity
