@@ -1,4 +1,3 @@
-import Ed25519 "Ed25519";
 import ULEB128 "ULEB128";
 import Int "mo:base/Int";
 import Blob "mo:base/Blob";
@@ -26,6 +25,8 @@ module {
   let kind = "authorize-client-success";
   let authnMethod = "gsi"; // II uses "passkey"
 
+  /// Get Delegation bytes without signature.
+  ///
   /// sessionKey: DER encoded session key as provided by the auth-client, including a domain separator
   public func getUnsignedBytes(sessionKey : [Nat8], expiration : Int, targetsOpt : ?[Principal]) : [Nat8] {
 
@@ -63,6 +64,7 @@ module {
     return Array.flatten<Nat8>([domainSeparator, concatHash]);
   };
 
+  /// Calculate the hash for the targets principals
   private func principalArrayHash(targets : [Principal]) : [Nat8] {
     // https://github.com/dfinity/response-verification/blob/88f144ce1e32498adeb8a81872146c64ca587a7d/packages/ic-representation-independent-hash/src/representation_independent_hash.rs#L52
     let hashes = Array.tabulate(
@@ -77,44 +79,11 @@ module {
     return arrayHash;
   };
 
-  /// Get sha256 hash of representation independend map of public key and expiration, including the domain saparator
+  /// Get sha256 hash of representation independend map of public key, expiration, and targest, including the domain saparator
   public func getUnsignedHash(sessionKey : [Nat8], expiration : Int, targets : ?[Principal]) : [Nat8] {
     let unsigned = getUnsignedBytes(sessionKey, expiration, targets);
     let hash : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, unsigned));
     return hash;
-  };
-
-  /// Generate a delegation structure for given Ed25519 keys.
-  ///
-  /// sessionKey is alreadfy DER encoded and used as is.
-  /// identityKeyPair is handing the delegation to the sessionKey
-  /// the princial is determined by the identityKeyPair
-  /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
-  public func getDelegation(sessionKey : [Nat8], identityKeyPair : Ed25519.KeyPair, expiration : Time.Time, targets : ?[Principal]) : AuthResponse {
-    assert expiration > 0;
-
-    // DER encode session key
-    let pubkey = sessionKey;
-    let unsigned = getUnsignedBytes(sessionKey, expiration, targets);
-
-    //Debug.print("signing with: " # debug_show identityKeyPair);
-
-    let signature = Ed25519.sign(unsigned, identityKeyPair.secretKey);
-
-    let delegation = {
-      delegation = {
-        pubkey;
-        expiration;
-        targets;
-      };
-      signature;
-    };
-    return {
-      kind;
-      delegations = [delegation];
-      userPublicKey = Ed25519.DERencodePubKey(identityKeyPair.publicKey);
-      authnMethod;
-    };
   };
 
   /// Generate a delegation structure for given keys.
