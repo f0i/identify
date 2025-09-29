@@ -32,8 +32,8 @@ module {
   type Time = Time.Time;
   type User = User.User;
   type TransformFn = Http.TransformFn;
-  type OAuth2Config = AuthProvider.OAuth2Config;
-  type PartialAuthConf = AuthProvider.PartialAuthConf;
+  public type OAuth2Config = AuthProvider.OAuth2Config;
+  public type FrontendOAuth2Config = AuthProvider.FrontendOAuth2Config;
   let toNanos = Time.toNanoseconds;
 
   /// Maximum session time before delegation expires
@@ -337,10 +337,18 @@ module {
     return #ok({ auth });
   };
 
+  /// Compare two Nat8 Arrays
   func compareKey(a : [Nat8], b : [Nat8]) : Order.Order = Array.compare(a, b, Nat8.compare);
 
+  /// Get user information for a specific principal
   public func getUser(identify : Identify, principal : Principal) : ?User {
     Map.get(identify.users, Principal.compare, principal);
-  }
+  };
+
+  /// Get the list of provider configurations for the frontend
+  public func getProviders(identify : Identify) : [FrontendOAuth2Config] {
+    let providers = List.map<OAuth2Config, FrontendOAuth2Config>(identify.providers, AuthProvider.toFrontendConfig);
+    return List.toArray(providers);
+  };
 
 };

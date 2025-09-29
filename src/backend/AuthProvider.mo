@@ -85,6 +85,14 @@ module {
     var fetchAttempts : Stats.AttemptTracker;
   };
 
+  /// Public accessable configuration for an OAuth2 provider
+  /// This contains the fields from OAuth2Config required in the frontend to OAuth2 authentication
+  public type FrontendOAuth2Config = {
+    provider : Provider;
+    name : Text;
+    auth : AuthParams; // must be filtered to not include clientSecret!
+  };
+
   /// Compares two OAuth2 configurations.
   public func compare(self : OAuth2Config, other : OAuth2Config) : Order {
     let name = Text.compare(self.name, other.name);
@@ -192,6 +200,20 @@ module {
         case (?key) return #ok(key);
         case (null) { return #err("key id not found in up to date keys") };
       };
+    };
+  };
+
+  /// Convert a OAuth2Config to a FrontendOAuth2Config
+  public func toFrontendConfig(config : OAuth2Config) : FrontendOAuth2Config {
+    let auth = switch (config.auth) {
+      case (#jwt(conf)) { #jwt(conf) }; // does not contain any secrets
+      case (#pkce(conf)) { #pkce({ conf with clientSecret = null }) }; // only clientSecret is confidential
+    };
+
+    return {
+      provider = config.provider;
+      name = config.name;
+      auth;
     };
   };
 

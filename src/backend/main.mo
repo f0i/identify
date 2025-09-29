@@ -64,7 +64,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     return res;
   };
 
-  // Check PKCE sign in and prepare delegation
+  /// Check PKCE sign in and prepare delegation
   public shared func prepareDelegationPKCE(
     provider : Provider,
     code : Text,
@@ -85,7 +85,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     return res;
   };
 
-  // Get the previously prepared delegation
+  /// Get the previously prepared delegation
   public shared query func getDelegation(
     provider : Provider,
     origin : Text,
@@ -101,12 +101,17 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     return res;
   };
 
-  // Transform http request by sorting keys by key ID
+  /// Get the list of provider configurations for the frontend
+  public shared query func getProviders() : async [Identify.FrontendOAuth2Config] {
+    return Identify.getProviders(identify);
+  };
+
+  /// Transform http request by sorting keys by key ID
   public query func transformKeys(raw : Http.TransformArgs) : async Http.TransformResult {
     Http.transformKeys(raw);
   };
 
-  // Transform http request without changing anything
+  /// Transform http request without changing anything
   public query func transform(raw : Http.TransformArgs) : async Http.TransformResult {
     Http.transform(raw);
   };
