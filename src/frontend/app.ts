@@ -3,61 +3,33 @@
 // it will either show the login form
 // or a minimal demo application to try out the login provider.
 
-import {
-  AUTH0,
-  GITHUB,
-  GSI,
-  IDENTITY_PROVIDER,
-  X,
-  ZITADEL,
-} from "./auth-config";
 import { initDemo } from "./demo";
 import { initIdentify } from "./identify";
 import { showElement } from "./identify/dom";
 
 window.onload = () => {
   const params = new URLSearchParams(document.location.search);
-  let provider = params.get("provider") || "google";
+  let providerKey = params.get("provider") || "google";
 
   console.log("onload: opener:", window.opener);
   if (window.opener) {
-    switch (provider) {
-      case "google":
-        initIdentify(provider, GSI);
-        break;
-      case "auth0":
-        initIdentify(provider, AUTH0);
-        break;
-      case "zitadel":
-        initIdentify(provider, ZITADEL);
-        break;
-      case "x":
-        initIdentify(provider, X);
-        break;
-      case "github":
-        initIdentify(provider, GITHUB);
-        break;
-      default:
-        console.error(
-          "Invalid provider " + provider + ". Falling back to google.",
-        );
-        initIdentify("google", GSI);
-        break;
-    }
+    initIdentify(providerKey);
   } else {
-    initDemo(IDENTITY_PROVIDER + "?provider=" + provider);
+    initDemo();
   }
 
   document.getElementById("version")!.innerText = process.env.BUILD_TIME!;
   try {
-    showInfo(document.location.hash.substring(1));
+    (window as any).showInfo(document.location.hash.substring(1));
   } catch (e) {
     // ignore
   }
 };
 
 (window as any).showInfo = (sectionId: string) => {
-  const active = !document.getElementById(sectionId)?.classList.contains("hidden");
+  const active = !document
+    .getElementById(sectionId)
+    ?.classList.contains("hidden");
   // Hide all sections
   showElement("help", false);
   showElement("security", false);
@@ -68,12 +40,18 @@ window.onload = () => {
   // remove the hash from the URL if element was active
   if (active) {
     setTimeout(() =>
-      history.replaceState(null, "", document.location.pathname + document.location.search),
+      history.replaceState(
+        null,
+        "",
+        document.location.pathname + document.location.search,
+      ),
     );
   }
-}
+};
 
 /*
+// Debug helper to send all console messages to the opener
+// ONLY FOR DEBUGGING! This might leak information!
 (function pipeAllConsoleToOpener() {
   if (!window.opener) return;
 

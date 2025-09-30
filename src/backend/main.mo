@@ -34,7 +34,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   transient let KEY_UPDATE_INTERVAL = #hours(48);
 
   type Time = Time.Time;
-  type Provider = AuthProvider.Provider;
+  type ProviderKey = AuthProvider.ProviderKey;
   type Result<T> = Result.Result<T, Text>;
   type PrepRes = Identify.PrepRes;
 
@@ -46,7 +46,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   /// Verify the token and prepare a delegation.
   /// The delegation can be fetched using an query call to getDelegation.
   public shared func prepareDelegation(
-    provider : Provider,
+    provider : ProviderKey,
     token : Text,
     origin : Text,
     sessionKey : [Nat8],
@@ -66,7 +66,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   /// Check PKCE sign in and prepare delegation
   public shared func prepareDelegationPKCE(
-    provider : Provider,
+    provider : ProviderKey,
     code : Text,
     verifier : Text,
     origin : Text,
@@ -87,7 +87,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   /// Get the previously prepared delegation
   public shared query func getDelegation(
-    provider : Provider,
+    provider : ProviderKey,
     origin : Text,
     sessionKey : [Nat8],
     expireAt : Time,
@@ -207,7 +207,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   transient let googleConfig : OAuth2Config = {
     name = "Google";
-    provider = #google;
+    provider = "google";
     auth = #jwt({
       clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
       keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
@@ -223,7 +223,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   transient let auth0Config : OAuth2Config = {
     name = "Auth0";
-    provider = #auth0;
+    provider = "auth0";
     auth = #jwt({
       clientId = "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ";
       keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
@@ -239,7 +239,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   transient let zitadelConfig : OAuth2Config = {
     name = "Zitadel";
-    provider = #zitadel;
+    provider = "zitadel";
     auth = #jwt({
       clientId = "327788236128717664";
       keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
@@ -255,7 +255,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   transient let githubConfig : OAuth2Config = {
     name = "GitHub";
-    provider = #github;
+    provider = "github";
     auth = #pkce({
       authorizationUrl = "https://github.com/login/oauth/authorize";
       tokenUrl = "https://github.com/login/oauth/access_token";
@@ -270,7 +270,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   transient let xConfig : OAuth2Config = {
     name = "X";
-    provider = #x;
+    provider = "x";
     auth = #pkce({
       authorizationUrl = "https://x.com/i/oauth2/authorize";
       tokenUrl = "https://api.x.com/2/oauth2/token";
@@ -285,7 +285,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   transient let linkedInConfig : OAuth2Config = {
     name = "LinkedIn";
-    provider = #generic("LinkedIn");
+    provider = "linkedin";
     auth = #jwt({
       clientId = "771z70izpz7nq7";
       keysUrl = "https://www.linkedin.com/oauth/openid/jwks";
@@ -315,7 +315,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     if (caller == owner) trap("Permission denied");
     // Create and add the configuration
     let config = {
-      provider = #generic(name);
+      provider = name;
       name = name;
       auth = params;
       var keys : [RSA.PubKey] = [];

@@ -3,17 +3,6 @@ import { StatusUpdate } from "./identify/icrc";
 
 export type PkceAuthData = { code: string; verifier: string; state?: string };
 
-function dec2hex(dec: number) {
-  const out = dec.toString(16);
-  return out.length == 1 ? "0" + out : out;
-}
-
-function generateRandomString(length: number) {
-  const array = new Uint32Array(length / 2);
-  window.crypto.getRandomValues(array);
-  return Array.from(array, dec2hex).join("");
-}
-
 export async function generateChallenge(
   sessionKey: Uint8Array,
 ): Promise<{ verifier: string; challenge: string }> {
@@ -76,10 +65,11 @@ export async function initPkce(
     window.crypto.getRandomValues(new Uint8Array(16)),
     (b) => b.toString(16).padStart(2, "0"),
   ).join("");
+  let redirect = document.location.origin + "/pkce-callback.html";
   const authUrl =
-    `${pkceConfig.authorizationUrl}?` +
-    `client_id=${pkceConfig.clientId}&` +
-    `redirect_uri=${pkceConfig.redirect}&` +
+    `${pkceConfig.authorization_url}?` +
+    `client_id=${pkceConfig.client_id}&` +
+    `redirect_uri=${redirect}&` +
     `response_type=code&` +
     `scope=users.read%20tweet.read&` +
     `code_challenge=${code_challenge}&` +

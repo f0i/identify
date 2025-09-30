@@ -50,10 +50,10 @@ export const delegation = async (
   }
 
   let msg;
-  if (context.provider === "github" || context.provider === "x") {
+  if (context.providerKey === "github" || context.providerKey === "x") {
     const pkceAuthData = await context.getPkceAuthData(publicKey);
     msg = await getDelegationPkce(
-      context.provider,
+      context.providerKey,
       pkceAuthData.code,
       pkceAuthData.verifier,
       origin,
@@ -65,7 +65,7 @@ export const delegation = async (
   } else {
     const idToken = await context.getJwtToken(nonce);
     msg = await getDelegationJwt(
-      context.provider,
+      context.providerKey,
       idToken,
       origin,
       publicKey,

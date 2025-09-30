@@ -1,4 +1,8 @@
-import { AuthResponse } from "../../declarations/backend/backend.did";
+import {
+  AuthResponse,
+  FrontendOAuth2Config,
+} from "../../declarations/backend/backend.did";
+import { AuthConfig } from "../auth-config";
 
 export interface AuthResponseUnwrapped {
   kind: string;
@@ -35,6 +39,55 @@ export function wrapOpt(val?: any): [] | [any] {
   if (val === undefined) return [];
   return [val];
 }
+
+export function unwrapOpt(val: [] | [any]): any | undefined {
+  if (val.length === 0) return null;
+  return val[0];
+}
+
+export function unwrapEnum<T>(
+  val: Record<string, T>,
+): string | Record<string, T> {
+  const keys = Object.keys(val);
+  if (keys.length !== 1) {
+    console.warn(
+      "Expected exactly one key in enum value, but got ",
+      keys,
+      "in",
+      val,
+    );
+    return val;
+  }
+  if (val[keys[0]] !== null) return val;
+  return val;
+}
+
+export const unwrapProvider = (config: FrontendOAuth2Config): AuthConfig => {
+  if ("jwt" in config.auth) {
+    const jwt = config.auth.jwt;
+    return {
+      auth_type: "OIDC",
+      client_id: jwt.clientId,
+      name: config.name,
+      scope: unwrapOpt(jwt.scope),
+      authority: jwt.authority,
+      response_type: unwrapEnum(jwt.responseType) as any,
+      fedCM_config_url: unwrapOpt(jwt.fedCMConfigUrl),
+    };
+  }
+  if ("pkce" in config.auth) {
+    const pkce = config.auth.pkce;
+    return {
+      auth_type: "PKCE",
+      client_id: pkce.clientId,
+      name: config.name,
+      authorization_url: pkce.authorizationUrl,
+      token_url: pkce.tokenUrl,
+      user_info_endpoint: pkce.userInfoEndpoint,
+    };
+  }
+  throw "Unsupported provider configuration: " + JSONstringify(config);
+};
 
 export function uint8ArrayToHex(array: Uint8Array): string {
   return Array.from(array)
@@ -78,9 +131,20 @@ export const JSONstringify = (obj: any, indent?: number): string => {
   return JSON.stringify(obj, jsonBigintReplacer, indent);
 };
 
-export const jsonBigintReplacer = (key: string, value: any): any => {
+export const jsonBigintReplacer = (_key: string, value: any): any => {
   if (typeof value === "bigint") {
     return value.toString();
   }
   return value;
 };
+
+export function generateRandomString(length: number) {
+  const array = new Uint32Array(length / 2);
+  window.crypto.getRandomValues(array);
+  return Array.from(array, dec2hex).join("");
+}
+
+function dec2hex(dec: number) {
+  const out = dec.toString(16);
+  return out.length == 1 ? "0" + out : out;
+}

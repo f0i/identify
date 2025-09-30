@@ -2,32 +2,25 @@ import { getProviderStyles } from "./provider-styles";
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 import { showElement } from "./identify/dom";
-import {
-  AUTH0,
-  GITHUB,
-  GSI,
-  IDENTITY_PROVIDER,
-  X,
-  ZITADEL,
-} from "./auth-config"; // Added
-import { Principal } from "@dfinity/candid/lib/cjs/idl";
+import { IDENTITY_PROVIDER } from "./auth-config"; // Added
+import { unwrapOpt } from "./identify/utils";
 
 const ALL_PROVIDERS = [
-  { name: "Google", id: "google", config: GSI },
-  { name: "Auth0", id: "auth0", config: AUTH0 },
-  { name: "Zitadel", id: "zitadel", config: ZITADEL },
-  { name: "GitHub", id: "github", config: GITHUB },
-  { name: "X", id: "x", config: X },
+  { name: "Google", key: "google" },
+  { name: "Auth0", key: "auth0" },
+  { name: "Zitadel", key: "zitadel" },
+  { name: "GitHub", key: "github" },
+  { name: "X", key: "x" },
 ];
 
 // Initialize the demo application
-export function initDemo(identityProvider: string) {
+export function initDemo() {
   showElement("demo", true);
   const providerButtonsContainer = document.getElementById("provider-buttons")!; // Get container
 
   ALL_PROVIDERS.forEach((provider) => {
     const button = document.createElement("button");
-    const styles = getProviderStyles(provider.id);
+    const styles = getProviderStyles(provider.key);
     Object.assign(button.style, styles);
 
     const content = document.createElement("div");
@@ -35,7 +28,7 @@ export function initDemo(identityProvider: string) {
     content.style.alignItems = "center";
 
     const icon = document.createElement("img");
-    icon.src = `img/icons/${provider.id}.${provider.id === "zitadel" ? "png" : "svg"}`;
+    icon.src = `img/icons/${provider.key}.${provider.key === "zitadel" ? "png" : "svg"}`;
     icon.style.width = "24px";
     icon.style.height = "24px";
     icon.style.marginRight = "10px";
@@ -48,7 +41,7 @@ export function initDemo(identityProvider: string) {
     button.appendChild(content);
 
     button.addEventListener("click", () =>
-      initAuth(IDENTITY_PROVIDER + "?provider=" + provider.id),
+      initAuth(IDENTITY_PROVIDER + "?provider=" + provider.key),
     );
     providerButtonsContainer.appendChild(button);
   });
@@ -122,17 +115,13 @@ async function checkAuth() {
     const backend = createActor(canisterId, {
       agentOptions: { host, identity: authClient.getIdentity() },
     });
-    const principal = await backend
-      .getPrincipal()
-      .catch((e: any): undefined => undefined);
+    const principal = await backend.getPrincipal().catch(() => undefined);
     const userInfo = principal
-      ? await backend
-          .getUser(principal, origin)
-          .catch((e: any): undefined => undefined)
-      : [];
+      ? unwrapOpt(await backend.getUser(principal, origin).catch(() => []))
+      : undefined;
 
     // Populate user card
-    const userCard = document.getElementById("user-card");
+    //const userCard = document.getElementById("user-card");
     const userIcon = document.getElementById("user-icon") as HTMLImageElement;
     const userName = document.getElementById("user-name");
     const userEmail = document.getElementById("user-email");
@@ -142,9 +131,8 @@ async function checkAuth() {
     if (
       userIcon &&
       userInfo &&
-      userInfo.length > 0 &&
-      userInfo[0].avatar_url &&
-      userInfo[0].avatar_url.length > 0
+      userInfo.avatar_url &&
+      userInfo.avatar_url.length > 0
     ) {
       userIcon.src = userInfo[0].avatar_url[0] ?? "";
       showElement("user-icon", true);

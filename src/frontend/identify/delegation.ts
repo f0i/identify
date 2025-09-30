@@ -10,9 +10,7 @@ export type DelegationParams = {
   maxTimeToLive?: string;
 };
 
-export type ProviderKey = Provider extends { [K in string]: null }
-  ? keyof Provider
-  : never;
+export type ProviderKey = string;
 
 export function getProviderName(provider: ProviderKey): string {
   const p = provider.toString();

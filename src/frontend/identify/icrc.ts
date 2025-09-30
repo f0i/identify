@@ -7,23 +7,15 @@ import * as icrc27 from "./icrc27_accounts";
 import * as icrc49 from "./icrc49_call_canister";
 import * as jsonrpc from "./jsonrpc";
 import { IdentityManager } from "./idenity-manager";
-import { initGsi } from "./google";
-import { initAuth0 } from "../auth0";
-import { initZitadel } from "../zitadel";
 import { getDelegationJwt, getDelegationPkce, ProviderKey } from "./delegation";
 import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
 } from "../agent-js/packages/auth-client/src";
-import {
-  AuthConfig,
-  getAuth0Config,
-  getGoogleConfig,
-  getZitadelConfig,
-  GSI,
-} from "../auth-config";
+import { AuthConfig, getProvider } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
 import { PkceAuthData } from "../pkce";
+import { initOIDC } from "../oidc";
 
 export type Status = "loading" | "ready" | "error" | "signing-in";
 export type StatusUpdate = {
@@ -34,8 +26,7 @@ export type StatusUpdate = {
 
 export type Context = {
   authResponse?: AuthResponseUnwrapped;
-  provider: ProviderKey;
-  authConfig: AuthConfig;
+  providerKey: ProviderKey;
   origin?: string;
   statusCallback: (update: StatusUpdate) => void;
   targetsCallback: (msg: string) => void;
@@ -46,15 +37,17 @@ export type Context = {
   cancel: () => void;
 };
 export const DEFAULT_CONTEXT: Context = {
-  provider: "google",
-  authConfig: GSI,
+  providerKey: "google",
   // Callbacks can be sued to update the UI.
   statusCallback: (update: StatusUpdate) => console.log("status", update),
   targetsCallback: (msg: string) => console.log("targets", msg),
   originCallback: (msg: string) => console.log("origin", msg),
   // Default confirmation function allows all requests.
   // This is ok, because each origin gets its own identity.
-  confirm: async (msg: string) => true,
+  confirm: async (msg: string) => {
+    console.warn("Agree to transaction without user interaction:", msg);
+    return true;
+  },
   getJwtToken: async (nonce: string) => {
     console.error("getJwtToken not set in context (nonce:", nonce, ")");
     throw "Authentication mechanism not set";
@@ -90,13 +83,38 @@ export const loadOrFetchDelegation = async (
     const maxTimeToLive = icrc34.DEFAULT_TTL;
     const targets = undefined;
     const nonce = uint8ArrayToHex(new Uint8Array(sessionKey));
+    context.statusCallback({
+      status: "loading",
+      message: "Loading configuration",
+    });
+    let config = await getProvider(context.providerKey);
     context.statusCallback({ status: "ready" });
-    if (context.provider === "github" || context.provider === "x") {
+    if (config.auth_type === "OIDC") {
+      const idToken = await initOIDC(
+        config,
+        nonce,
+        DOM_IDS.singinBtn,
+        true,
+        context.statusCallback,
+      );
+      console.log("requesting delegation from backend");
+      authRes = await getDelegationJwt(
+        context.providerKey,
+        idToken,
+        origin,
+        new Uint8Array(sessionKey),
+        maxTimeToLive,
+        targets,
+        context.statusCallback,
+      );
+
+      await idManager.setDelegation(authRes, origin);
+    } else if (config.auth_type === "PKCE") {
       const pkceAuthData = await context.getPkceAuthData(
         new Uint8Array(sessionKey),
       );
       authRes = await getDelegationPkce(
-        context.provider,
+        context.providerKey,
         pkceAuthData.code,
         pkceAuthData.verifier,
         origin,
@@ -105,45 +123,15 @@ export const loadOrFetchDelegation = async (
         targets,
         context.statusCallback,
       );
+
+      await idManager.setDelegation(authRes, origin);
     } else {
-      var auth: string = "";
-      if (context.provider === "google") {
-        let config = getGoogleConfig(context.authConfig);
-        auth = await initGsi(config, nonce, DOM_IDS.singinBtn, true);
-      } else if (context.provider === "auth0") {
-        let config = getAuth0Config(context.authConfig);
-        auth = await initAuth0(
-          config,
-          nonce,
-          DOM_IDS.singinBtn,
-          true,
-          context.statusCallback,
-        );
-      } else if (context.provider === "zitadel") {
-        let config = getZitadelConfig(context.authConfig);
-        auth = await initZitadel(
-          config,
-          nonce,
-          DOM_IDS.singinBtn,
-          true,
-          context.statusCallback,
-        );
-      } else {
-        throw "Login provider not supported: " + context.provider.toString();
-      }
-      console.log("requesting delegation from backend");
-      authRes = await getDelegationJwt(
-        context.provider,
-        auth,
-        origin,
-        new Uint8Array(sessionKey),
-        maxTimeToLive,
-        targets,
-        context.statusCallback,
+      // type check that all variants have been consumed in other brances already
+      config satisfies never;
+      throw (
+        "Unsupported authentication type: " + (config as AuthConfig).auth_type
       );
     }
-
-    await idManager.setDelegation(authRes, origin);
   }
 
   const signIdentity = await idManager.getSignIdentity();

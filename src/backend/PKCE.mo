@@ -159,11 +159,11 @@ module PKCE {
     };
 
     switch (config.provider) {
-      case (#x) {
+      case ("x") {
         let ?xUser : ?XUser = from_candid (userBlob) else return #err("missing field in token. " # userJSON);
         return #ok(#x(xUser));
       };
-      case (#github) {
+      case ("github") {
         let ?githubUser : ?GitHubUser = from_candid (userBlob) else return #err("missing field in token. " # userJSON);
         return #ok(#github(githubUser));
       };

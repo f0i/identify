@@ -3,23 +3,13 @@ import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
 import { ProviderKey, getProviderName } from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
-import { initGsi } from "./identify/google";
 import { Principal } from "@dfinity/principal";
-import {
-  AuthConfig,
-  getAuth0Config,
-  getGoogleConfig,
-  getZitadelConfig,
-  getGithubConfig,
-  getXConfig,
-  getPKCEConfig,
-} from "./auth-config";
+import { AuthConfig, getProvider, OIDCConfig } from "./auth-config";
 import { DOM_IDS } from "./dom-config";
-import { initAuth0 } from "./auth0";
-import { generateChallenge, initPkce, PkceAuthData } from "./pkce";
-import { initZitadel } from "./zitadel";
+import { generateChallenge, initPkce } from "./pkce";
 import { getDelegationJwt, getDelegationPkce } from "./identify/delegation";
 import { StatusUpdate } from "./identify/icrc";
+import { initOIDC } from "./oidc";
 
 declare global {
   interface Window {
@@ -80,14 +70,17 @@ const setStatusText = (update: StatusUpdate) => {
 
 let context: Context = DEFAULT_CONTEXT;
 
-export function initIdentify(provider: ProviderKey, config: AuthConfig) {
+export async function initIdentify(providerKey: ProviderKey) {
   showElement("identify", true);
+
+  console.log("initIdentify");
+
   const signInButtonContainer = document.getElementById(DOM_IDS.singinBtn);
   if (signInButtonContainer) {
     const actualButton = signInButtonContainer.querySelector("button");
     if (actualButton) {
       actualButton.innerHTML = ""; // Clear existing content
-      const styles = getProviderStyles(provider);
+      const styles = getProviderStyles(providerKey);
       Object.assign(actualButton.style, styles);
 
       const content = document.createElement("div");
@@ -95,14 +88,14 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
       content.style.alignItems = "center";
 
       const icon = document.createElement("img");
-      icon.src = `img/icons/${String(provider)}.${provider === "zitadel" ? "png" : "svg"}`;
+      icon.src = `img/icons/${String(providerKey)}.${providerKey === "zitadel" ? "png" : "svg"}`;
       icon.style.width = "24px";
       icon.style.height = "24px";
       icon.style.marginRight = "10px";
       content.appendChild(icon);
 
       const text = document.createElement("span");
-      text.innerText = `Sign in with ${getProviderName(provider)}`;
+      text.innerText = `Sign in with ${getProviderName(providerKey)}`;
       content.appendChild(text);
 
       actualButton.appendChild(content);
@@ -113,63 +106,41 @@ export function initIdentify(provider: ProviderKey, config: AuthConfig) {
   let init = true;
 
   context.getJwtToken = async (nonce: string) => {
-    switch (provider) {
-      case "google":
-        return await initGsi(
-          getGoogleConfig(config),
-          nonce,
-          DOM_IDS.singinBtn,
-          true,
-        );
-      case "auth0":
-        return await initAuth0(
-          getAuth0Config(config),
-          nonce,
-          DOM_IDS.singinBtn,
-          true,
-          context.statusCallback,
-        );
-      case "zitadel":
-        return await initZitadel(
-          getZitadelConfig(config),
-          nonce,
-          DOM_IDS.singinBtn,
-          false,
-          context.statusCallback,
-        );
-      default:
-        throw "Invalid provider for JWT: " + provider.toString();
+    const config: AuthConfig = await getProvider(providerKey);
+    if (config.auth_type != "OIDC") {
+      throw (
+        "Invalid configuration: " +
+        config.name +
+        " is not an OpenID Connect (OIDC) provider"
+      );
     }
+    return await initOIDC(
+      config as OIDCConfig,
+      nonce,
+      DOM_IDS.singinBtn,
+      false,
+      context.statusCallback,
+    );
   };
 
   context.getPkceAuthData = async (sessionKey: Uint8Array) => {
     const code = await generateChallenge(sessionKey);
-    switch (provider) {
-      case "github":
-        return await initPkce(
-          getGithubConfig(config),
-          code.challenge,
-          code.verifier,
-          DOM_IDS.singinBtn,
-          true,
-          context.statusCallback,
-        );
-      case "x":
-        return await initPkce(
-          getXConfig(config),
-          code.challenge,
-          code.verifier,
-          DOM_IDS.singinBtn,
-          true,
-          context.statusCallback,
-        );
-      default:
-        throw "Invalid provider for PKCE: " + provider.toString();
-    }
+    const config = await getProvider(providerKey);
+    if (config.auth_type != "PKCE")
+      throw (
+        "Invalid configuration: " + config.name + " is not an PKCE provider"
+      );
+    return await initPkce(
+      config,
+      code.challenge,
+      code.verifier,
+      DOM_IDS.singinBtn,
+      true,
+      context.statusCallback,
+    );
   };
 
-  context.provider = provider;
-  context.authConfig = config;
+  context.providerKey = providerKey;
 
   context.statusCallback = (update) => setStatusText(update);
   context.targetsCallback = setTargetsText;
@@ -243,12 +214,12 @@ const handleAuthorizeClient = async (
 
     // Get delegation from backend
     let msg;
-    if (context.provider === "github" || context.provider === "x") {
+    if (context.providerKey === "github" || context.providerKey === "x") {
       const pkceAuthData = await context.getPkceAuthData(
         authRequest.sessionPublicKey,
       );
       msg = await getDelegationPkce(
-        context.provider,
+        context.providerKey,
         pkceAuthData.code,
         pkceAuthData.verifier,
         origin,
@@ -260,7 +231,7 @@ const handleAuthorizeClient = async (
     } else {
       const idToken = await context.getJwtToken(nonce);
       msg = await getDelegationJwt(
-        context.provider,
+        context.providerKey,
         idToken,
         origin,
         authRequest.sessionPublicKey,

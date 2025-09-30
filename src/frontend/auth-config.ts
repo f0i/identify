@@ -1,6 +1,11 @@
+import { canisterId, createActor } from "../declarations/backend";
+import { unwrapProvider } from "./identify/utils";
+
 export const IDENTITY_PROVIDER = "https://login.f0i.de";
 
 export const GSI = {
+  auth_type: "google",
+  name: "Google",
   client_id:
     "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com",
   authURL: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -8,14 +13,9 @@ export const GSI = {
   configURL: "https://accounts.google.com/gsi/fedcm.json",
 };
 
-export const GOOGLE = {
-  authority: "https://accounts.google.com/",
-};
-
 export const ZITADEL = {
   authority: "https://identify-ci5vmz.us1.zitadel.cloud",
   client_id: "327788236128717664",
-  redirect_uri: IDENTITY_PROVIDER + "/callback.html",
 };
 
 export const AUTH0 = {
@@ -23,87 +23,94 @@ export const AUTH0 = {
   clientId: "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ",
 };
 
-export const GITHUB = {
-  authorizationUrl: "https://github.com/login/oauth/authorize",
-  tokenUrl: "https://github.com/login/oauth/access_token",
-  userInfoEndpoint: "https://api.github.com/user",
-  clientId: "Ov23liMbdP36K0AIWTgl",
-  redirect: IDENTITY_PROVIDER + "/pkce-callback.html",
+export const GITHUB: PKCEConfig = {
+  auth_type: "PKCE",
+  name: "Google",
+  authorization_url: "https://github.com/login/oauth/authorize",
+  token_url: "https://github.com/login/oauth/access_token",
+  user_info_endpoint: "https://api.github.com/user",
+  client_id: "Ov23liMbdP36K0AIWTgl",
 };
 
-export const X = {
-  authorizationUrl: "https://x.com/i/oauth2/authorize",
-  tokenUrl: "https://api.x.com/2/oauth2/token",
-  userInfoEndpoint: "https://api.x.com/2/users/me",
-  clientId: "c1Y3cWhOekU1SFlwVkJCNlFmbWU6MTpjaQ",
-  redirect: IDENTITY_PROVIDER + "/pkce-callback.html",
+export const X: PKCEConfig = {
+  auth_type: "PKCE",
+  name: "X",
+  authorization_url: "https://x.com/i/oauth2/authorize",
+  token_url: "https://api.x.com/2/oauth2/token",
+  user_info_endpoint: "https://api.x.com/2/users/me",
+  client_id: "c1Y3cWhOekU1SFlwVkJCNlFmbWU6MTpjaQ",
 };
 
 export const APPLE = {
+  auth_type: "apple",
+  name: "Apple",
   client_id: "<TODO>",
   authority: "https://appleid.apple.com",
   response_type: "code",
   scope: "openid email name",
-  redirect_uri: IDENTITY_PROVIDER + "/callback.html",
 };
 
-export const LINKED_IN = {
+export const LINKED_IN: OIDCConfig = {
+  auth_type: "OIDC",
+  name: "LinkedIn",
   client_id: "<TODO>",
   authority: "https://www.linkedin.com/oauth/",
-  scope: "oppenid pfrofile email",
-  redirect_uri: IDENTITY_PROVIDER + "/callback.html",
+  scope: "openid profile email",
+  response_type: "code",
 };
 
 export type GoogleConfig = typeof GSI;
 export type Auth0Config = typeof AUTH0;
 export type ZitadelConfig = typeof ZITADEL;
-export type GithubConfig = typeof GITHUB;
+export type GithubConfig = PKCEConfig;
 export type XConfig = typeof X;
 export type AppleConfig = typeof APPLE;
 
+export type AuthConfig = OIDCConfig | PKCEConfig;
+
 export type OIDCConfig = {
+  auth_type: "OIDC";
+  name: string;
   client_id: string;
-  authority: string;
   scope: string;
+  authority: string;
   response_type: "code" | "id_token";
   fedCM_config_url?: string;
 };
 
-export type AuthConfig =
-  | GoogleConfig
-  | Auth0Config
-  | ZitadelConfig
-  | GithubConfig
-  | XConfig
-  | OIDCConfig;
+export type PKCEConfig = {
+  auth_type: "PKCE";
+  name: string;
+  client_id: string;
+  authorization_url: string;
+  token_url: string;
+  user_info_endpoint: string;
+};
 
-export type PKCEConfig = GithubConfig | XConfig;
+const getProviderConfigs = async (): Promise<AuthConfig[]> => {
+  const isDev = process.env.DFX_NETWORK !== "ic";
+  const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
+  const backend = createActor(canisterId, { agentOptions: { host } });
+  const providers = await backend.getProviders();
+  console.log("Loaded provider configurations:", providers);
+  const providerConfigs: AuthConfig[] = providers.map(unwrapProvider);
+  return providerConfigs;
+};
+let providersPromise = getProviderConfigs(); // TODO: retry on error
 
-export function getGoogleConfig(config: AuthConfig): GoogleConfig {
-  if ("client_id" in config) return config as GoogleConfig;
-  throw "Invalid config";
-}
-
-export function getAuth0Config(config: AuthConfig): Auth0Config {
-  if ("domain" in config && "clientId" in config) return config as Auth0Config;
-  throw "Invalid config";
-}
-
-export function getZitadelConfig(config: AuthConfig): ZitadelConfig {
-  if (
-    "authority" in config &&
-    "client_id" in config &&
-    "redirect_uri" in config
-  )
-    return config as ZitadelConfig;
-  throw "Invalid config";
-}
+export const getProvider = async (name: string): Promise<AuthConfig> => {
+  let providers: AuthConfig[] = await providersPromise;
+  for (const provider of providers) {
+    if (provider.name.toLowerCase() === name.toLowerCase()) return provider;
+  }
+  console.error("Provider not found:", name, "available:", providers);
+  throw "Provider not found: " + name;
+};
 
 export function getOIDCConfig(config: AuthConfig): OIDCConfig {
   if (
     "authority" in config &&
     "client_id" in config &&
-    "redirect_uri" in config &&
     "scope" in config &&
     "response_type" in config
   )
@@ -119,31 +126,6 @@ export function getPKCEConfig(config: AuthConfig): PKCEConfig {
     "clientId" in config
   ) {
     return config as PKCEConfig;
-  }
-  throw "Invalid config";
-}
-
-export function getGithubConfig(config: AuthConfig): GithubConfig {
-  if (
-    "authorizationUrl" in config &&
-    "tokenUrl" in config &&
-    "userInfoEndpoint" in config &&
-    "clientId" in config
-  ) {
-    return config as GithubConfig;
-  }
-  throw "Invalid config";
-}
-
-export function getXConfig(config: AuthConfig): XConfig {
-  if (
-    "authorizationUrl" in config &&
-    "tokenUrl" in config &&
-    "userInfoEndpoint" in config &&
-    "clientId" in config &&
-    "redirect" in config
-  ) {
-    return config as XConfig;
   }
   throw "Invalid config";
 }

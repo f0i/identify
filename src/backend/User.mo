@@ -2,27 +2,27 @@ import Time "mo:core/Time";
 import { trap } "mo:core/Runtime";
 import JWT "JWT";
 import PKCE "PKCE";
-import Nat "mo:core/Nat"; // Added
-import Option "mo:core/Option"; // Added
+import Nat "mo:core/Nat";
+import Option "mo:core/Option";
 import AuthProvider "AuthProvider";
 
 module {
 
-  type Provider = AuthProvider.Provider;
+  type ProviderKey = AuthProvider.ProviderKey;
   type Time = Time.Time;
   type JWT = JWT.JWT;
 
   public type User = {
-    provider : Provider;
+    provider : ProviderKey;
     id : Text;
-    username : ?Text; // Made optional
+    username : ?Text;
 
     email : ?Text;
     email_verified : ?Bool;
     origin : Text;
     createdAt : Time;
 
-    name : ?Text; // Made optional
+    name : ?Text;
     bio : ?Text;
     avatar_url : ?Text;
     website : ?Text;
@@ -36,11 +36,11 @@ module {
     verified : ?Bool;
   };
 
-  public func fromJWT(origin : Text, provider : Provider, jwt : JWT) : User {
+  public func fromJWT(origin : Text, provider : ProviderKey, jwt : JWT) : User {
     let payload = jwt.payload;
     return {
       provider;
-      id = payload.sub; // Changed from sub to id
+      id = payload.sub;
       email = payload.email;
       email_verified = payload.email_verified;
       origin;
@@ -48,27 +48,28 @@ module {
       name = payload.name;
       username = if (payload.email_verified == ?true) payload.email else null;
       avatar_url = payload.picture;
-      bio = null; // Not available in JWT payload
-      website = null; // Not available in JWT payload
-      location = null; // Not available in JWT payload
-      provider_created_at = null; // Not available in JWT payload
-      followers_count = null; // Not available in JWT payload
-      following_count = null; // Not available in JWT payload
-      tweet_count = null; // Not available in JWT payload
-      public_repos = null; // Not available in JWT payload
-      public_gists = null; // Not available in JWT payload
-      verified = null; // Not available in JWT payload
+      // Not available in JWT payload
+      bio = null;
+      website = null;
+      location = null;
+      provider_created_at = null;
+      followers_count = null;
+      following_count = null;
+      tweet_count = null;
+      public_repos = null;
+      public_gists = null;
+      verified = null;
     };
   };
 
-  public func fromPKCE(origin : Text, provider : Provider, user : PKCE.PKCEUser) : User {
+  public func fromPKCE(origin : Text, provider : ProviderKey, user : PKCE.PKCEUser) : User {
     switch (user) {
       case (#x(xUser)) fromXUser(origin, provider, xUser);
       case (#github(githubUser)) fromGithubUser(origin, provider, githubUser);
     };
   };
 
-  public func fromXUser(origin : Text, provider : Provider, user : PKCE.XUser) : User {
+  public func fromXUser(origin : Text, provider : ProviderKey, user : PKCE.XUser) : User {
     type URLObject = {
       start : Nat;
       end : Nat;
@@ -106,17 +107,18 @@ module {
     return {
       provider;
       id = user.data.id;
-      email = null; // X does not provide email
-      email_verified = null; // X does not provide email_verified
+      // X does not provide email
+      email = null;
+      email_verified = null;
       origin;
-      createdAt = Time.now(); // This is the creation time in this system
+      createdAt = Time.now();
       username = ?user.data.username;
       name = ?user.data.name;
       bio = user.data.description;
       avatar_url = ?user.data.profile_image_url;
       website = optOr(user.data.url, firstUrl(user.data.entities));
       location = null;
-      provider_created_at = ?user.data.created_at; // Changed from created_at
+      provider_created_at = ?user.data.created_at;
       followers_count = followersCount;
       following_count = followingCount;
       tweet_count = tweetCount;
@@ -126,21 +128,22 @@ module {
     };
   };
 
-  public func fromGithubUser(origin : Text, provider : Provider, user : PKCE.GitHubUser) : User {
+  public func fromGithubUser(origin : Text, provider : ProviderKey, user : PKCE.GitHubUser) : User {
     return {
       provider;
       id = Nat.toText(user.id);
-      email = user.email; // GitHub provides email
-      email_verified = null; // GitHub does not provide email_verified status
+      email = user.email;
+      // GitHub does not provide email_verified status
+      email_verified = null;
       origin;
-      createdAt = Time.now(); // This is the creation time in this system
+      createdAt = Time.now();
       username = ?user.login;
       name = ?user.name;
       bio = user.bio;
       avatar_url = ?user.avatar_url;
       website = user.blog;
       location = user.location;
-      provider_created_at = ?user.created_at; // Changed from created_at
+      provider_created_at = ?user.created_at;
       followers_count = ?user.followers;
       following_count = ?user.following;
       tweet_count = null;
@@ -150,7 +153,7 @@ module {
     };
   };
 
-  public func update(existing_user : User, origin : Text, provider : Provider, new_user_data : User) : User {
+  public func update(existing_user : User, origin : Text, provider : ProviderKey, new_user_data : User) : User {
     // verify that it is the same user
     if (existing_user.provider != provider) trap("Provider does not match: " # AuthProvider.providerName(existing_user.provider) # " != " # AuthProvider.providerName(provider));
     if (existing_user.origin != origin) trap("User origin does not match: " # existing_user.origin # " != " # origin);
@@ -179,8 +182,12 @@ module {
     };
   };
 
-  public func optOr<T>(a : ?T, b : ?T) : ?T = if (Option.isSome(a)) { a } else {
-    b;
+  public func optOr<T>(a : ?T, b : ?T) : ?T {
+    if (Option.isSome(a)) {
+      return a;
+    } else {
+      return b;
+    };
   };
 
 };

@@ -16,29 +16,15 @@ module {
   type Time = Time.Time;
   type Order = Order.Order;
 
-  public type Provider = {
-    #google;
-    #zitadel;
-    #auth0;
-    #github;
-    #x;
-    #generic : Text;
-  };
+  public type ProviderKey = Text;
 
   /// Returns a human-readable name for the given provider.
-  public func providerName(provider : Provider) : Text {
-    switch (provider) {
-      case (#google) "Google";
-      case (#zitadel) "Zitadel";
-      case (#auth0) "Auth0";
-      case (#github) "GitHub";
-      case (#x) "X";
-      case (#generic(key)) "SignInWith" # key;
-    };
+  public func providerName(provider : ProviderKey) : Text {
+    return provider;
   };
 
   public type SignInInfo = {
-    provider : Provider;
+    provider : ProviderKey;
     sub : Text;
     origin : Text;
     signin : Time;
@@ -78,7 +64,7 @@ module {
 
   /// Configuration for an OAuth2 provider.
   public type OAuth2Config = {
-    provider : Provider;
+    provider : ProviderKey;
     name : Text;
     auth : AuthParams;
     var keys : [RSA.PubKey];
@@ -88,7 +74,7 @@ module {
   /// Public accessable configuration for an OAuth2 provider
   /// This contains the fields from OAuth2Config required in the frontend to OAuth2 authentication
   public type FrontendOAuth2Config = {
-    provider : Provider;
+    provider : ProviderKey;
     name : Text;
     auth : AuthParams; // must be filtered to not include clientSecret!
   };

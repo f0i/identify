@@ -1,4 +1,8 @@
-import { UserManager, WebStorageStateStore } from "oidc-client-ts";
+import {
+  UserManager,
+  UserManagerSettings,
+  WebStorageStateStore,
+} from "oidc-client-ts";
 import { OIDCConfig } from "./auth-config";
 import { StatusUpdate } from "./identify/icrc";
 
@@ -9,9 +13,12 @@ export async function initOIDC(
   autoSignIn: boolean = false,
   statusCallback: (update: StatusUpdate) => void,
 ): Promise<string> {
-  const options = {
-    ...config,
-    response_type: "code",
+  const options: UserManagerSettings = {
+    authority: config.authority,
+    client_id: config.client_id,
+    response_type: config.response_type,
+    scope: config.scope,
+    redirect_uri: document.location + "/callabck.html",
     userStore: new WebStorageStateStore({ store: window.localStorage }),
   };
   console.log(options);
@@ -63,7 +70,7 @@ export async function initOIDC(
 
 export const hasFedCM = (config: OIDCConfig): boolean => {
   // Config without fedCMConfigUrl
-  if (!config.fedCMConfigUrl) return false;
+  if (!config.fedCM_config_url) return false;
 
   // No FedCM support
   if (!("IdentityCredential" in window)) return false;
@@ -79,7 +86,7 @@ const requestFedCM = async (
   nonce: string,
   mediation: CredentialMediationRequirement,
 ): Promise<string> => {
-  if (!config.fedCMConfigUrl)
+  if (!config.fedCM_config_url)
     throw "Invalid configuration. FedCM configu url not set.";
   const identityCredential = await navigator.credentials.get({
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -88,7 +95,7 @@ const requestFedCM = async (
       context: "use",
       providers: [
         {
-          configURL: config.fedCMConfigUrl,
+          configURL: config.fedCM_config_url,
           clientId: config.client_id,
           nonce: nonce,
           //loginHint: loginHint, // TODO: store preferd_username or email or sub as loginHint for next sign in

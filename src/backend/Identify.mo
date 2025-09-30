@@ -25,7 +25,7 @@ import PKCE "PKCE";
 
 module {
   type List<T> = List.List<T>;
-  type Provider = AuthProvider.Provider;
+  type ProviderKey = AuthProvider.ProviderKey;
   type SignInInfo = AuthProvider.SignInInfo;
   type Result<T> = Result.Result<T, Text>;
   type Map<K, V> = Map.Map<K, V>;
@@ -123,7 +123,7 @@ module {
     return #ok;
   };
 
-  public func getConfig(config : Identify, provider : Provider) : ?AuthProvider.OAuth2Config {
+  public func getConfig(config : Identify, provider : ProviderKey) : ?AuthProvider.OAuth2Config {
     for (config in List.values(config.providers)) {
       if (config.provider == provider) return ?config;
     };
@@ -163,7 +163,7 @@ module {
 
   public func prepareDelegation(
     identify : Identify,
-    provider : Provider,
+    provider : ProviderKey,
     token : Text,
     origin : Text,
     sessionKey : [Nat8],
@@ -230,7 +230,7 @@ module {
 
   public func prepareDelegationPKCE(
     identify : Identify,
-    provider : Provider,
+    provider : ProviderKey,
     code : Text,
     verifier : Text,
     origin : Text,
@@ -311,7 +311,7 @@ module {
 
   public func getDelegation(
     identify : Identify,
-    provider : Provider,
+    provider : ProviderKey,
     origin : Text,
     sessionKey : [Nat8],
     expireAt : Time,

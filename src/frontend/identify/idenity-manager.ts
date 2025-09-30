@@ -72,7 +72,9 @@ class WebCryptoIdentity extends SignIdentity {
     private publicKeyDer: ArrayBuffer,
   ) {
     super();
-    this._principal = Principal.selfAuthenticating(new Uint8Array(publicKeyDer));
+    this._principal = Principal.selfAuthenticating(
+      new Uint8Array(publicKeyDer),
+    );
   }
 
   async sign(blob: ArrayBuffer): Promise<Signature> {
@@ -101,7 +103,6 @@ class WebCryptoIdentity extends SignIdentity {
 export class IdentityManager {
   private keyPair: CryptoKeyPair | null = null;
   private publicKeyDer: ArrayBuffer | null = null;
-  private authRes: AuthResponseUnwrapped | null = null;
 
   /**
    * Restores a new session key pair or generates and stores it.
@@ -113,7 +114,7 @@ export class IdentityManager {
 
     if (!recreate && keyPair && publicKeyDer) {
       this.keyPair = keyPair;
-      this.publicKeyDer = publicKeyDer;
+      this.publicKeyDer = publicKeyDer as any;
       console.log(
         "Loaded existing session key pair from store:",
         keyPair.publicKey,
