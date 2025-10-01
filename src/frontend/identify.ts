@@ -1,15 +1,16 @@
 import { getProviderStyles } from "./provider-styles";
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
-import { ProviderKey, getProviderName } from "./identify/delegation";
+import { getProviderName } from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { Principal } from "@dfinity/principal";
-import { AuthConfig, getProvider, OIDCConfig } from "./auth-config";
+import { AuthConfig, getProvider } from "./auth-config";
 import { DOM_IDS } from "./dom-config";
 import { generateChallenge, initPkce } from "./pkce";
 import { getDelegationJwt, getDelegationPkce } from "./identify/delegation";
 import { StatusUpdate } from "./identify/icrc";
-import { initOIDC } from "./oidc";
+import { initOIDC } from "./oidc-implicit";
+import { ProviderKey } from "../declarations/backend/backend.did";
 
 declare global {
   interface Window {
@@ -115,7 +116,7 @@ export async function initIdentify(providerKey: ProviderKey) {
       );
     }
     return await initOIDC(
-      config as OIDCConfig,
+      config,
       nonce,
       DOM_IDS.singinBtn,
       false,

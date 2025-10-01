@@ -209,12 +209,14 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     name = "Google";
     provider = "google";
     auth = #jwt({
+      //clientId = "444686050919-59dudtkghl89eddmk0i3jnbggtc08hip.apps.googleusercontent.com";
       clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
       keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
       preFetch = true;
       authority = "https://accounts.google.com/";
-      fedCMConfigUrl = null;
-      responseType = #code;
+      authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth";
+      fedCMConfigUrl = ?"https://accounts.google.com/gsi/fedcm.json";
+      responseType = "id_token";
       scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];
@@ -229,8 +231,9 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
       preFetch = true;
       authority = "https://identify.uk.auth0.com/";
+      authorizationUrl = "https://identify.uk.auth0.com//oauth/authorize";
       fedCMConfigUrl = null;
-      responseType = #code;
+      responseType = "id_token";
       scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];
@@ -245,8 +248,9 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
       preFetch = false;
       authority = "https://identify-ci5vmz.us1.zitadel.cloud";
+      authorizationUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/authorize";
       fedCMConfigUrl = null;
-      responseType = #code;
+      responseType = "id_token";
       scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];
@@ -291,8 +295,9 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       keysUrl = "https://www.linkedin.com/oauth/openid/jwks";
       preFetch = true;
       authority = "https://www.linkedin.com/oauth/";
+      authorizationUrl = "https://www.linkedin.com/oauth/v2/authorization";
       fedCMConfigUrl = null;
-      responseType = #code;
+      responseType = "code id_token";
       scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];

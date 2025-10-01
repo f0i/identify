@@ -1,4 +1,3 @@
-import { Principal } from "@dfinity/principal";
 import { GoogleConfig } from "../auth-config";
 
 declare global {

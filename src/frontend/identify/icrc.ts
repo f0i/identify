@@ -7,7 +7,7 @@ import * as icrc27 from "./icrc27_accounts";
 import * as icrc49 from "./icrc49_call_canister";
 import * as jsonrpc from "./jsonrpc";
 import { IdentityManager } from "./idenity-manager";
-import { getDelegationJwt, getDelegationPkce, ProviderKey } from "./delegation";
+import { getDelegationJwt, getDelegationPkce } from "./delegation";
 import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
@@ -15,7 +15,8 @@ import {
 import { AuthConfig, getProvider } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
 import { PkceAuthData } from "../pkce";
-import { initOIDC } from "../oidc";
+import { initOIDC } from "../oidc-implicit";
+import { ProviderKey } from "../../declarations/backend/backend.did";
 
 export type Status = "loading" | "ready" | "error" | "signing-in";
 export type StatusUpdate = {

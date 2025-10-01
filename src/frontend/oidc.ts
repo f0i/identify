@@ -18,10 +18,11 @@ export async function initOIDC(
     client_id: config.client_id,
     response_type: config.response_type,
     scope: config.scope,
-    redirect_uri: document.location + "/callabck.html",
+    redirect_uri: document.location.origin + "/callback.html",
+    loadUserInfo: false,
     userStore: new WebStorageStateStore({ store: window.localStorage }),
   };
-  console.log(options);
+  console.log("OIDC options", options);
   const userManager = new UserManager(options);
 
   async function signin() {
@@ -78,6 +79,8 @@ export const hasFedCM = (config: OIDCConfig): boolean => {
   // Unsupported implementations
   if (/SamsungBrowser/i.test(navigator.userAgent)) return false;
 
+  if (localStorage.getItem("disable-fedcm") === "true") return false;
+
   return true;
 };
 
@@ -105,6 +108,7 @@ const requestFedCM = async (
     },
     mediation: mediation,
   });
+  console.log("FedCM returned credentials:", identityCredential);
 
   if (
     identityCredential?.type !== "identity" ||

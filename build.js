@@ -20,6 +20,7 @@ esbuild
       "src/frontend/app.ts", // Main app
       "src/frontend/callback.ts", // OAuth callback
       "src/frontend/pkce-callback.ts", // PKCE callback
+      "src/frontend/oidc-callback.ts", // OIDC callback
     ],
     bundle: true, // Bundle all dependencies into a single file
     outdir: "out/frontend/", // Output file
@@ -41,6 +42,7 @@ esbuild
   })
   .then(() => copyWithCacheBuster("index", "app"))
   .then(() => copyWithCacheBuster("callback", "callback"))
+  .then(() => copyWithCacheBuster("oidc-callback", "oidc-callback"))
   .then(() => copyWithCacheBuster("pkce-callback", "pkce-callback"))
   .then(() => {
     // copy static files

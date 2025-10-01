@@ -46,6 +46,7 @@ export const APPLE = {
   name: "Apple",
   client_id: "<TODO>",
   authority: "https://appleid.apple.com",
+  authorization_url: "https://appleid.apple.com/auth/authorize",
   response_type: "code",
   scope: "openid email name",
 };
@@ -55,6 +56,7 @@ export const LINKED_IN: OIDCConfig = {
   name: "LinkedIn",
   client_id: "<TODO>",
   authority: "https://www.linkedin.com/oauth/",
+  authorization_url: "https://www.linkedin.com/oauth/v2/authorization",
   scope: "openid profile email",
   response_type: "code",
 };
@@ -74,6 +76,7 @@ export type OIDCConfig = {
   client_id: string;
   scope: string;
   authority: string;
+  authorization_url: string;
   response_type: "code" | "id_token";
   fedCM_config_url?: string;
 };
@@ -108,24 +111,11 @@ export const getProvider = async (name: string): Promise<AuthConfig> => {
 };
 
 export function getOIDCConfig(config: AuthConfig): OIDCConfig {
-  if (
-    "authority" in config &&
-    "client_id" in config &&
-    "scope" in config &&
-    "response_type" in config
-  )
-    return config as OIDCConfig;
+  if (config.auth_type === "OIDC") return config as OIDCConfig;
   throw "Invalid config";
 }
 
 export function getPKCEConfig(config: AuthConfig): PKCEConfig {
-  if (
-    "authorizationUrl" in config &&
-    "tokenUrl" in config &&
-    "userInfoEndpoint" in config &&
-    "clientId" in config
-  ) {
-    return config as PKCEConfig;
-  }
+  if (config.auth_type === "PKCE") return config as PKCEConfig;
   throw "Invalid config";
 }

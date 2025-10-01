@@ -42,8 +42,9 @@ module {
       keysUrl : Text; // TODO: rename to jwks_uri
       preFetch : Bool;
       authority : Text;
+      authorizationUrl : Text;
       fedCMConfigUrl : ?Text;
-      responseType : { #code; #id_token };
+      responseType : Text; // "code id_token"
       scope : ?Text;
     };
     /// PKCE params

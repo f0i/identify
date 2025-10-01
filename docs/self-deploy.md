@@ -44,7 +44,7 @@ dfx canister call backend addProvider '(
         authority = "https://oidc.example.com/";
         redirectUri = "https://<your-identify-instance-url>/callback.html";
         fedCMConfigUrl = null;
-        responseType = #code;
+        responseType = "code id_token";
         scope = opt "openid email profile";
       }
     }
@@ -204,14 +204,14 @@ You can add providers programmatically and set up timers to periodically fetch t
   // Add a provider configuration
   let googleConfig : AuthProvider.OAuth2Config = {
     name = "Google";
-    provider = #google;
+    provider = "google";
     auth = #jwt({
       clientId = "your-google-client-id.apps.googleusercontent.com";
       keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
       preFetch = true;
       authority = "https://accounts.google.com/";
       fedCMConfigUrl = null;
-      responseType = #code;
+      responseType = "code id_token";
       scope = ?"openid email profile";
     });
     var keys : [RSA.PubKey] = [];

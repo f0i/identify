@@ -1,7 +1,7 @@
 import { Principal } from "@dfinity/principal";
 import { canisterId, createActor } from "../../declarations/backend";
 import { AuthResponseUnwrapped, unwrapTargets, wrapOpt } from "./utils";
-import { Provider } from "../../declarations/backend/backend.did";
+import { ProviderKey } from "../../declarations/backend/backend.did";
 import { StatusUpdate } from "./icrc";
 
 export type DelegationParams = {
@@ -9,8 +9,6 @@ export type DelegationParams = {
   targets?: string[];
   maxTimeToLive?: string;
 };
-
-export type ProviderKey = string;
 
 export function getProviderName(provider: ProviderKey): string {
   const p = provider.toString();
@@ -49,7 +47,7 @@ export const getDelegationJwt = async (
   });
 
   let prepRes = await backend.prepareDelegation(
-    { [provider]: null } as Provider,
+    provider,
     idToken,
     origin,
     sessionPublicKey,
@@ -67,7 +65,7 @@ export const getDelegationJwt = async (
   });
 
   let authRes = await backend.getDelegation(
-    { [provider]: null } as Provider,
+    provider,
     origin,
     sessionPublicKey,
     prepRes.ok.expireAt,
@@ -115,7 +113,7 @@ export const getDelegationPkce = async (
   });
 
   let prepRes = await backend.prepareDelegationPKCE(
-    { [provider]: null } as Provider,
+    provider,
     code,
     code_verifier,
     origin,
@@ -134,7 +132,7 @@ export const getDelegationPkce = async (
   });
 
   let authRes = await backend.getDelegation(
-    { [provider]: null } as Provider,
+    provider,
     origin,
     sessionPublicKey,
     prepRes.ok.expireAt,

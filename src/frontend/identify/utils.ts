@@ -35,13 +35,13 @@ export function unwrapTargets(authRes: AuthResponse): AuthResponseUnwrapped {
   } as AuthResponseUnwrapped;
 }
 
-export function wrapOpt(val?: any): [] | [any] {
+export function wrapOpt<T>(val?: T): [] | [T] {
   if (val === undefined) return [];
   return [val];
 }
 
-export function unwrapOpt(val: [] | [any]): any | undefined {
-  if (val.length === 0) return null;
+export function unwrapOpt<T>(val: [] | [T]): T | undefined {
+  if (val.length === 0) return undefined;
   return val[0];
 }
 
@@ -59,7 +59,7 @@ export function unwrapEnum<T>(
     return val;
   }
   if (val[keys[0]] !== null) return val;
-  return val;
+  return keys[0];
 }
 
 export const unwrapProvider = (config: FrontendOAuth2Config): AuthConfig => {
@@ -69,9 +69,10 @@ export const unwrapProvider = (config: FrontendOAuth2Config): AuthConfig => {
       auth_type: "OIDC",
       client_id: jwt.clientId,
       name: config.name,
-      scope: unwrapOpt(jwt.scope),
+      scope: unwrapOpt(jwt.scope) || "",
       authority: jwt.authority,
-      response_type: unwrapEnum(jwt.responseType) as any,
+      authorization_url: jwt.authorizationUrl,
+      response_type: jwt.responseType as "id_token",
       fedCM_config_url: unwrapOpt(jwt.fedCMConfigUrl),
     };
   }

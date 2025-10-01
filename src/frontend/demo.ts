@@ -119,6 +119,7 @@ async function checkAuth() {
     const userInfo = principal
       ? unwrapOpt(await backend.getUser(principal, origin).catch(() => []))
       : undefined;
+    console.log("userInfo", userInfo);
 
     // Populate user card
     //const userCard = document.getElementById("user-card");
@@ -134,40 +135,28 @@ async function checkAuth() {
       userInfo.avatar_url &&
       userInfo.avatar_url.length > 0
     ) {
-      userIcon.src = userInfo[0].avatar_url[0] ?? "";
+      userIcon.src = userInfo.avatar_url[0] ?? "";
       showElement("user-icon", true);
     } else if (userIcon) {
       showElement("user-icon", false); // Hide if no valid picture
     }
 
-    if (
-      userName &&
-      userInfo &&
-      userInfo.length > 0 &&
-      userInfo[0].name &&
-      userInfo[0].name.length > 0
-    ) {
-      userName.innerText = userInfo[0].name[0] ?? "";
+    if (userName && userInfo && userInfo.name && userInfo.name.length > 0) {
+      userName.innerText = userInfo.name[0] ?? "";
       showElement("user-name", true);
     } else if (userName) {
       showElement("user-name", false); // Hide if no name
     }
 
-    if (
-      userEmail &&
-      userInfo &&
-      userInfo.length > 0 &&
-      userInfo[0].email &&
-      userInfo[0].email.length > 0
-    ) {
-      userEmail.innerText = userInfo[0].email[0] ?? "";
+    if (userEmail && userInfo && userInfo.email && userInfo.email.length > 0) {
+      userEmail.innerText = userInfo.email[0] ?? "";
       showElement("user-email", true);
     } else if (userEmail) {
       showElement("user-email", false); // Hide if no email
     }
 
-    if (userId && userInfo && userInfo.length > 0 && userInfo[0].id) {
-      userId.innerText = `User ID: ${userInfo[0].id}`;
+    if (userId && userInfo && userInfo.id) {
+      userId.innerText = `User ID: ${userInfo.id}`;
       showElement("user-id", true);
     } else if (userId) {
       showElement("user-id", false); // Hide if no ID
@@ -184,7 +173,7 @@ async function checkAuth() {
     const additionalUserInfoDiv = document.getElementById(
       "additional-user-info",
     );
-    if (additionalUserInfoDiv && userInfo && userInfo.length > 0) {
+    if (additionalUserInfoDiv && userInfo) {
       additionalUserInfoDiv.innerHTML = ""; // Clear previous content
 
       const excludedKeys = [
@@ -197,9 +186,9 @@ async function checkAuth() {
         "principal", // Exclude principal as it's handled separately
       ];
 
-      for (const key in userInfo[0]) {
-        if (userInfo[0].hasOwnProperty(key) && !excludedKeys.includes(key)) {
-          let value = (userInfo as any)[0][key];
+      for (const key in userInfo) {
+        if (userInfo.hasOwnProperty(key) && !excludedKeys.includes(key)) {
+          let value = (userInfo as any)[key];
           let displayValue = "";
           let shouldDisplay = true;
 
