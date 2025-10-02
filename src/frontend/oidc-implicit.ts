@@ -2,7 +2,9 @@ import { backend } from "../declarations/backend";
 import { OIDCConfig } from "./auth-config";
 import { StatusUpdate } from "./identify/icrc";
 
-export type OidcAuthData = string;
+export type OidcAuthData =
+  | { token_type: "id_token"; id_token: string }
+  | { token_type: "code"; code: string };
 
 /**
  * Initialize OIDC implicit flow in a popup.
@@ -40,7 +42,7 @@ export async function initOIDC(
     popup = window.open(authUrl.href, "_blank", "width=500,height=600");
     if (!popup) throw new Error("Could not open popup");
 
-    return new Promise((resolve, reject) => {
+    return new Promise<OidcAuthData>((resolve, reject) => {
       const messageListener = (event: MessageEvent) => {
         if (event.source === popup) {
           window.removeEventListener("message", messageListener);
@@ -48,32 +50,21 @@ export async function initOIDC(
 
           if (event.data.type === "oidc_auth_success") {
             if (event.data.state !== state) {
-              reject(new Error("Invalid state"));
-              return;
+              return reject(new Error("Invalid state"));
+            } else {
+              return resolve({
+                token_type: "id_token",
+                id_token: event.data.id_token,
+              });
             }
-            resolve(event.data.id_token);
           } else if (event.data.type === "oidc_auth_code") {
-            backend
-              .exchangeToken(config.name.toLowerCase(), event.data.code, [])
-              .then(
-                (res) => {
-                  if ("ok" in res) {
-                    const data = res.ok;
-                    resolve(JSON.parse(data).id_token);
-                  } else {
-                    reject("Failed to get ID Token: " + res.err);
-                  }
-                },
-                (err) => {
-                  reject("Failed to get ID Token: " + err);
-                },
-              );
             if (event.data.state !== state) {
-              reject(new Error("Invalid state"));
-              return;
+              return reject(new Error("Invalid state"));
+            } else {
+              return resolve({ token_type: "code", code: event.data.code });
             }
           } else if (event.data.type === "oidc_auth_error") {
-            reject(new Error(event.data.error));
+            return reject(new Error(event.data.error));
           }
         }
       };

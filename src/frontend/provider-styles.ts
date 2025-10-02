@@ -1,6 +1,6 @@
 // provider-styles.ts
 
-import { ProviderKey } from "./identify/delegation";
+import { ProviderKey } from "../declarations/backend/backend.did";
 
 export const getProviderStyles = (provider: ProviderKey) => {
   switch (provider) {
@@ -27,6 +27,11 @@ export const getProviderStyles = (provider: ProviderKey) => {
     case "x":
       return {
         backgroundColor: "#000000",
+        color: "white",
+      };
+    case "linkedin":
+      return {
+        backgroundColor: "#0077B5",
         color: "white",
       };
     default:

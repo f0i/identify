@@ -166,3 +166,10 @@ function dec2hex(dec: number) {
   const out = dec.toString(16);
   return out.length == 1 ? "0" + out : out;
 }
+
+export async function sha256(input: string): Promise<Uint8Array> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return new Uint8Array(hashBuffer);
+}

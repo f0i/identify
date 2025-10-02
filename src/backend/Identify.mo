@@ -22,6 +22,7 @@ import User "User";
 import Hex "mo:hex";
 import Jwt "JWT";
 import PKCE "PKCE";
+import { JSON } "mo:serde";
 
 module {
   type List<T> = List.List<T>;
@@ -44,6 +45,12 @@ module {
   let MAX_TIME_PER_LOGIN = #minutes(5);
 
   public type PrepRes = Result<{ pubKey : [Nat8]; expireAt : Time; isNew : Bool }>;
+  public type CodeHash = {
+    sessionKey : [Nat8];
+    codeHash : [Nat8];
+    provider : ProviderKey;
+    var used : Bool;
+  };
 
   public type Identify = {
     providers : List<AuthProvider.OAuth2Config>;
@@ -51,6 +58,7 @@ module {
     sigStore : CanisterSignature.SignatureStore;
     signIns : Map<[Nat8], SignInInfo>;
     users : Map<Principal, User>;
+    codeHash : Map<[Nat8], CodeHash>; // Code hash for PKCE with JWT flow
   };
 
   /// Initialize a new Identify state.
@@ -64,6 +72,7 @@ module {
       sigStore = CanisterSignature.newStore(backend);
       signIns = Map.empty<[Nat8], SignInInfo>();
       users = Map.empty<Principal, User>();
+      codeHash = Map.empty<[Nat8], CodeHash>();
     };
   };
 
@@ -159,6 +168,17 @@ module {
         return #err(msg);
       };
     };
+  };
+
+  public func lockCodeHash(
+    identify : Identify,
+    provider : ProviderKey,
+    codeHash : [Nat8],
+    sessionKey : [Nat8],
+  ) : Result<()> {
+    if (Map.containsKey(identify.codeHash, compareCodeHash, codeHash)) return #err("Code is already locked");
+    Map.add(identify.codeHash, compareCodeHash, codeHash, { codeHash; sessionKey; provider; var used = false });
+    return #ok;
   };
 
   public func prepareDelegation(
@@ -309,6 +329,102 @@ module {
     });
   };
 
+  public func prepareDelegationPKCEJWT(
+    identify : Identify,
+    provider : ProviderKey,
+    code : Text,
+    origin : Text,
+    sessionKey : [Nat8],
+    expireIn : Nat,
+    targets : ?[Principal],
+    transform : TransformFn,
+    transformKeys : TransformFn,
+  ) : async* PrepRes {
+
+    // load Provider config
+    let ?providerConfig = getConfig(identify, provider) else return #err("No configruration found for " # AuthProvider.providerName(provider));
+    let #jwt(authConfig) = providerConfig.auth else return #err(providerConfig.name # " does not support JWT based sing in");
+
+    // check preconditions
+    if (expireIn > toNanos(MAX_EXPIRATION_TIME)) return #err("Expiration time to long");
+    if (expireIn < toNanos(MIN_EXPIRATION_TIME)) return #err("Expiration time to short");
+    let now = Time.now();
+    let expireAt = now + expireIn;
+
+    if (sessionKey.size() < 30) return #err("Session key is too short. It is " # Nat.toText(sessionKey.size()) # " bytes.");
+
+    // verify code hash
+    let codeHash = Blob.toArray(Sha256.fromBlob(#sha256, Text.encodeUtf8(code)));
+    let ?codeHashData = Map.get(identify.codeHash, compareCodeHash, codeHash) else return #err("Invalid code: CodeHash not found.");
+    if (codeHashData.sessionKey != sessionKey) return #err("Invalid session key: Code is connected to a different session key");
+    if (codeHashData.used) return #err("Invalid code: code has already been exchanged");
+    codeHashData.used := true;
+    // Time of JWT token from google must not be more than 5 minutes in the future
+
+    // Exchange code for jwt token!
+    let tokens = await* PKCE.exchangeAuthorizationCode(providerConfig, code, null, transform);
+
+    let tokensJSON = switch (tokens) {
+      case (#ok(data)) data;
+      case (#err(err)) return #err(err);
+    };
+
+    let tokensBlob = switch (JSON.fromText(tokensJSON, null)) {
+      case (#ok data) data;
+      case (#err err) return #err("could not decode token: " # err # " '" # tokensJSON # "'");
+    };
+    type TokensData = { id_token : Text };
+    let ?tokensData : ?TokensData = from_candid (tokensBlob) else return #err("missing field in token. " # tokensJSON);
+
+    let token = tokensData.id_token;
+
+    let getKeys = AuthProvider.getKeyFn(providerConfig, transformKeys);
+    let jwt = switch (await* Jwt.decode(token, getKeys, now, #minutes(5), [authConfig.clientId], null /* no nonce! */)) {
+      case (#err(err)) {
+        return #err("failed to decode token: " # err);
+      };
+      case (#ok data) data;
+    };
+
+    let sub = jwt.payload.sub;
+    // sign delegation
+    let signInInfo : SignInInfo = {
+      provider;
+      sub;
+      origin;
+      signin = Time.now();
+    };
+
+    // This is adding a signature to the sigTree and storing its hash in certified data.
+    let userKeySeed = AuthProvider.getUserKeySeed(signInInfo);
+    let pubKey = CanisterSignature.prepareDelegation(identify.sigStore, userKeySeed, sessionKey, now, MAX_TIME_PER_LOGIN, expireAt, targets);
+    Map.add(identify.signIns, compareKey, sessionKey, signInInfo); // Use user_data_from_pkce.id for sub
+
+    // store user data
+    let principal = CanisterSignature.pubKeyToPrincipal(pubKey);
+
+    let newUser = User.fromJWT(origin, provider, jwt); // New line
+
+    var isNew = false;
+    let user : User = switch (Map.get(identify.users, Principal.compare, principal)) {
+      case (?old) {
+        User.update(old, origin, provider, newUser); // Changed
+      };
+      case (null) {
+        isNew := true;
+        newUser;
+      };
+    };
+    Map.add(identify.users, Principal.compare, principal, user);
+
+    return #ok({
+      pubKey;
+      expireAt;
+      isNew;
+    });
+
+  };
+
   public func getDelegation(
     identify : Identify,
     provider : ProviderKey,
@@ -339,6 +455,7 @@ module {
 
   /// Compare two Nat8 Arrays
   func compareKey(a : [Nat8], b : [Nat8]) : Order.Order = Array.compare(a, b, Nat8.compare);
+  func compareCodeHash(a : [Nat8], b : [Nat8]) : Order.Order = Array.compare(a, b, Nat8.compare);
 
   /// Get user information for a specific principal
   public func getUser(identify : Identify, principal : Principal) : ?User {

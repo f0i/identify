@@ -3,6 +3,7 @@ import { canisterId, createActor } from "../../declarations/backend";
 import {
   AuthResponseUnwrapped,
   base64decodeText,
+  sha256,
   unwrapTargets,
   wrapOpt,
 } from "./utils";
@@ -152,6 +153,75 @@ export const getDelegationPkce = async (
     statusCallback({ status: "signing-in", message: "Login completed" });
     const msg = unwrapTargets(authRes.ok.auth);
     console.log("getDelegationPkce response unwrapped:", msg);
+    return msg;
+  } else {
+    throw "Could not sign in: " + authRes.err;
+  }
+};
+
+export const getDelegationPkceJwt = async (
+  provider: ProviderKey,
+  code: string,
+  origin: string,
+  sessionPublicKey: Uint8Array,
+  maxTimeToLive: bigint,
+  targets: undefined | Principal[],
+  statusCallback: (update: StatusUpdate) => void,
+): Promise<AuthResponseUnwrapped> => {
+  const isDev = process.env.DFX_NETWORK !== "ic";
+  const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
+
+  const backend = createActor(canisterId, { agentOptions: { host } });
+
+  const name = getProviderName(provider);
+
+  statusCallback({
+    status: "signing-in",
+    message: name + " sign in succeeded. Authorizing client...",
+  });
+
+  const codeHash = await sha256(code);
+  let lock = await backend.lockPKCEJWTcode(
+    provider,
+    codeHash,
+    sessionPublicKey,
+  );
+  if (!("ok" in lock))
+    throw "Sign in failed: Could not lock authorization code: " + lock.err;
+
+  let prepRes = await backend.prepareDelegationPKCEJWT(
+    provider,
+    code,
+    origin,
+    sessionPublicKey,
+    maxTimeToLive,
+    wrapOpt(targets),
+  );
+  if ("ok" in prepRes) {
+    console.log("prepareDelegation response:", prepRes.ok);
+  } else {
+    throw prepRes.err;
+  }
+  statusCallback({
+    status: "signing-in",
+    message: name + " sign in succeeded. Get client authorization...",
+  });
+
+  let authRes = await backend.getDelegation(
+    provider,
+    origin,
+    sessionPublicKey,
+    prepRes.ok.expireAt,
+    wrapOpt(targets),
+  );
+
+  console.log("getDelegation response:", authRes);
+
+  if ("ok" in authRes) {
+    console.log("authRes", authRes.ok);
+    statusCallback({ status: "signing-in", message: "Login completed" });
+    const msg = unwrapTargets(authRes.ok.auth);
+    console.log("getDelegation response unwrapped:", msg);
     return msg;
   } else {
     throw "Could not sign in: " + authRes.err;

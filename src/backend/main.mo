@@ -53,7 +53,6 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     expireIn : Nat,
     targets : ?[Principal],
   ) : async PrepRes {
-    Stats.logBalance(stats, "prepareDelegationSig");
 
     let res = await* Identify.prepareDelegation(identify, provider, token, origin, sessionKey, expireIn, targets, transformKeys);
 
@@ -74,9 +73,33 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     expireIn : Nat,
     targets : ?[Principal],
   ) : async PrepRes {
-    Stats.logBalance(stats, "prepareDelegationPKCE");
 
     let res = await* Identify.prepareDelegationPKCE(identify, provider, code, verifier, origin, sessionKey, expireIn, targets, transform);
+
+    let #ok(data) = res else return res;
+    if (data.isNew) Stats.inc(stats, "signup", origin);
+    Stats.inc(stats, "signin", origin);
+
+    return res;
+  };
+
+  /// Connect code and session key
+  /// The codeHash is a sha256 hash of the authorization code returned from the provider
+  /// By commiting to the code in advance, it prevents
+  public shared func lockPKCEJWTcode(provider : ProviderKey, codeHash : [Nat8], sessionKey : [Nat8]) : async Result<()> {
+    Identify.lockCodeHash(identify, provider, codeHash, sessionKey);
+  };
+
+  public shared func prepareDelegationPKCEJWT(
+    provider : ProviderKey,
+    code : Text,
+    origin : Text,
+    sessionKey : [Nat8],
+    expireIn : Nat,
+    targets : ?[Principal],
+  ) : async PrepRes {
+
+    let res = await* Identify.prepareDelegationPKCEJWT(identify, provider, code, origin, sessionKey, expireIn, targets, transform, transformKeys);
 
     let #ok(data) = res else return res;
     if (data.isNew) Stats.inc(stats, "signup", origin);
@@ -99,10 +122,6 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     let res = Identify.getDelegation(identify, provider, origin, sessionKey, expireAt, targets);
 
     return res;
-  };
-
-  public shared func exchangeToken(provider : ProviderKey, code : Text, verifier : ?Text) : async Result<Text> {
-    return await* Identify.exchangeAuthorizationCode(identify, provider, code, verifier, transform);
   };
 
   /// Get the list of provider configurations for the frontend
@@ -303,13 +322,18 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   transient let linkedInConfig : OAuth2Config = {
     name = "LinkedIn";
     provider = "linkedin";
-    auth = #pkce({
-      authorizationUrl = "https://www.linkedin.com/oauth/native-pkce/authorization";
-      tokenUrl = "https://www.linkedin.com/oauth/v2/accessToken";
-      userInfoEndpoint = "https://api.linkedin.com/v2/me/";
+    auth = #jwt({
+      authorizationUrl = "https://www.linkedin.com/oauth/v2/authorization";
       clientId = "771z70izpz7nq7";
-      redirectUri = "https://login.f0i.de/pkce-callback.html";
-      clientSecret = ?"WPL_AP1.xxxxxxxxxxxxxxxx.xxxxx==";
+      keysUrl = "https://www.linkedin.com/oauth/openid/jwks";
+      preFetch = true;
+      authority = "https://www.linkedin.com/oauth/";
+      fedCMConfigUrl = null;
+      responseType = "code";
+      scope = ?"openid email profile";
+      clientSecret = ?"WPL_AP1.Dfkx4Xj8IRFxvHf5.gMZKcA==";
+      redirectUri = "https://login.f0i.de/oidc-callback.html";
+      tokenUrl = ?"https://www.linkedin.com/oauth/v2/accessToken";
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();

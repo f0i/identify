@@ -21,12 +21,12 @@ Or in other words, this is considered private/secure:
 ... not manipulatable, but public information:
 
 - Computation in canister
-- HTTP outcalls from canister
+- replicated HTTP outcalls from canister
 - canister state
 
 .. can be interrupted and public information:
 
-- communication from and a canister
+- communication from and to a canister
 
 ## PKCE
 
@@ -100,3 +100,4 @@ To use the JWT flow without nonce the following flow could be considered:
 - The user is signed in.
 
 This flow also relies on trust of the node providers, especially the one performing the outcall to exchange the code.
+

@@ -1,7 +1,7 @@
 import { getProviderStyles } from "./provider-styles";
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
-import { getProviderName } from "./identify/delegation";
+import { getDelegationPkceJwt, getProviderName } from "./identify/delegation";
 import { Context, DEFAULT_CONTEXT, handleJSONRPC } from "./identify/icrc";
 import { Principal } from "@dfinity/principal";
 import { AuthConfig, getProvider } from "./auth-config";
@@ -231,16 +231,30 @@ const handleAuthorizeClient = async (
         context.statusCallback,
       );
     } else {
-      const idToken = await context.getJwtToken(nonce);
-      msg = await getDelegationJwt(
-        context.providerKey,
-        idToken,
-        origin,
-        authRequest.sessionPublicKey,
-        authRequest.maxTimeToLive,
-        authRequest.targets,
-        context.statusCallback,
-      );
+      const token = await context.getJwtToken(nonce);
+      if (token.token_type === "id_token") {
+        msg = await getDelegationJwt(
+          context.providerKey,
+          token.id_token,
+          origin,
+          authRequest.sessionPublicKey,
+          authRequest.maxTimeToLive,
+          authRequest.targets,
+          context.statusCallback,
+        );
+      } else if (token.token_type === "code") {
+        msg = await getDelegationPkceJwt(
+          context.providerKey,
+          token.code,
+          origin,
+          authRequest.sessionPublicKey,
+          authRequest.maxTimeToLive,
+          authRequest.targets,
+          context.statusCallback,
+        );
+      } else {
+        throw "Invalid token";
+      }
     }
 
     // send response; window will be closed by opener

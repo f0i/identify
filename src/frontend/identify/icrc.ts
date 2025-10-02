@@ -7,7 +7,11 @@ import * as icrc27 from "./icrc27_accounts";
 import * as icrc49 from "./icrc49_call_canister";
 import * as jsonrpc from "./jsonrpc";
 import { IdentityManager } from "./idenity-manager";
-import { getDelegationJwt, getDelegationPkce } from "./delegation";
+import {
+  getDelegationJwt,
+  getDelegationPkce,
+  getDelegationPkceJwt,
+} from "./delegation";
 import {
   AuthClient,
   InternetIdentityAuthResponseSuccess,
@@ -91,7 +95,7 @@ export const loadOrFetchDelegation = async (
     let config = await getProvider(context.providerKey);
     context.statusCallback({ status: "ready" });
     if (config.auth_type === "OIDC") {
-      const idToken = await initOIDC(
+      const token = await initOIDC(
         config,
         nonce,
         DOM_IDS.singinBtn,
@@ -99,15 +103,27 @@ export const loadOrFetchDelegation = async (
         context.statusCallback,
       );
       console.log("requesting delegation from backend");
-      authRes = await getDelegationJwt(
-        context.providerKey,
-        idToken,
-        origin,
-        new Uint8Array(sessionKey),
-        maxTimeToLive,
-        targets,
-        context.statusCallback,
-      );
+      if (token.token_type === "id_token") {
+        authRes = await getDelegationJwt(
+          context.providerKey,
+          token.id_token,
+          origin,
+          new Uint8Array(sessionKey),
+          maxTimeToLive,
+          targets,
+          context.statusCallback,
+        );
+      } else if (token.token_type === "code") {
+        authRes = await getDelegationPkceJwt(
+          context.providerKey,
+          token.code,
+          origin,
+          new Uint8Array(sessionKey),
+          maxTimeToLive,
+          targets,
+          context.statusCallback,
+        );
+      }
 
       await idManager.setDelegation(authRes, origin);
     } else if (config.auth_type === "PKCE") {

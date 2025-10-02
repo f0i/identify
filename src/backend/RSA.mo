@@ -9,6 +9,8 @@ import Base64 "Base64";
 import { JSON } "mo:serde";
 import Text "mo:core/Text";
 import Runtime "mo:core/Runtime";
+import Option "mo:core/Option";
+import Debug "mo:core/Debug";
 
 module {
 
@@ -23,7 +25,7 @@ module {
 
   // Padding and ASN.1 encodeing for RS256 signatures
   // This should always be the same as long as RS256 is used
-  let RS256Padding : [Nat8] = [1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 48, 49, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 4, 32];
+  let RS256Padding : [Nat8] = [0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 48, 49, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 4, 32];
 
   func modExp(base : Nat, exp : Nat, mod : Nat) : Nat {
     var result = 1;
@@ -49,6 +51,7 @@ module {
   };
 
   func decryptSig(signature : Text, pubKey : PubKey) : Result.Result<[Nat8], Text> {
+    Debug.print("Decrypt signature: " # signature);
     let sigArr = switch (Base64.decode(signature)) {
       case (#ok val) val;
       case (#err err) return #err("couldn't decode signature: " # err);
@@ -58,19 +61,41 @@ module {
 
     var decrypted = modExp(sig, pubKey.e, pubKey.n);
 
-    let decBuf = Buffer.Buffer<Nat8>(3);
+    let decBuf = Buffer.Buffer<Nat8>(512);
     while (decrypted > 0) {
       let val = Nat8.fromIntWrap(decrypted);
       decrypted /= 0x100;
       decBuf.add(val);
     };
+    decBuf.add(0);
     Buffer.reverse(decBuf);
-    assert (RS256Padding.size() == (255 - 32 : Nat));
-    for (i in Iter.range(0, 255 - 32 - 1)) {
-      if (decBuf.get(i) != RS256Padding[i]) return #err("invalid padding value at index " # Nat.toText(i) # ": " # Nat8.toText(decBuf.get(i)));
+
+    // Check padding
+    assert (RS256Padding.size() == (256 - 32 : Nat));
+    if (decBuf.size() == 256) {
+      for (i in Iter.range(2, 256 - 32 - 1)) {
+        if (decBuf.get(i) != RS256Padding[i]) {
+          return #err("invalid padding value at index " # Nat.toText(i) # ": " # Nat8.toText(decBuf.get(i)));
+        };
+      };
+    } else if (decBuf.size() == 512) {
+      if (decBuf.get(0) != 0) return #err("invalid padding value at index 0: " # Nat8.toText(decBuf.get(0)));
+      if (decBuf.get(1) != 1) return #err("invalid padding value at index 1: " # Nat8.toText(decBuf.get(1)));
+      for (i in Iter.range(2, 256 + 2)) {
+        if (decBuf.get(i) != 255) {
+          return #err("invalid padding value at index " # Nat.toText(i) # ": " # Nat8.toText(decBuf.get(i + 256)));
+        };
+      };
+      for (i in Iter.range(2, 256 - 32 - 1)) {
+        if (decBuf.get(i + 256) != RS256Padding[i]) {
+          return #err("invalid padding value at index " # Nat.toText(i) # ": " # Nat8.toText(decBuf.get(i + 256)));
+        };
+      };
+    } else {
+      return #err("invalid signature size " # Nat.toText(decBuf.size()));
     };
 
-    let buf2 = Buffer.subBuffer(decBuf, 255 - 32 : Nat, 32);
+    let buf2 = Buffer.subBuffer(decBuf, decBuf.size() - 32 : Nat, 32);
     assert (buf2.size() == 32);
 
     return #ok(Buffer.toArray<Nat8>(buf2));
@@ -99,8 +124,8 @@ module {
       e : Text;
       n : Text;
       kid : Text;
-      use : Text;
-      alg : Text;
+      use : ?Text;
+      alg : ?Text;
       kty : Text;
     };
     type KeyData = {
@@ -129,8 +154,8 @@ module {
         e;
         n;
         kid = key.kid;
-        use = key.use;
-        alg = key.alg;
+        use = Option.get(key.use, "sig");
+        alg = Option.get(key.alg, "RS256");
         kty = key.kty;
       });
     };
