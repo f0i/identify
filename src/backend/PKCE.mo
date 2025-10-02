@@ -15,6 +15,7 @@ module PKCE {
   // Define a type for the transform function
   type TransformFn = Http.TransformFn;
   type OAuth2Config = AuthProvider.OAuth2Config;
+  type Result<T> = Result.Result<T, Text>;
 
   public type Bearer = {
     token_type : Text;
@@ -93,17 +94,72 @@ module PKCE {
     };
   };
 
-  /// Function to exchange the authorization code for an access token
+  public func exchangeAuthorizationCode(
+    config : OAuth2Config,
+    code : Text,
+    verifier : ?Text,
+    transform : TransformFn,
+  ) : async* Result<Text> {
+
+    let bodyValues : [(Text, Text)] = switch (config.auth) {
+      case (#jwt(jwtParams)) {
+        [
+          ("grant_type", "authorization_code"),
+          ("code", code),
+          ("redirect_uri", jwtParams.redirectUri),
+          ("client_id", jwtParams.clientId),
+          ("client_secret", Option.get(jwtParams.clientSecret, "")),
+        ];
+      };
+      case (#pkce(pkceParams)) {
+        [
+          ("grant_type", "authorization_code"),
+          ("code", code),
+          ("redirect_uri", pkceParams.redirectUri),
+          ("client_id", pkceParams.clientId),
+          ("code_verifier", Option.get(verifier, "")),
+          ("client_secret", Option.get(pkceParams.clientSecret, "")),
+        ];
+      };
+    };
+
+    let tokenUrl : Text = switch (config.auth) {
+      case (#jwt(jwtParams)) {
+        let ?url = jwtParams.tokenUrl else return #err("Invalid configuration: tokenUrl not defined");
+        url;
+      };
+      case (#pkce(pkceParams)) pkceParams.tokenUrl;
+    };
+
+    let bodyIter : Iter.Iter<Text> = Iter.map(
+      bodyValues.vals(),
+      func((key : Text, value : Text)) : Text = URL.urlEncode(key) # "=" # URL.urlEncode(value),
+    );
+    let body : Text = Text.join("&", bodyIter);
+
+    let headers = [
+      { name = "Content-Type"; value = "application/x-www-form-urlencoded" },
+      { name = "Accept"; value = "application/json" },
+    ];
+
+    let response = await* Http.postRequest(tokenUrl, ?body, headers, 9000, transform);
+
+    if (response.statusCode != 200) return #err("Request failed with status code " # Nat.toText(response.statusCode) # " " # response.data);
+
+    return #ok(response.data);
+  };
+
+  /// Function to exchange the authorization code for an bearer access token
   public func exchangeToken(
     config : OAuth2Config,
     code : Text,
     verifier : Text,
     transform : TransformFn,
-  ) : async Result.Result<Bearer, Text> {
+  ) : async* Result.Result<Bearer, Text> {
 
     let #pkce(pkceParams) = config.auth else return #err(config.name # " does not support PKCE.");
 
-    var body : Text = [
+    let body : Text = [
       ("grant_type", "authorization_code"),
       ("code", code),
       ("redirect_uri", pkceParams.redirectUri),
@@ -122,7 +178,7 @@ module PKCE {
       { name = "Accept"; value = "application/json" },
     ];
 
-    let response = await Http.postRequest(pkceParams.tokenUrl, ?body, headers, 9000, transform);
+    let response = await* Http.postRequest(pkceParams.tokenUrl, ?body, headers, 9000, transform);
 
     // Parse JSON response and extract the access_token
     let tokenJSON = response.data;
@@ -143,7 +199,7 @@ module PKCE {
 
     let #pkce(pkceParams) = config.auth else return #err(config.name # " does not support PKCE.");
 
-    let response = await Http.getRequest(
+    let response = await* Http.getRequest(
       pkceParams.userInfoEndpoint,
       [{ name = "Authorization"; value = "Bearer " # token.access_token }],
       3000,

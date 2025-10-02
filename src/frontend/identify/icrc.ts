@@ -15,7 +15,7 @@ import {
 import { AuthConfig, getProvider } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
 import { PkceAuthData } from "../pkce";
-import { initOIDC } from "../oidc-implicit";
+import { initOIDC, OidcAuthData } from "../oidc-implicit";
 import { ProviderKey } from "../../declarations/backend/backend.did";
 
 export type Status = "loading" | "ready" | "error" | "signing-in";
@@ -33,7 +33,7 @@ export type Context = {
   targetsCallback: (msg: string) => void;
   originCallback: (msg: string) => void;
   confirm: (msg: string) => Promise<boolean>;
-  getJwtToken: (nonce: string) => Promise<string>;
+  getJwtToken: (nonce: string) => Promise<OidcAuthData>;
   getPkceAuthData: (sessionKey: Uint8Array) => Promise<PkceAuthData>;
   cancel: () => void;
 };

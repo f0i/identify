@@ -101,6 +101,10 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     return res;
   };
 
+  public shared func exchangeToken(provider : ProviderKey, code : Text, verifier : ?Text) : async Result<Text> {
+    return await* Identify.exchangeAuthorizationCode(identify, provider, code, verifier, transform);
+  };
+
   /// Get the list of provider configurations for the frontend
   public shared query func getProviders() : async [Identify.FrontendOAuth2Config] {
     return Identify.getProviders(identify);
@@ -218,6 +222,9 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       fedCMConfigUrl = ?"https://accounts.google.com/gsi/fedcm.json";
       responseType = "id_token";
       scope = ?"openid email profile";
+      redirectUri = "https://login.f0i.de/oidc-callback.html";
+      clientSecret = null;
+      tokenUrl = null;
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -235,6 +242,9 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       fedCMConfigUrl = null;
       responseType = "id_token";
       scope = ?"openid email profile";
+      redirectUri = "https://login.f0i.de/oidc-callback.html";
+      clientSecret = null;
+      tokenUrl = null;
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -252,6 +262,9 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       fedCMConfigUrl = null;
       responseType = "id_token";
       scope = ?"openid email profile";
+      redirectUri = "https://login.f0i.de/oidc-callback.html";
+      clientSecret = null;
+      tokenUrl = null;
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -290,15 +303,13 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   transient let linkedInConfig : OAuth2Config = {
     name = "LinkedIn";
     provider = "linkedin";
-    auth = #jwt({
+    auth = #pkce({
+      authorizationUrl = "https://www.linkedin.com/oauth/native-pkce/authorization";
+      tokenUrl = "https://www.linkedin.com/oauth/v2/accessToken";
+      userInfoEndpoint = "https://api.linkedin.com/v2/me/";
       clientId = "771z70izpz7nq7";
-      keysUrl = "https://www.linkedin.com/oauth/openid/jwks";
-      preFetch = true;
-      authority = "https://www.linkedin.com/oauth/";
-      authorizationUrl = "https://www.linkedin.com/oauth/v2/authorization";
-      fedCMConfigUrl = null;
-      responseType = "code id_token";
-      scope = ?"openid email profile";
+      redirectUri = "https://login.f0i.de/pkce-callback.html";
+      clientSecret = ?"WPL_AP1.xxxxxxxxxxxxxxxx.xxxxx==";
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
@@ -320,8 +331,8 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     if (caller == owner) trap("Permission denied");
     // Create and add the configuration
     let config = {
-      provider = name;
       name = name;
+      provider = Text.toLower(name);
       auth = params;
       var keys : [RSA.PubKey] = [];
       var fetchAttempts = Stats.newAttemptTracker();

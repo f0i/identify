@@ -46,6 +46,9 @@ module {
       fedCMConfigUrl : ?Text;
       responseType : Text; // "code id_token"
       scope : ?Text;
+      redirectUri : Text;
+      clientSecret : ?Text;
+      tokenUrl : ?Text;
     };
     /// PKCE params
     #pkce : {
@@ -113,7 +116,7 @@ module {
 
     Debug.print("fetching keys from " # params.keysUrl);
     try {
-      let fetched = await Http.getRequest(params.keysUrl, [], 5000, transformKeys, true);
+      let fetched = await* Http.getRequest(params.keysUrl, [], 5000, transformKeys, true);
 
       config.keys := RSA.deserializeKeys(fetched.data);
 
@@ -134,7 +137,7 @@ module {
 
     let url = authority # ".well-known/openid-configuration";
     try {
-      let fetched = await Http.getRequest(url, [], 5000, transform, true);
+      let fetched = await* Http.getRequest(url, [], 5000, transform, true);
 
       let dataBlob = switch (JSON.fromText(fetched.data, null)) {
         case (#ok data) data;
@@ -193,8 +196,9 @@ module {
   /// Convert a OAuth2Config to a FrontendOAuth2Config
   public func toFrontendConfig(config : OAuth2Config) : FrontendOAuth2Config {
     let auth = switch (config.auth) {
-      case (#jwt(conf)) { #jwt(conf) }; // does not contain any secrets
-      case (#pkce(conf)) { #pkce({ conf with clientSecret = null }) }; // only clientSecret is confidential
+      // only clientSecret is confidential
+      case (#jwt(conf)) { #jwt({ conf with clientSecret = null }) };
+      case (#pkce(conf)) { #pkce({ conf with clientSecret = null }) };
     };
 
     return {

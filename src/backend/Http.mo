@@ -47,7 +47,7 @@ module {
 
   public type Request = IC.http_request_args;
 
-  public func getRequest(url : Text, headers : [Header], maxBytes : Nat64, transform : TransformFn, replicated : Bool) : async {
+  public func getRequest(url : Text, headers : [Header], maxBytes : Nat64, transform : TransformFn, replicated : Bool) : async* {
     data : Text;
     cost : Nat;
     expectedCost : Nat;
@@ -99,10 +99,9 @@ module {
   /// Preform a post request
   /// WARNING!: The post request is not replicated, and therefore could be manipulated by the node provider!
   // TODO: Update security considerations to inclued the atteck vector of non-replicated post requests!
-  public func postRequest(url : Text, body : ?Text, headers : [Header], maxBytes : Nat64, transform : TransformFn) : async {
+  public func postRequest(url : Text, body : ?Text, headers : [Header], maxBytes : Nat64, transform : TransformFn) : async* {
     data : Text;
-    cost : Nat;
-    expectedCost : Nat;
+    statusCode : Nat;
   } {
 
     let transform_context = {
@@ -122,11 +121,8 @@ module {
 
     let maxCost = 400_000 /* base cost */ + Nat64.toNat(maxBytes) * 100_000 /* cost per byte */ * 3 /* factor to ensure enough cycles */;
 
-    let balance1 = Cycles.balance();
-
     try {
       let http_response = await (with cycles = maxCost) IC.http_request(http_request);
-      let balance2 = Cycles.balance();
 
       let response_body : Blob = http_response.body;
       let decoded_text : Text = switch (Text.decodeUtf8(response_body)) {
@@ -137,8 +133,7 @@ module {
       //6. RETURN RESPONSE OF THE BODY
       return {
         data = decoded_text;
-        cost = balance1 - balance2;
-        expectedCost = maxCost;
+        statusCode = http_response.status;
       };
 
     } catch (err) {

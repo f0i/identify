@@ -258,7 +258,7 @@ module {
     // Time of JWT token from google must not be more than 5 minutes in the future
 
     // Exchange code for token!
-    let response = await PKCE.exchangeToken(providerConfig, code, verifier, transform);
+    let response = await* PKCE.exchangeToken(providerConfig, code, verifier, transform);
 
     let token = switch (response) {
       case (#ok(bearer)) { bearer };
@@ -349,6 +349,18 @@ module {
   public func getProviders(identify : Identify) : [FrontendOAuth2Config] {
     let providers = List.map<OAuth2Config, FrontendOAuth2Config>(identify.providers, AuthProvider.toFrontendConfig);
     return List.toArray(providers);
+  };
+
+  public func exchangeAuthorizationCode(
+    identify : Identify,
+    provider : ProviderKey,
+    code : Text,
+    verifier : ?Text,
+    transform : TransformFn,
+  ) : async* Result<Text> {
+    let ?providerConfig = getConfig(identify, provider) else return #err("No configruration found for " # AuthProvider.providerName(provider));
+
+    return await* PKCE.exchangeAuthorizationCode(providerConfig, code, verifier, transform);
   };
 
 };

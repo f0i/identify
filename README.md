@@ -173,14 +173,14 @@ sequenceDiagram
 
 The following web2 authentication providers are supported
 
-- [x] Google (JWT from JS SDK)
-- [x] Auth0 (JWT from JS SDK)
+- [x] Google (JWT from JS SDK / OIDC)
+- [x] Auth0 (JWT from JS SDK / OIDC)
 - [x] Zitadel (JWT via OIDC)
 - [x] GitHub (PKCE)
 - [x] X (PKCE)
 - [ ] Apple (PKCE + JWT)
 - [ ] Microsoft (PKCE + JWT)
-- [ ] LinkedIn (JWT)
+- [ ] LinkedIn (JWT without nonce)
 
 ## Google
 
@@ -215,6 +215,8 @@ To summarize, you have to trust that there are no malicious node providers in th
 
 https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
 
+See [CONSIDERATION](CONSIDERATION.md) for security implications.
+
 ## X
 
 X is also using PKCE with HTTP outcalls that can not be replicated.
@@ -225,6 +227,8 @@ https://docs.x.com/resources/fundamentals/authentication/oauth-2-0/authorization
 X uses incredibly restrictive limits on all their APIs.
 This limits the number of times we can request user info during the sign in process, limiting sign ins to 25 times per day.
 See https://docs.x.com/x-api/fundamentals/rate-limits and look for `users/me` to check the current rate limits.
+
+See [GitHub](#GitHub) and [CONSIDERATION](CONSIDERATION.md) for security implications.
 
 ## Apple
 
@@ -240,7 +244,20 @@ https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow
 
 ## LinkedIn
 
+LinkedIn does provide a JWT through OIDC, requires a client secret to get the JWT token.
+Storing the client secret requires trust in the node providers.
+
+The JWT does not reflect the provided nonce, which is required to prevent unauthorized reuse.
+
 https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2
+
+
+Alternatively, Linked in also supports the PKCE flow using a code_verifier, but only for native apps.
+PKCE callbacks are limited to loopback interfaces (localhost), and therefore cannot be used for web apps.
+
+https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow-native
+
+See [CONSIDERATION](CONSIDERATION.md) for security implications.
 
 # Resources and Related projects
 

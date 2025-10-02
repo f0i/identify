@@ -97,15 +97,32 @@ export function uint8ArrayToHex(array: Uint8Array): string {
 }
 
 export function base64decode(base64: string): Uint8Array {
-  const bin = atob(base64);
+  const bin = base64decodeText(base64);
   const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
   return bytes;
 }
 
-export function base64encode(bytes: Uint8Array | number[]): string {
+export function base64decodeText(base64: string): string {
+  let str = base64.replace(/-/g, "+").replace(/_/g, "/");
+  while (str.length % 4) {
+    str += "=";
+  }
+  return atob(str);
+}
+
+export function base64encode(
+  bytes: Uint8Array | number[],
+  urlEncode: boolean = false,
+): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
+  }
+  if (urlEncode) {
+    return btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=/g, "");
   }
   return btoa(binary);
 }

@@ -1,7 +1,8 @@
+import { backend } from "../declarations/backend";
 import { OIDCConfig } from "./auth-config";
 import { StatusUpdate } from "./identify/icrc";
 
-export type OidcAuthData = { id_token: string; state?: string };
+export type OidcAuthData = string;
 
 /**
  * Initialize OIDC implicit flow in a popup.
@@ -27,8 +28,8 @@ export async function initOIDC(
   authUrl.search = new URLSearchParams({
     client_id: config.client_id,
     redirect_uri: redirect,
-    response_type: "id_token",
-    scope: "openid profile email",
+    response_type: config.response_type,
+    scope: config.scope,
     state,
     nonce,
   }).toString();
@@ -51,6 +52,26 @@ export async function initOIDC(
               return;
             }
             resolve(event.data.id_token);
+          } else if (event.data.type === "oidc_auth_code") {
+            backend
+              .exchangeToken(config.name.toLowerCase(), event.data.code, [])
+              .then(
+                (res) => {
+                  if ("ok" in res) {
+                    const data = res.ok;
+                    resolve(JSON.parse(data).id_token);
+                  } else {
+                    reject("Failed to get ID Token: " + res.err);
+                  }
+                },
+                (err) => {
+                  reject("Failed to get ID Token: " + err);
+                },
+              );
+            if (event.data.state !== state) {
+              reject(new Error("Invalid state"));
+              return;
+            }
           } else if (event.data.type === "oidc_auth_error") {
             reject(new Error(event.data.error));
           }

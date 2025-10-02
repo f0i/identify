@@ -1,6 +1,11 @@
 import { Principal } from "@dfinity/principal";
 import { canisterId, createActor } from "../../declarations/backend";
-import { AuthResponseUnwrapped, unwrapTargets, wrapOpt } from "./utils";
+import {
+  AuthResponseUnwrapped,
+  base64decodeText,
+  unwrapTargets,
+  wrapOpt,
+} from "./utils";
 import { ProviderKey } from "../../declarations/backend/backend.did";
 import { StatusUpdate } from "./icrc";
 
@@ -31,7 +36,8 @@ export const getDelegationJwt = async (
   statusCallback: (update: StatusUpdate) => void,
 ): Promise<AuthResponseUnwrapped> => {
   // decode payload
-  const payload = JSON.parse(atob(idToken.split(".")[1]));
+  const data = base64decodeText(idToken.split(".")[1]);
+  const payload = JSON.parse(data);
   console.log("payload:", payload, payload.sub);
 
   const isDev = process.env.DFX_NETWORK !== "ic";

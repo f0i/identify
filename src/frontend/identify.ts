@@ -212,10 +212,11 @@ const handleAuthorizeClient = async (
     context.targetsCallback(authRequest.targets?.slice()?.join(",\n") || "");
     const nonce = uint8ArrayToHex(authRequest.sessionPublicKey);
     context.statusCallback({ status: "ready", message: "" });
+    const config = await getProvider(context.providerKey);
 
     // Get delegation from backend
     let msg;
-    if (context.providerKey === "github" || context.providerKey === "x") {
+    if (config.auth_type === "PKCE") {
       const pkceAuthData = await context.getPkceAuthData(
         authRequest.sessionPublicKey,
       );
