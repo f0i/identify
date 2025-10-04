@@ -180,7 +180,7 @@ The following web2 authentication providers are supported
 - [x] X (PKCE)
 - [ ] Apple (PKCE + JWT)
 - [ ] Microsoft (PKCE + JWT)
-- [ ] LinkedIn (JWT without nonce)
+- [x] LinkedIn (JWT without nonce)
 
 ## Google
 

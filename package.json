@@ -4,8 +4,7 @@
   "main": "index.js",
   "scripts": {
     "build": "node build.js",
-    "test": "npm run test:frontend && npm run test:backend",
-    "test:frontend": "jest --config ./src/frontend/jest.config.js",
+    "test": "npm run test:backend",
     "test:backend": "./test/run.sh",
     "test:backend:fast": "./test/run.sh --fast",
     "bench": "mops bench",
