@@ -79,7 +79,7 @@ module {
     return arrayHash;
   };
 
-  /// Get sha256 hash of representation independend map of public key, expiration, and targest, including the domain saparator
+  /// Get sha256 hash of representation independent map of public key, expiration, and targets, including the domain separator
   public func getUnsignedHash(sessionKey : [Nat8], expiration : Int, targets : ?[Principal]) : [Nat8] {
     let unsigned = getUnsignedBytes(sessionKey, expiration, targets);
     let hash : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, unsigned));
@@ -87,10 +87,10 @@ module {
   };
 
   /// Generate a delegation structure for given keys.
-  /// sessionKey is alreadfy DER encoded and used as is.
+  /// sessionKey is already DER encoded and used as is.
   /// usePublicKey is already DER encoded and used as is.
   /// signature is a cbor encoded signature.
-  /// expirationh is the time in nanoseconds since 1970 when the delegation should expire
+  /// expiration is the time in nanoseconds since 1970 when the delegation should expire
   public func getDelegationExternalSig(sessionKey : [Nat8], userPublicKey : [Nat8], signature : [Nat8], expiration : Time.Time, targets : ?[Principal]) : AuthResponse {
     let pubkey = sessionKey;
 

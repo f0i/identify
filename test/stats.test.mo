@@ -42,7 +42,7 @@ switch (iter.next()) {
   case (x) trap("first element is unexpected: " # debug_show x);
 };
 
-print("- format precentages");
+print("- format percentages");
 assert Stats.formatPercent(0.1234) == "12.3%";
 assert Stats.formatPercent(0.01234) == "1.23%";
 assert Stats.formatPercent(0.001234) == "0.123%";

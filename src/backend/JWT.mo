@@ -15,19 +15,19 @@ module {
   type Duration = Time.Duration;
   type Result<T, E> = Result.Result<T, E>;
 
-  /// Data sturcture of a decoded JWT token's header.
+  /// Data structure of a decoded JWT token's header.
   public type Header = {
     alg : Text; // algorithm used (e.g. RS256 for RSA with SHA256)
-    typ : Text; // type (e.g. JWT) optional but recomended
+    typ : Text; // type (e.g. JWT) optional but recommended
     kid : Text; // key ID, optional but needed for our usecase
     cty : ?Text; // content type
     jku : ?Text; // JWK Set URL
     x5t : ?Text; // X.509 certificate thumbprint
     x5c : ?Text; // X.509 certificate chain
-    crit : ?Text; // criticla extensions
+    crit : ?Text; // critical extensions
   };
 
-  /// Data sturcture of a decoded JWT token's payload
+  /// Data structure of a decoded JWT token's payload
   public type Payload = {
     iss : Text; // issuer
     sub : Text; // subject (Google user ID, )
@@ -45,7 +45,7 @@ module {
     locale : ?Text; // Locale
   };
 
-  /// Data sturcture of a decoded JWT token's payload
+  /// Data structure of a decoded JWT token's payload
   private type PayloadAlt = {
     iss : Text; // issuer
     sub : Text; // subject (Google user ID, )
@@ -63,7 +63,7 @@ module {
     locale : ?Text; // Locale
   };
 
-  /// Data sturcture of a decoded JWT token
+  /// Data structure of a decoded JWT token
   public type JWT = {
     header : Header;
     payload : Payload;
@@ -80,7 +80,7 @@ module {
   /// The following validations are performed:
   ///
   /// - valid encoding without without excess data
-  /// - presense of all required values in `Header` and `Payload`
+  /// - presence of all required values in `Header` and `Payload`
   /// - The token has not expired (`now` is smaller then `header.exp`)
   /// - The token was not issued in the future (specifically not more than `issuedToleranceS` seconds in the future)
   /// - The token was issued by one of the authorized keys (specified by their private key)
@@ -100,7 +100,7 @@ module {
   ///
   /// **Return value**
   ///
-  /// The function returns a Result type contining the decoded values from a valid JWT token or
+  /// The function returns a Result type containing the decoded values from a valid JWT token or
   /// the an error result with the reason why the token could not be verified.
   public func decode(token : Text, getKey : GetKey, now : Time, issuedTolerance : Duration, audiences : [Text], nonce : ?Text) : async* Result.Result<JWT, Text> {
     assert (audiences.size() > 0);

@@ -149,7 +149,7 @@ module PKCE {
     return #ok(response.data);
   };
 
-  /// Function to exchange the authorization code for an bearer access token
+  /// Function to exchange the authorization code for a bearer access token
   public func exchangeToken(
     config : OAuth2Config,
     code : Text,

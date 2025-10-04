@@ -19,7 +19,7 @@ module {
   public let addProvider = Identify.addProvider;
 
   /// Add a provider to the list of configured providers.
-  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
+  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authority>.well-known/openid-configuration.
   /// Parameters:
   /// - config: The Identify state.
   /// - provider: The provider configuration to add. If the auth field contains a authority, the configuration will be fetched from there.
@@ -32,13 +32,13 @@ module {
   public let getConfig = Identify.getConfig;
 
   /// Prefetch the keys used for signing the JWTs.
-  /// Runing this periodically (e.g. every day) can increase the sign in speed for some providers.
+  /// Running this periodically (e.g. every day) can increase the sign in speed for some providers.
   /// Required keys will still be loaded at the time of login, if the requested key ID is not present.
   public let prefetchKeys = Identify.prefetchKeys;
 
   /// Connect code and session key
   /// The codeHash is a sha256 hash of the authorization code returned from the provider
-  /// By commiting to the code in advance, it prevents
+  /// By committing to the code in advance, it prevents potential attackers (boundary nodes or node machines) from intercepting the code and creating a delegation for a different sessionKey.
   public let lockCodeHash = Identify.lockCodeHash;
 
   /// Verify the JWT token and prepare a delegation.

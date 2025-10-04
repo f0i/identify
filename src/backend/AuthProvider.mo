@@ -75,7 +75,7 @@ module {
     var fetchAttempts : Stats.AttemptTracker;
   };
 
-  /// Public accessable configuration for an OAuth2 provider
+  /// Public accessible configuration for an OAuth2 provider
   /// This contains the fields from OAuth2Config required in the frontend to OAuth2 authentication
   public type FrontendOAuth2Config = {
     provider : ProviderKey;

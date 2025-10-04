@@ -1,6 +1,6 @@
 [package]
 name = "identify"
-version = "0.1.0"
+version = "0.0.2"
 description = "OAuth2 authentication and identity management for OpenID Connect and PKCE"
 repository = "https://github.com/f0i/identify"
 keywords = [

@@ -68,7 +68,7 @@ module {
 
   func shaHashTextToBlob(data : Text) : Blob = Sha256.fromBlob(#sha256, Text.encodeUtf8(data));
 
-  /// Generate a seed and it's hash for a given origin and userId.
+  /// Generate a seed and its hash for a given origin and userId.
   public func encodeSeed(userKeySeed : Text) : {
     seed : Blob;
     hashedSeed : Blob;

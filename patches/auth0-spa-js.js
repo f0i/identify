@@ -1,5 +1,5 @@
 /*
- * Replace window.open params in @auth0-spa-js to open the sign in window in a new tab instead of a pupup window.
+ * Replace window.open params in @auth0-spa-js to open the sign in window in a new tab instead of a popup window.
  * This makes it more consistent with other popups during the authentication flow.
  */
 

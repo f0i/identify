@@ -58,7 +58,7 @@ module {
   func insertSig(tree : HashTree, seed : Blob, hash : [Nat8], now : Time) : HashTree {
     let #Fork(#Labeled("sig", sig), #Labeled("time", #Leaf(_time))) = tree else return #Empty;
     let newSig : HashTree = labeled(seed, #Labeled(Blob.fromArray(hash), #Leaf("")));
-    // this is not well formed (not ordered, unbalanced, duplicate), but since the other sigs will be purned, it doesn't matter
+    // this is not well formed (not ordered, unbalanced, duplicate), but since the other sigs will be pruned, it doesn't matter
     let allSig = #Fork(newSig, sig);
     return #Fork(#Labeled("sig", allSig), #Labeled("time", #Leaf(timeToBytes(now))));
   };
@@ -117,7 +117,7 @@ module {
   };
 
   /// Try to find the label seed and get the pruned tree for it.
-  /// Returnes a marker indicating if the seed was found and a pruned tree, with only the seed path included.
+  /// Returns a marker indicating if the seed was found and a pruned tree, with only the seed path included.
   func getSig(tree : HashTree, seed : Blob) : { found : Bool; tree : HashTree } {
     switch (tree) {
       case (#Empty) return { found = false; tree };
@@ -181,7 +181,7 @@ module {
     };
   };
 
-  /// Calcualte sha256 from data
+  /// Calculate sha256 from data
   func shaHash(data : [Nat8]) : [Nat8] = Blob.toArray(Sha256.fromArray(#sha256, data));
 
   /// Encode a timestamp
@@ -231,7 +231,7 @@ module {
       let low = Nat8.fromNat(n % 256);
       [0x59, high, low];
     } else {
-      // larger lengths could use 0x5A for 4-byte length, but in our case this is unlikeley to happen
+      // larger lengths could use 0x5A for 4-byte length, but in our case this is unlikely to happen
       Runtime.trap("Blob too large to encode");
     };
     return Array.flatten([head, data]);

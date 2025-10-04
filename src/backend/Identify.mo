@@ -96,7 +96,7 @@ module {
   };
 
   /// Add a provider to the list of configured providers.
-  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
+  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authority>.well-known/openid-configuration.
   /// Parameters:
   /// - config: The Identify state.
   /// - provider: The provider configuration to add. If the auth field contains a authority, the configuration will be fetched from there.
@@ -144,7 +144,7 @@ module {
   };
 
   /// Prefetch the keys used for signing the JWTs.
-  /// Runing this periodically (e.g. every day) can increase the sign in speed for some providers.
+  /// Running this periodically (e.g. every day) can increase the sign in speed for some providers.
   /// Required keys will still be loaded at the time of login, if the requested key ID is not present.
   public func prefetchKeys(identify : Identify, transformKeys : TransformFn) : async* [Result<[RSA.PubKey]>] {
     let results = List.empty<Result<[RSA.PubKey]>>();
@@ -179,7 +179,7 @@ module {
 
   /// Connect code and session key
   /// The codeHash is a sha256 hash of the authorization code returned from the provider
-  /// By commiting to the code in advance, it prevents
+  /// By committing to the code in advance, it prevents potential attackers (boundry nodes or node machines) from intercepting the code and createating a delegation for a different sessionKey.
   public func lockCodeHash(
     identify : Identify,
     provider : ProviderKey,

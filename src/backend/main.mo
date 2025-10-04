@@ -25,8 +25,8 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   type User = User.User;
 
   /// Minimum time between updating oAuth keys from provider.
-  /// Thisl will limit the amoutn of requests when invalid key-ids are used,
-  /// but could also case users to not be able to sign in for some minutes, if the key just updated.
+  /// This will limit the amount of requests when invalid key-ids are used,
+  /// but could also cause users to not be able to sign in for some minutes, if the key just updated.
   transient let _MIN_FETCH_ATTEMPT_TIME = #minutes(10);
   /// Minimum time between successful fetch attempts
   transient let _MIN_FETCH_TIME = #hours(6);
@@ -90,7 +90,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   /// Connect code and session key
   /// The codeHash is a sha256 hash of the authorization code returned from the provider
-  /// By commiting to the code in advance, it prevents potential attackers (boundry nodes or node machines) from intercepting the code and createating a delegation for a different sessionKey.
+  /// By committing to the code in advance, it prevents potential attackers (boundary nodes or node machines) from intercepting the code and creating a delegation for a different sessionKey.
   public shared func lockPKCEJWTcode(provider : ProviderKey, codeHash : [Nat8], sessionKey : [Nat8]) : async Result<()> {
     Identify.lockCodeHash(identify, provider, codeHash, sessionKey);
   };
@@ -226,7 +226,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   };
 
   /// Prefetch the keys used for signing the JWTs.
-  /// Runing this periodically (e.g. every day) can increase the sign in speed for some providers.
+  /// Running this periodically (e.g. every day) can increase the sign in speed for some providers.
   /// Required keys will still be loaded at the time of login, if the requested key ID is not present.
   private func fetchAllKeys() : async () {
     // Key updates are logged using Debug.print. You can check by calling `dfx canister logs --ic backend`
@@ -360,7 +360,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   Identify.addProvider(identify, linkedInConfig, owner);
 
   /// Add a provider to the list of configured providers.
-  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
+  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authority>.well-known/openid-configuration.
   /// Parameters:
   /// - config: The Identify state.
   /// - provider: The provider configuration to add. If the auth field contains a authority, the configuration will be fetched from there.

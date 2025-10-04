@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.0.2 2025-10-04
+
+### Authentication & Identity
+*   **LinkedIn Provider:** Added support for LinkedIn as an authentication provider.
+*   **OIDC Implicit Flow:** Implemented the OIDC implicit flow for authentication.
+*   **Provider Selection:** Refactored the provider selection mechanism.
+
+### Core System & Performance
+*   **Library Module:** Added a new `lib.mo` module.
+
+### Documentation
+*   **General Updates:** Added new documentation and removed unused files.
+
 ## 0.0.1 2025-09-30
 
 ### Authentication & Identity

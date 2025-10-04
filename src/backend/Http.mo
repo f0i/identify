@@ -96,9 +96,8 @@ module {
 
   public type Header = IC.http_header; // {name: Text; value: Text}
 
-  /// Preform a post request
+  /// Perform a post request
   /// WARNING!: The post request is not replicated, and therefore could be manipulated by the node provider!
-  // TODO: Update security considerations to inclued the atteck vector of non-replicated post requests!
   public func postRequest(url : Text, body : ?Text, headers : [Header], maxBytes : Nat64, transform : TransformFn) : async* {
     data : Text;
     statusCode : Nat;
