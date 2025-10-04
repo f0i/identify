@@ -43,7 +43,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   let identify = Identify.init(backend, owner);
 
-  /// Verify the token and prepare a delegation.
+  /// Verify the JWT token and prepare a delegation.
   /// The delegation can be fetched using an query call to getDelegation.
   public shared func prepareDelegation(
     provider : ProviderKey,
@@ -64,6 +64,11 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   };
 
   /// Check PKCE sign in and prepare delegation
+  ///
+  /// Warning:
+  /// This function uses non-replicated http-outcalls to complete the authentication flow and request user data.
+  /// It therefore requires some trust in the node provider, not to manipulate the requests.
+  /// If possible use `prepareDelegation` instead.
   public shared func prepareDelegationPKCE(
     provider : ProviderKey,
     code : Text,
@@ -85,11 +90,17 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   /// Connect code and session key
   /// The codeHash is a sha256 hash of the authorization code returned from the provider
-  /// By commiting to the code in advance, it prevents
+  /// By commiting to the code in advance, it prevents potential attackers (boundry nodes or node machines) from intercepting the code and createating a delegation for a different sessionKey.
   public shared func lockPKCEJWTcode(provider : ProviderKey, codeHash : [Nat8], sessionKey : [Nat8]) : async Result<()> {
     Identify.lockCodeHash(identify, provider, codeHash, sessionKey);
   };
 
+  /// Complete PKCE sign to get a JWT and prepare delegation.
+  ///
+  /// Warning:
+  /// This function uses non-replicated http-outcalls to complete authentication.
+  /// It therefore requires some trust in the node provider, not to manipulate the requests.
+  /// If possible use `prepareDelegation` instead.
   public shared func prepareDelegationPKCEJWT(
     provider : ProviderKey,
     code : Text,
@@ -214,7 +225,9 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     return debug_show [g, a, z];
   };
 
-  // Pre-fetch keys to verify JWT keys.
+  /// Prefetch the keys used for signing the JWTs.
+  /// Runing this periodically (e.g. every day) can increase the sign in speed for some providers.
+  /// Required keys will still be loaded at the time of login, if the requested key ID is not present.
   private func fetchAllKeys() : async () {
     // Key updates are logged using Debug.print. You can check by calling `dfx canister logs --ic backend`
     ignore await* Identify.prefetchKeys(identify, transformKeys);
@@ -346,7 +359,12 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   Identify.addProvider(identify, githubConfig, owner);
   Identify.addProvider(identify, linkedInConfig, owner);
 
-  /// Function to add a new OAuth2 provider.
+  /// Add a provider to the list of configured providers.
+  /// If a authority is provided, the configuration will be loaded from the configuration in GET <authnority>.well-known/openid-configuration.
+  /// Parameters:
+  /// - config: The Identify state.
+  /// - provider: The provider configuration to add. If the auth field contains a authority, the configuration will be fetched from there.
+  /// - caller: The principal of the caller. Must be the owner.
   public shared ({ caller }) func addProvider(name : Text, params : AuthProvider.AuthParams) : async Result<()> {
     // Permission check.
     // Permission is also checked inside the addProvider function.

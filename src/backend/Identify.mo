@@ -132,6 +132,9 @@ module {
     return #ok;
   };
 
+  /// Get the configuration of the authentication providers.
+  /// This only contains the configuration values that are public and required by the front end to perform the authentication request.
+  /// clientSecret, which is required by some PKCE flows is not included.
   public func getConfig(config : Identify, provider : ProviderKey) : ?AuthProvider.OAuth2Config {
     for (config in List.values(config.providers)) {
       if (config.provider == provider) return ?config;
@@ -140,6 +143,9 @@ module {
     return null;
   };
 
+  /// Prefetch the keys used for signing the JWTs.
+  /// Runing this periodically (e.g. every day) can increase the sign in speed for some providers.
+  /// Required keys will still be loaded at the time of login, if the requested key ID is not present.
   public func prefetchKeys(identify : Identify, transformKeys : TransformFn) : async* [Result<[RSA.PubKey]>] {
     let results = List.empty<Result<[RSA.PubKey]>>();
     for (config in List.values(identify.providers)) {
@@ -151,6 +157,7 @@ module {
     return List.toArray(results);
   };
 
+  /// Internal function to fetch signing keys.
   func fetchKeys(providerConfig : AuthProvider.OAuth2Config, transformKeys : Http.TransformFn) : async* Result<[RSA.PubKey]> {
     let res = await* AuthProvider.fetchKeys(providerConfig, transformKeys);
 
@@ -170,6 +177,9 @@ module {
     };
   };
 
+  /// Connect code and session key
+  /// The codeHash is a sha256 hash of the authorization code returned from the provider
+  /// By commiting to the code in advance, it prevents
   public func lockCodeHash(
     identify : Identify,
     provider : ProviderKey,
@@ -181,6 +191,8 @@ module {
     return #ok;
   };
 
+  /// Verify the JWT token and prepare a delegation.
+  /// The delegation can be fetched using an query call to getDelegation.
   public func prepareDelegation(
     identify : Identify,
     provider : ProviderKey,
@@ -425,6 +437,9 @@ module {
 
   };
 
+  /// Get the delegation.
+  /// The delegation must be prepared using `prepareDelegation`, `prepareDelegationPKCEJWT` or `prepareDelegationPKCE`.
+  /// This function must be called with a query call, to be able to read the certified data from the canister.
   public func getDelegation(
     identify : Identify,
     provider : ProviderKey,
@@ -466,18 +481,6 @@ module {
   public func getProviders(identify : Identify) : [FrontendOAuth2Config] {
     let providers = List.map<OAuth2Config, FrontendOAuth2Config>(identify.providers, AuthProvider.toFrontendConfig);
     return List.toArray(providers);
-  };
-
-  public func exchangeAuthorizationCode(
-    identify : Identify,
-    provider : ProviderKey,
-    code : Text,
-    verifier : ?Text,
-    transform : TransformFn,
-  ) : async* Result<Text> {
-    let ?providerConfig = getConfig(identify, provider) else return #err("No configruration found for " # AuthProvider.providerName(provider));
-
-    return await* PKCE.exchangeAuthorizationCode(providerConfig, code, verifier, transform);
   };
 
 };
