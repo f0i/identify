@@ -260,6 +260,12 @@ module {
     });
   };
 
+  /// Check PKCE sign in and prepare delegation
+  ///
+  /// Warning:
+  /// This function uses non-replicated http-outcalls to complete the authentication flow and request user data.
+  /// It therefore requires some trust in the node provider, not to manipulate the requests.
+  /// If possible use `prepareDelegation` instead.
   public func prepareDelegationPKCE(
     identify : Identify,
     provider : ProviderKey,
@@ -341,6 +347,12 @@ module {
     });
   };
 
+  /// Complete PKCE sign to get a JWT and prepare delegation.
+  ///
+  /// Warning:
+  /// This function uses non-replicated http-outcalls to complete authentication.
+  /// It therefore requires some trust in the node provider, not to manipulate the requests.
+  /// If possible use `prepareDelegation` instead.
   public func prepareDelegationPKCEJWT(
     identify : Identify,
     provider : ProviderKey,
