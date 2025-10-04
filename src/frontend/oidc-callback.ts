@@ -10,13 +10,23 @@ window.onload = () => {
 
   if (id_token) {
     window.opener.postMessage(
-      { type: "oidc_auth_success", id_token, state: stateHash },
+      {
+        type: "oidc_auth_success",
+        id_token,
+        state: stateHash,
+        raw: window.location.href,
+      },
       window.origin,
     );
     window.close();
   } else if (code) {
     window.opener.postMessage(
-      { type: "oidc_auth_code", code, state },
+      {
+        type: "oidc_auth_code",
+        code,
+        state,
+        raw: window.location.href,
+      },
       window.origin,
     );
     window.close();

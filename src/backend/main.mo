@@ -270,7 +270,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
       preFetch = true;
       authority = "https://identify.uk.auth0.com/";
-      authorizationUrl = "https://identify.uk.auth0.com//oauth/authorize";
+      authorizationUrl = "https://identify.uk.auth0.com/oauth/authorize";
       fedCMConfigUrl = null;
       responseType = "id_token";
       scope = ?"openid email profile";
