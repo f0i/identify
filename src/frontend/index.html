@@ -318,7 +318,6 @@
         display: grid;
         grid-template-columns: auto auto;
         gap: 8px 16px;
-        margin-bottom: 20px;
       }
       .demo-info div {
         display: contents;
@@ -326,38 +325,12 @@
       .demo-info div strong {
         color: #aaa;
         font-weight: 400;
-        font-size: 11px;
+        font-size: 13px;
         text-align: left;
       }
       .demo-info div span {
         color: #666;
-        font-size: 11px;
-        font-family: monospace;
-        text-align: left;
-      }
-      .demo-info ul {
-        max-height: 200px;
-        overflow-y: auto;
-        background: transparent;
-        padding: 0;
-        margin: 0;
-        display: grid;
-        grid-template-columns: auto auto;
-        gap: 8px 16px;
-      }
-      .demo-info li {
-        display: contents;
-        font-size: 11px;
-      }
-      .demo-info li::before {
-        content: attr(data-label);
-        color: #aaa;
-        font-weight: 400;
-        text-align: left;
-      }
-      .demo-info li::after {
-        content: attr(data-value);
-        color: #666;
+        font-size: 13px;
         font-family: monospace;
         text-align: left;
       }
@@ -416,8 +389,10 @@
               <div><strong>Network:</strong> <span id="demo-network">-</span></div>
               <div><strong>API Endpoint:</strong> <span id="demo-api">-</span></div>
               <div><strong>Build Time:</strong> <span id="demo-build-time">-</span></div>
+              <div><strong>Total Logins:</strong> <span id="demo-login-count">-</span></div>
+              <div><strong>Applications:</strong> <span id="demo-app-count">-</span></div>
+              <div><strong>Users:</strong> <span id="demo-key-count">-</span></div>
             </div>
-            <ul id="log"></ul>
           </div>
         </div>
       </div>

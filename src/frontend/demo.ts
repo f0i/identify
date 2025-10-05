@@ -83,11 +83,12 @@ async function checkAuth() {
   showElement("user-card-container", false);
   showElement("demo-actions", false);
 
+  const isDev = process.env.DFX_NETWORK !== "ic";
+  const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
+
   const authClient = await AuthClient.create();
   if (await authClient.isAuthenticated()) {
     console.log("Already authenticated!", authClient.getIdentity());
-    const isDev = process.env.DFX_NETWORK !== "ic";
-    const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
 
     const backend = createActor(canisterId, {
       agentOptions: { host, identity: authClient.getIdentity() },
@@ -118,49 +119,41 @@ async function checkAuth() {
     showElement("provider-buttons", false); // Hide provider buttons
     showElement("sign-in-prompt", false); // Hide sign in prompt
 
-    // Update logs
-    updateStats("log", await backend.getStats().catch((e: any): any => {}));
-
-    // Show info section
-    showElement("demo-info", true);
+    // Update stats
+    const stats = await backend.getStats().catch((e: any): any => ({
+      loginCount: 0,
+      appCount: 0,
+      keyCount: 0,
+    }));
+    innerText("demo-login-count", String(stats.loginCount || 0));
+    innerText("demo-app-count", String(stats.appCount || 0));
+    innerText("demo-key-count", String(stats.keyCount || 0));
   } else {
-    // Not authenticated
+    // Not authenticated - fetch stats anonymously
+    const backend = createActor(canisterId, {
+      agentOptions: { host },
+    });
+    const stats = await backend.getStats().catch((e: any): any => ({
+      loginCount: 0,
+      appCount: 0,
+      keyCount: 0,
+    }));
+    innerText("demo-login-count", String(stats.loginCount || 0));
+    innerText("demo-app-count", String(stats.appCount || 0));
+    innerText("demo-key-count", String(stats.keyCount || 0));
+
     showElement("user-card-container", false);
     showElement("demo-actions", true);
     showElement("provider-buttons", true); // Show provider buttons
     showElement("sign-in-prompt", true); // Show sign in prompt
     showElement("demo-logout", false);
-    showElement("demo-info", false);
   }
+
+  // Always show info section
+  showElement("demo-info", true);
+
   // Hide spinner
   showElement("spinner", false);
-}
-
-// Update stats list
-function updateStats(
-  ulId: string,
-  stats: {
-    appCount: number;
-    keyCount: number;
-    loginCount: number;
-  },
-): void {
-  const ul = document.getElementById(ulId);
-  if (!ul) {
-    console.error(`No <ul> element found with id: ${ulId}`);
-    return;
-  }
-  // Remove all previous children
-  while (ul.firstChild) {
-    ul.removeChild(ul.firstChild);
-  }
-  // Add new list items with data attributes
-  Object.entries(stats).forEach(([key, value]) => {
-    const li = document.createElement("li");
-    li.setAttribute("data-label", key);
-    li.setAttribute("data-value", String(value));
-    ul.appendChild(li);
-  });
 }
 
 // Set text content of an element
