@@ -7,6 +7,8 @@ import { initDemo } from "./demo";
 import { initIdentify } from "./identify";
 import { showElement } from "./identify/dom";
 
+import { createInfoFooter } from "./components/InfoFooter";
+
 window.onload = () => {
   const params = new URLSearchParams(document.location.search);
   let providerKey = params.get("provider") || "google";
@@ -18,35 +20,14 @@ window.onload = () => {
     initDemo();
   }
 
-  document.getElementById("version")!.innerText = process.env.BUILD_TIME!;
-  try {
-    (window as any).showInfo(document.location.hash.substring(1));
-  } catch (e) {
-    // ignore
+  const infoFooterContainer = document.getElementById("info-footer-container");
+  if (infoFooterContainer) {
+    const infoFooter = createInfoFooter();
+    infoFooterContainer.appendChild(infoFooter);
   }
-};
 
-(window as any).showInfo = (sectionId: string) => {
-  const active = !document
-    .getElementById(sectionId)
-    ?.classList.contains("hidden");
-  // Hide all sections
-  showElement("help", false);
-  showElement("security", false);
-  showElement("about", false);
-  // Show the selected section
-  showElement("info", !active);
-  showElement(sectionId, !active);
-  // remove the hash from the URL if element was active
-  if (active) {
-    setTimeout(() =>
-      history.replaceState(
-        null,
-        "",
-        document.location.pathname + document.location.search,
-      ),
-    );
-  }
+
+
 };
 
 /*

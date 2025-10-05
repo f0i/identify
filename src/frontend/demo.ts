@@ -4,6 +4,7 @@ import { showElement } from "./identify/dom";
 import { IDENTITY_PROVIDER } from "./auth-config"; // Added
 import { unwrapOpt } from "./identify/utils";
 import { populateProviderButtons } from "./components/ProviderButtons";
+import { createUserCard } from "./components/UserCard";
 
 const ALL_PROVIDERS = [
   { name: "Google", key: "google" },
@@ -101,130 +102,16 @@ async function checkAuth() {
       : undefined;
     console.log("userInfo", userInfo);
 
-    // Populate user card
-    //const userCard = document.getElementById("user-card");
-    const userIcon = document.getElementById("user-icon") as HTMLImageElement;
-    const userName = document.getElementById("user-name");
-    const userEmail = document.getElementById("user-email");
-    const userId = document.getElementById("user-id"); // Get user ID element
-    const userPrincipal = document.getElementById("user-principal");
-
-    if (
-      userIcon &&
-      userInfo &&
-      userInfo.avatar_url &&
-      userInfo.avatar_url.length > 0
-    ) {
-      userIcon.src = userInfo.avatar_url[0] ?? "";
-      showElement("user-icon", true);
-    } else if (userIcon) {
-      showElement("user-icon", false); // Hide if no valid picture
+    const userCardContainer = document.getElementById("user-card-container");
+    if (userCardContainer && userInfo) {
+      userCardContainer.innerHTML = "";
+      const userCard = createUserCard({ user: { ...userInfo, principal: principal?.toString() } });
+      userCardContainer.appendChild(userCard);
+      showElement(userCard, true);
+      showElement(userCardContainer, true);
+    } else if (userCardContainer) {
+      showElement(userCardContainer, false);
     }
-
-    if (userName && userInfo && userInfo.name && userInfo.name.length > 0) {
-      userName.innerText = userInfo.name[0] ?? "";
-      showElement("user-name", true);
-    } else if (userName) {
-      showElement("user-name", false); // Hide if no name
-    }
-
-    if (userEmail && userInfo && userInfo.email && userInfo.email.length > 0) {
-      userEmail.innerText = userInfo.email[0] ?? "";
-      showElement("user-email", true);
-    } else if (userEmail) {
-      showElement("user-email", false); // Hide if no email
-    }
-
-    if (userId && userInfo && userInfo.id) {
-      userId.innerText = `User ID: ${userInfo.id}`;
-      showElement("user-id", true);
-    } else if (userId) {
-      showElement("user-id", false); // Hide if no ID
-    }
-
-    if (userPrincipal) {
-      userPrincipal.innerText = `Principal: ${principal}`;
-      showElement("user-principal", true);
-    } else if (userPrincipal) {
-      showElement("user-principal", false); // Hide if no principal
-    }
-
-    // Populate additional user info
-    const additionalUserInfoDiv = document.getElementById(
-      "additional-user-info",
-    );
-    if (additionalUserInfoDiv && userInfo) {
-      additionalUserInfoDiv.innerHTML = ""; // Clear previous content
-
-      const excludedKeys = [
-        "id",
-        "avatar_url",
-        "name",
-        "email",
-        "createdAt",
-        "origin",
-        "principal", // Exclude principal as it's handled separately
-      ];
-
-      for (const key in userInfo) {
-        if (userInfo.hasOwnProperty(key) && !excludedKeys.includes(key)) {
-          let value = (userInfo as any)[key];
-          let displayValue = "";
-          let shouldDisplay = true;
-
-          if (Array.isArray(value)) {
-            if (value.length > 0) {
-              displayValue = value[0];
-            } else {
-              shouldDisplay = false; // Hide if array is empty
-            }
-          } else if (typeof value === "object" && value !== null) {
-            // Handle provider object specifically
-            if (key === "provider") {
-              const providerName = Object.keys(value)[0];
-              if (providerName) {
-                displayValue = providerName;
-              } else {
-                shouldDisplay = false;
-              }
-            } else {
-              displayValue = JSON.stringify(value);
-            }
-          } else {
-            displayValue = value;
-          }
-
-          if (
-            shouldDisplay &&
-            displayValue !== "N/A" &&
-            displayValue !== "" &&
-            displayValue !== "null" &&
-            displayValue !== "undefined"
-          ) {
-            const p = document.createElement("p");
-            p.style.margin = "5px 0";
-            p.style.fontSize = "0.85em";
-            p.style.color = "#777";
-
-            let displayKey = key.replace(/_/g, " ");
-            // Capitalize first letter of each word
-            displayKey = displayKey
-              .split(" ")
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(" ");
-
-            if (displayKey === "Provider Created At") {
-              displayKey = "Created At";
-            }
-
-            p.innerHTML = `<strong>${displayKey}:</strong> ${displayValue}`;
-            additionalUserInfoDiv.appendChild(p);
-          }
-        }
-      }
-    }
-
-    showElement("user-card", true); // Show user card
 
     // Revert login-status to original message or clear it
     innerText("login-status", "Authenticated..."); // Or clear it: innerText("login-status", "");

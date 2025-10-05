@@ -1,4 +1,5 @@
 import { getProviderStyles } from "./provider-styles";
+import { createProviderButton } from "./components/ProviderButton";
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
 import { getDelegationPkceJwt, getProviderName } from "./identify/delegation";
@@ -78,29 +79,17 @@ export async function initIdentify(providerKey: ProviderKey) {
 
   const signInButtonContainer = document.getElementById(DOM_IDS.singinBtn);
   if (signInButtonContainer) {
-    const actualButton = signInButtonContainer.querySelector("button");
-    if (actualButton) {
-      actualButton.innerHTML = ""; // Clear existing content
-      const styles = getProviderStyles(providerKey);
-      Object.assign(actualButton.style, styles);
-
-      const content = document.createElement("div");
-      content.style.display = "flex";
-      content.style.alignItems = "center";
-
-      const icon = document.createElement("img");
-      icon.src = `img/icons/${String(providerKey)}.${providerKey === "zitadel" ? "png" : "svg"}`;
-      icon.style.width = "24px";
-      icon.style.height = "24px";
-      icon.style.marginRight = "10px";
-      content.appendChild(icon);
-
-      const text = document.createElement("span");
-      text.innerText = `Sign in with ${getProviderName(providerKey)}`;
-      content.appendChild(text);
-
-      actualButton.appendChild(content);
-    }
+    signInButtonContainer.innerHTML = ""; // Clear existing content
+    const button = createProviderButton({
+      provider: {
+        key: providerKey,
+        name: getProviderName(providerKey),
+      },
+      onClick: () => {
+        // The click is handled by initOIDC or initPkce
+      },
+    });
+    signInButtonContainer.appendChild(button);
   }
   console.log("Waiting for message from opener");
   setStatusText({ status: "loading", message: "Connecting to application..." });

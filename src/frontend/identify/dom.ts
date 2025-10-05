@@ -12,18 +12,23 @@ export const setText = (id: string, text: string) => {
   }
 };
 
-export const showElement = (id: string, show: boolean) => {
-  const el = document.getElementById(id);
+export const showElement = (idOrEl: string | HTMLElement, show: boolean) => {
+  let el: HTMLElement | null;
+  if (typeof idOrEl === "string") {
+    el = document.getElementById(idOrEl);
+  } else {
+    el = idOrEl;
+  }
   if (el) {
     if (show) {
       el.classList.remove("hidden");
     } else {
       el.classList.add("hidden");
     }
-  } else if (id !== "" && id !== "authorize") {
+  } else if (typeof idOrEl === "string" && idOrEl !== "" && idOrEl !== "authorize" && idOrEl !== "user-card") {
     console.error(
       "showElement() did not find DOM element",
-      id,
+      idOrEl,
       "to",
       show ? "show" : "hide",
     );
