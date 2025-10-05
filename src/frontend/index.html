@@ -248,6 +248,15 @@
         padding: 0;
       }
 
+      .auth-progress-title {
+        text-align: center;
+        font-size: 15px;
+        font-weight: 500;
+        color: #666;
+        margin-bottom: 32px;
+        letter-spacing: 0.2px;
+      }
+
       .progress-steps {
         display: flex;
         flex-direction: column;
@@ -288,17 +297,15 @@
         opacity: 0.6;
       }
 
-      .step-number {
+      .step-icon {
         width: 32px;
         height: 32px;
         border-radius: 50%;
         background: #fafafa;
-        color: #ccc;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 13px;
-        font-weight: 600;
         flex-shrink: 0;
         transition: all 0.4s ease;
         position: relative;
@@ -306,16 +313,29 @@
         z-index: 2;
       }
 
-      .progress-step.active .step-number {
+      .step-icon svg {
+        width: 14px;
+        height: 14px;
+        fill: #ccc;
+        transition: fill 0.4s ease;
+      }
+
+      .progress-step.active .step-icon {
         background: #4CAF50;
-        color: white;
         border-color: #4CAF50;
       }
 
-      .progress-step.completed .step-number {
+      .progress-step.active .step-icon svg {
+        fill: white;
+      }
+
+      .progress-step.completed .step-icon {
         background: #4CAF50;
-        color: white;
         border-color: #4CAF50;
+      }
+
+      .progress-step.completed .step-icon svg {
+        fill: white;
       }
 
       .step-label {
@@ -337,7 +357,7 @@
       }
 
       /* Loading spinner for active step */
-      .progress-step.active .step-number::before {
+      .progress-step.active .step-icon::before {
         content: "";
         position: absolute;
         width: 38px;
@@ -348,7 +368,7 @@
         animation: spin 1.2s linear infinite;
       }
 
-      .progress-step.completed .step-number::before {
+      .progress-step.completed .step-icon::before {
         display: none;
       }
 
@@ -508,17 +528,30 @@
           </div>
 
           <div id="auth-progress" class="hidden auth-progress">
+            <div class="auth-progress-title">Authenticating...</div>
             <div class="progress-steps">
               <div class="progress-step" id="step-1">
-                <div class="step-number">1</div>
+                <div class="step-icon">
+                  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C9.243 2 7 4.243 7 7v3H6c-1.103 0-2 .897-2 2v8c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-8c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zm6 10v8H6v-8h12zm-9-2V7c0-1.654 1.346-3 3-3s3 1.346 3 3v3H9z"/>
+                  </svg>
+                </div>
                 <div class="step-label"><span id="step-1-provider">Provider</span> Authorization Confirmed</div>
               </div>
               <div class="progress-step" id="step-2">
-                <div class="step-number">2</div>
+                <div class="step-icon">
+                  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L4 6v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V6l-8-4zm0 2.18l6 3v5.82c0 4.13-2.84 8.06-6 9.02-3.16-.96-6-4.89-6-9.02V7.18l6-3zM10 12l-2-2-1.41 1.41L10 14.83l6.59-6.59L15.17 6.83z"/>
+                  </svg>
+                </div>
                 <div class="step-label">Verify Authorization</div>
               </div>
               <div class="progress-step" id="step-3">
-                <div class="step-number">3</div>
+                <div class="step-icon">
+                  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C9.243 2 7 4.243 7 7v2H6c-1.103 0-2 .897-2 2v9c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-9c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zM9 7c0-1.654 1.346-3 3-3s3 1.346 3 3v2H9V7zm9 4v9H6v-9h12zm-7 2v5h2v-5h-2z"/>
+                  </svg>
+                </div>
                 <div class="step-label">Create Session</div>
               </div>
             </div>
