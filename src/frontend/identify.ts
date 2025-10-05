@@ -32,41 +32,54 @@ const setTargetsText = (targets: string) => {
 
 const setStatusText = (update: StatusUpdate) => {
   console.log(
-    `Status changed to: ${update.status} with message: ${update.message} and error: ${update.error}`,
+    `Status changed to: ${update.status} with message: ${update.message} and error: ${update.error} step: ${update.step}`,
   );
-  const statusEl = "login-status";
   const spinner = "spinner";
   const errorEl = "error";
   const signInBtn = "sign-in-btn";
   const cancelBtn = "cancel";
-
-  setText(statusEl, update.message || ""); // Keep the message
+  const authProgress = "auth-progress";
 
   if (update.status === "loading") {
-    showElement(statusEl, true); // Keep status message visible
-    showElement(spinner, true); // Show spinner
+    showElement(spinner, true);
     showElement(errorEl, false);
     showElement(signInBtn, false);
     showElement(cancelBtn, false);
+    showElement(authProgress, false);
   } else if (update.status === "ready") {
-    showElement(statusEl, true); // Keep status message visible
-    showElement(spinner, false); // Hide spinner
+    showElement(spinner, false);
     showElement(errorEl, false);
     showElement(signInBtn, true);
     showElement(cancelBtn, false);
+    showElement(authProgress, false);
   } else if (update.status === "signing-in") {
-    showElement(statusEl, true); // Keep status message visible
-    showElement(spinner, true); // Show spinner
+    showElement(spinner, false);
     showElement(errorEl, false);
     showElement(signInBtn, false);
     showElement(cancelBtn, true);
+    showElement(authProgress, true);
+
+    // Update progress steps
+    if (update.step) {
+      for (let i = 1; i <= 3; i++) {
+        const stepEl = document.getElementById(`step-${i}`);
+        if (stepEl) {
+          stepEl.classList.remove("active", "completed");
+          if (i < update.step) {
+            stepEl.classList.add("completed");
+          } else if (i === update.step) {
+            stepEl.classList.add("active");
+          }
+        }
+      }
+    }
   } else if (update.status === "error") {
-    showElement(statusEl, true); // Keep status message visible
-    showElement(spinner, false); // Hide spinner
+    showElement(spinner, false);
     showElement(errorEl, true);
     setText(errorEl, update.error || "Unknown error");
     showElement(signInBtn, true);
     showElement(cancelBtn, true);
+    showElement(authProgress, false);
   }
 };
 
@@ -77,13 +90,21 @@ export async function initIdentify(providerKey: ProviderKey) {
 
   console.log("initIdentify");
 
+  const providerName = getProviderName(providerKey);
+
+  // Set provider name in step 1
+  const step1Provider = document.getElementById("step-1-provider");
+  if (step1Provider) {
+    step1Provider.innerText = providerName;
+  }
+
   const signInButtonContainer = document.getElementById(DOM_IDS.singinBtn);
   if (signInButtonContainer) {
     signInButtonContainer.innerHTML = ""; // Clear existing content
     const button = createProviderButton({
       provider: {
         key: providerKey,
-        name: getProviderName(providerKey),
+        name: providerName,
       },
       onClick: () => {
         // The click is handled by initOIDC or initPkce

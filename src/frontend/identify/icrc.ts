@@ -23,10 +23,12 @@ import { initOIDC, OidcAuthData } from "../oidc-implicit";
 import { ProviderKey } from "../../declarations/backend/backend.did";
 
 export type Status = "loading" | "ready" | "error" | "signing-in";
+export type AuthStep = 1 | 2 | 3; // 1: Authorization Confirmed, 2: Verify Authorization, 3: Create Session
 export type StatusUpdate = {
   status: Status;
   message?: string;
   error?: string;
+  step?: AuthStep;
 };
 
 export type Context = {

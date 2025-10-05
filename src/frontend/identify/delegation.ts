@@ -48,9 +48,18 @@ export const getDelegationJwt = async (
 
   const name = getProviderName(provider);
 
+  // Step 1: Authorization Confirmed
   statusCallback({
     status: "signing-in",
-    message: name + " sign in succeeded. Authorizing client...",
+    message: name + " authorization confirmed",
+    step: 1,
+  });
+
+  // Step 2: Verify Authorization
+  statusCallback({
+    status: "signing-in",
+    message: "Verifying authorization...",
+    step: 2,
   });
 
   let prepRes = await backend.prepareDelegation(
@@ -66,9 +75,12 @@ export const getDelegationJwt = async (
   } else {
     throw prepRes.err;
   }
+
+  // Step 3: Create Session
   statusCallback({
     status: "signing-in",
-    message: name + " sign in succeeded. Get client authorization...",
+    message: "Creating session...",
+    step: 3,
   });
 
   let authRes = await backend.getDelegation(
@@ -83,7 +95,6 @@ export const getDelegationJwt = async (
 
   if ("ok" in authRes) {
     console.log("authRes", authRes.ok);
-    statusCallback({ status: "signing-in", message: "Login completed" });
     const msg = unwrapTargets(authRes.ok.auth);
     console.log("getDelegation response unwrapped:", msg);
     return msg;
@@ -110,13 +121,18 @@ export const getDelegationPkce = async (
 
   const name = getProviderName(provider);
 
+  // Step 1: Authorization Confirmed
   statusCallback({
     status: "signing-in",
-    message:
-      "User approved sign in. Verify sign in and load user info from " +
-      name +
-      "...\n" +
-      "This can take a while.",
+    message: name + " authorization confirmed",
+    step: 1,
+  });
+
+  // Step 2: Verify Authorization
+  statusCallback({
+    status: "signing-in",
+    message: "Verifying authorization...",
+    step: 2,
   });
 
   let prepRes = await backend.prepareDelegationPKCE(
@@ -133,9 +149,12 @@ export const getDelegationPkce = async (
   } else {
     throw prepRes.err;
   }
+
+  // Step 3: Create Session
   statusCallback({
     status: "signing-in",
-    message: name + " sign in succeeded. Get client authorization...",
+    message: "Creating session...",
+    step: 3,
   });
 
   let authRes = await backend.getDelegation(
@@ -150,7 +169,6 @@ export const getDelegationPkce = async (
 
   if ("ok" in authRes) {
     console.log("authRes", authRes.ok);
-    statusCallback({ status: "signing-in", message: "Login completed" });
     const msg = unwrapTargets(authRes.ok.auth);
     console.log("getDelegationPkce response unwrapped:", msg);
     return msg;
@@ -175,9 +193,18 @@ export const getDelegationPkceJwt = async (
 
   const name = getProviderName(provider);
 
+  // Step 1: Authorization Confirmed
   statusCallback({
     status: "signing-in",
-    message: name + " sign in succeeded. Authorizing client...",
+    message: name + " authorization confirmed",
+    step: 1,
+  });
+
+  // Step 2: Verify Authorization
+  statusCallback({
+    status: "signing-in",
+    message: "Verifying authorization...",
+    step: 2,
   });
 
   const codeHash = await sha256(code);
@@ -202,9 +229,12 @@ export const getDelegationPkceJwt = async (
   } else {
     throw prepRes.err;
   }
+
+  // Step 3: Create Session
   statusCallback({
     status: "signing-in",
-    message: name + " sign in succeeded. Get client authorization...",
+    message: "Creating session...",
+    step: 3,
   });
 
   let authRes = await backend.getDelegation(
@@ -219,7 +249,6 @@ export const getDelegationPkceJwt = async (
 
   if ("ok" in authRes) {
     console.log("authRes", authRes.ok);
-    statusCallback({ status: "signing-in", message: "Login completed" });
     const msg = unwrapTargets(authRes.ok.auth);
     console.log("getDelegation response unwrapped:", msg);
     return msg;

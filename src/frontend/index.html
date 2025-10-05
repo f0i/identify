@@ -239,6 +239,158 @@
         100% { transform: rotate(360deg); }
       }
 
+      /* Auth Progress Indicator */
+      .auth-progress {
+        display: flex;
+        flex-direction: column;
+        margin: 40px auto 0 auto;
+        max-width: 380px;
+        padding: 0;
+      }
+
+      .progress-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        position: relative;
+      }
+
+      .progress-step {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        opacity: 0.3;
+        transition: all 0.4s ease;
+        position: relative;
+        padding: 10px 0;
+      }
+
+      .progress-step:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        left: 15px;
+        top: 42px;
+        width: 1px;
+        height: calc(100% - 12px);
+        background: #e8e8e8;
+        transition: background 0.4s ease;
+      }
+
+      .progress-step.completed:not(:last-child)::after {
+        background: #c8e6c9;
+      }
+
+      .progress-step.active {
+        opacity: 1;
+      }
+
+      .progress-step.completed {
+        opacity: 0.6;
+      }
+
+      .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #fafafa;
+        color: #ccc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        flex-shrink: 0;
+        transition: all 0.4s ease;
+        position: relative;
+        border: 1.5px solid #e8e8e8;
+        z-index: 2;
+      }
+
+      .progress-step.active .step-number {
+        background: #4CAF50;
+        color: white;
+        border-color: #4CAF50;
+      }
+
+      .progress-step.completed .step-number {
+        background: #4CAF50;
+        color: white;
+        border-color: #4CAF50;
+      }
+
+      .step-label {
+        font-size: 14px;
+        color: #bbb;
+        text-align: left;
+        line-height: 1.4;
+        font-weight: 400;
+        transition: all 0.4s ease;
+      }
+
+      .progress-step.active .step-label {
+        color: #333;
+        font-weight: 500;
+      }
+
+      .progress-step.completed .step-label {
+        color: #888;
+      }
+
+      /* Loading spinner for active step */
+      .progress-step.active .step-number::before {
+        content: "";
+        position: absolute;
+        width: 38px;
+        height: 38px;
+        border: 1.5px solid rgba(76, 175, 80, 0.15);
+        border-top-color: #4CAF50;
+        border-radius: 50%;
+        animation: spin 1.2s linear infinite;
+      }
+
+      .progress-step.completed .step-number::before {
+        display: none;
+      }
+
+      /* Identify page specific styles */
+      #identify {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      #identify #app-name {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        max-width: 400px;
+      }
+
+      #identify #app-name strong {
+        color: #333;
+        font-weight: 500;
+      }
+
+      #identify #error {
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        color: #991b1b;
+        padding: 14px 20px;
+        border-radius: 8px;
+        margin: 30px 0 20px 0;
+        font-size: 14px;
+        max-width: 400px;
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      #identify #spinner {
+        margin: 40px 0 20px 0;
+      }
+
       /* Demo page styles */
       .demo-header {
         text-align: center;
@@ -348,18 +500,37 @@
 
       <div class="body-content">
         <div id="identify" class="hidden">
-          <div id="spinner" class="hidden spinner"></div> <!-- Added spinner class and removed "Loading..." text -->
+          <div id="spinner" class="hidden spinner"></div>
           <div id="error" class="hidden"></div>
+
           <div id="sign-in-btn" class="flex-center">
             <button>Sign in</button>
           </div>
-          <div id="app-name" style="margin-top: 2em;">
+
+          <div id="auth-progress" class="hidden auth-progress">
+            <div class="progress-steps">
+              <div class="progress-step" id="step-1">
+                <div class="step-number">1</div>
+                <div class="step-label"><span id="step-1-provider">Provider</span> Authorization Confirmed</div>
+              </div>
+              <div class="progress-step" id="step-2">
+                <div class="step-number">2</div>
+                <div class="step-label">Verify Authorization</div>
+              </div>
+              <div class="progress-step" id="step-3">
+                <div class="step-number">3</div>
+                <div class="step-label">Create Session</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="app-name" style="margin-top: 2.5em;">
             Sign in to <strong id="app-origin">-</strong>
           </div>
 
-          <div id="app-scope" style="margin-top: 1em;" class="hidden">
-            Whitelisted backend IDs:<br/>
-            <strong id="app-targets">-</strong>
+          <div id="app-scope" style="margin-top: 1.5em; font-size: 14px; color: #888; max-width: 400px;" class="hidden">
+            <div style="margin-bottom: 8px; font-weight: 500; color: #666;">Whitelisted backend IDs:</div>
+            <div style="font-family: monospace; font-size: 12px; color: #999; word-break: break-all;" id="app-targets">-</div>
           </div>
         </div>
 
