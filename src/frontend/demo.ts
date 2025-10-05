@@ -1,9 +1,9 @@
-import { getProviderStyles } from "./provider-styles";
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 import { showElement } from "./identify/dom";
 import { IDENTITY_PROVIDER } from "./auth-config"; // Added
 import { unwrapOpt } from "./identify/utils";
+import { populateProviderButtons } from "./components/ProviderButtons";
 
 const ALL_PROVIDERS = [
   { name: "Google", key: "google" },
@@ -17,34 +17,13 @@ const ALL_PROVIDERS = [
 // Initialize the demo application
 export function initDemo() {
   showElement("demo", true);
-  const providerButtonsContainer = document.getElementById("provider-buttons")!; // Get container
+  const providerButtonsContainer = document.getElementById("provider-buttons")!;
 
-  ALL_PROVIDERS.forEach((provider) => {
-    const button = document.createElement("button");
-    const styles = getProviderStyles(provider.key);
-    Object.assign(button.style, styles);
-
-    const content = document.createElement("div");
-    content.style.display = "flex";
-    content.style.alignItems = "center";
-
-    const icon = document.createElement("img");
-    icon.src = `img/icons/${provider.key}.${provider.key === "zitadel" ? "png" : "svg"}`;
-    icon.style.width = "24px";
-    icon.style.height = "24px";
-    icon.style.marginRight = "10px";
-    content.appendChild(icon);
-
-    const text = document.createElement("span");
-    text.innerText = `Sign in with ${provider.name}`;
-    content.appendChild(text);
-
-    button.appendChild(content);
-
-    button.addEventListener("click", () =>
-      initAuth(IDENTITY_PROVIDER + "?provider=" + provider.key),
-    );
-    providerButtonsContainer.appendChild(button);
+  populateProviderButtons(providerButtonsContainer, {
+    providers: ALL_PROVIDERS,
+    onProviderClick: (providerKey) => {
+      initAuth(IDENTITY_PROVIDER + "?provider=" + providerKey);
+    },
   });
 
   const logout = document.getElementById("demo-logout")!;

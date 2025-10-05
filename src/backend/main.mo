@@ -344,7 +344,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       fedCMConfigUrl = null;
       responseType = "code";
       scope = ?"openid email profile";
-      clientSecret = ?"WPL_AP1.Dfkx4Xj8IRFxvHf5.gMZKcA==";
+      clientSecret = ?"WPL_AP1.eg0eUM3Mz6DhALcr.LrhsBQ==";
       redirectUri = "https://login.f0i.de/oidc-callback.html";
       tokenUrl = ?"https://www.linkedin.com/oauth/v2/accessToken";
     });

@@ -2,6 +2,20 @@ const esbuild = require("esbuild");
 const fs = require("fs");
 const { execSync } = require("child_process");
 
+const htmlLoader = {
+  name: "html-loader",
+  setup(build) {
+    build.onLoad({ filter: /\.html$/ }, async (args) => {
+      const contents = await fs.promises.readFile(args.path, "utf8");
+      const escaped = JSON.stringify(contents);
+      return {
+        contents: `export default ${escaped};`,
+        loader: "js",
+      };
+    });
+  },
+};
+
 const copyWithCacheBuster = (name, scriptName) => {
   const infile = "src/frontend/" + name + ".html";
   const outfile = "out/frontend/" + name + ".html";
@@ -31,6 +45,7 @@ esbuild
     loader: {
       ".ts": "ts", // Tell esbuild to handle TypeScript files
     },
+    plugins: [htmlLoader],
     define: {
       "process.env": JSON.stringify({
         CANISTER_ID_BACKEND: process.env.CANISTER_ID_BACKEND,
