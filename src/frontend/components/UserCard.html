@@ -1,34 +1,86 @@
-<div id="user-card" class="hidden" style="
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  margin-top: 20px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  background-color: #fff;
-">
-  <img id="user-icon" src="img/id.png" alt="User Icon" style="
-    width: 80px;
-    height: 80px;
+<style>
+  .user-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    border-radius: 12px;
+    margin-top: 25px;
+    background: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
+    position: relative;
+  }
+  .user-avatar {
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     object-fit: cover;
-    margin-bottom: 15px;
-    border: 2px solid #4CAF50;
-  ">
-  <h4 style="margin: 10px 0 5px 0; color: #555;">Signed in as:</h4>
-  <h3 id="user-name" style="margin: 0 0 5px 0; color: #333;"></h3>
-  <p id="user-email" style="margin: 0 0 10px 0; color: #666; font-size: 0.9em;"></p>
-  <p id="user-id" style="margin: 0 0 5px 0; color: #888; font-size: 0.8em; word-break: break-all;"></p>
-  <p id="user-principal" style="margin: 0; color: #888; font-size: 0.8em; word-break: break-all;"></p>
-  <div id="additional-user-info" style="
+    margin-bottom: 20px;
+    border: 4px solid #4CAF50;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    transition: transform 0.3s ease;
+  }
+  .user-avatar:hover {
+    transform: scale(1.05);
+  }
+  .user-status {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .user-name {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px 0;
+    text-align: center;
+  }
+  .user-email {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 15px 0;
+    font-weight: 400;
+  }
+  .user-detail {
+    font-size: 13px;
+    color: #888;
+    margin: 5px 0;
+    word-break: break-all;
+    background: rgba(136, 136, 136, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+  }
+  .additional-info {
     width: 100%;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 2px solid #e9ecef;
     text-align: left;
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-  ">
+  }
+  .additional-info p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+  }
+  .additional-info strong {
+    color: #333;
+    font-weight: 600;
+  }
+</style>
+<div id="user-card" class="hidden user-card">
+  <img id="user-icon" class="user-avatar" src="img/id.png" alt="User Icon">
+  <div class="user-status">Signed in as:</div>
+  <h3 id="user-name" class="user-name"></h3>
+  <p id="user-email" class="user-email"></p>
+  <p id="user-id" class="user-detail"></p>
+  <p id="user-principal" class="user-detail"></p>
+  <div id="additional-user-info" class="additional-info">
     <!-- Additional user info will be populated here -->
   </div>
 </div>

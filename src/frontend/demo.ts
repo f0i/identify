@@ -80,11 +80,10 @@ async function resetAuth() {
 
 // Check authentication status, get principal and load statistics
 async function checkAuth() {
-  // Show spinner, hide everything else
+  // Show spinner, hide user card and actions
   showElement("spinner", true);
-  showElement("user-card", false);
-  showElement("provider-buttons", false);
-  showElement("demo-logout", false);
+  showElement("user-card-container", false);
+  showElement("demo-actions", false);
 
   const authClient = await AuthClient.create();
   if (await authClient.isAuthenticated()) {
@@ -113,22 +112,33 @@ async function checkAuth() {
       showElement(userCardContainer, false);
     }
 
-    // Revert login-status to original message or clear it
-    innerText("login-status", "Authenticated..."); // Or clear it: innerText("login-status", "");
+    // Update status
+    innerText("login-status", "Authenticated successfully!");
 
+    // Show user card and actions
+    showElement("user-card-container", true);
+    showElement("demo-actions", true);
+    showElement("demo-logout", true);
+    showElement("provider-buttons", false); // Hide provider buttons
+
+    // Update logs
     updateListById(
       "log",
       await backend.getStats().catch((e: any): string[] => ["Error: " + e]),
     );
 
-    showElement("provider-buttons", false); // Hide provider buttons
-    showElement("demo-logout", true);
+    // Show info and logs sections
+    showElement("demo-info", true);
+    showElement("demo-logs", true);
   } else {
-    // Hide user card when not authenticated
-    showElement("user-card", false);
-    innerText("demo-status", "Status: not authenticated");
+    // Not authenticated
+    showElement("user-card-container", false);
+    showElement("demo-actions", true);
     showElement("provider-buttons", true); // Show provider buttons
     showElement("demo-logout", false);
+    innerText("login-status", "Status: Not authenticated. Please sign in.");
+    showElement("demo-info", false);
+    showElement("demo-logs", false);
   }
   // Hide spinner
   showElement("spinner", false);

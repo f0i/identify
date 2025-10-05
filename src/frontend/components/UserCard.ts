@@ -15,9 +15,21 @@ interface UserCardProps {
 }
 
 export function createUserCard({ user }: UserCardProps): HTMLElement {
+  // Inject styles if not already present
+  if (!document.querySelector('style[data-component="user-card"]')) {
+    const styleElement = document.createElement('style');
+    styleElement.setAttribute('data-component', 'user-card');
+    // Extract styles from template
+    const styleMatch = template.match(/<style>([\s\S]*?)<\/style>/);
+    if (styleMatch) {
+      styleElement.textContent = styleMatch[1];
+      document.head.appendChild(styleElement);
+    }
+  }
+
   const templateElement = document.createElement("template");
-  templateElement.innerHTML = template;
-  const userCard = templateElement.content.firstElementChild as HTMLElement;
+  templateElement.innerHTML = template.replace(/<style>[\s\S]*?<\/style>/, ''); // Remove style from template
+  const userCard = templateElement.content.querySelector("#user-card") as HTMLElement;
 
   const userIcon = userCard.querySelector("#user-icon") as HTMLImageElement;
   const userName = userCard.querySelector("#user-name") as HTMLElement;

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IC Google Sign In</title>
+    <title>Internet Identity Demo</title>
     <link rel="icon" href="img/icon.png" type="image/png" />
 
     <style>
@@ -56,12 +56,15 @@
 
       hr {
         width: 100%;
-        color: #555;
+        border: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent, #ddd, transparent);
+        margin: 20px 0;
       }
 
       .body-content {
         flex-grow: 1;
-        padding: 50px 20px;
+        padding: 60px 30px;
         text-align: center;
       }
 
@@ -236,6 +239,99 @@
         100% { transform: rotate(360deg); }
       }
 
+      /* Demo page styles */
+      .demo-header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding: 30px;
+        background: white;
+        border-radius: 12px;
+      }
+      .demo-header h1 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 28px;
+        font-weight: 600;
+      }
+      .demo-header p {
+        margin: 0;
+        color: #666;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      .status-message {
+        text-align: center;
+        padding: 15px;
+        margin: 30px 0;
+        background: #e8f5e8;
+        border: 1px solid #4CAF50;
+        border-radius: 8px;
+        color: #2e7d32;
+        font-weight: 500;
+        font-size: 14px;
+      }
+
+      .demo-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        margin: 35px 0;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+      }
+
+      .demo-info, .demo-logs {
+        margin: 40px 0;
+        padding: 30px;
+        background: white;
+        border-radius: 12px;
+      }
+      .demo-info h3, .demo-logs h3 {
+        margin: 0 0 15px 0;
+        color: #333;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .demo-info div {
+        margin: 8px 0;
+        color: #555;
+        font-size: 14px;
+      }
+      .demo-logs ul {
+        max-height: 200px;
+        overflow-y: auto;
+        background: white;
+        border-radius: 8px;
+        padding: 10px;
+        border: 1px solid #e9ecef;
+      }
+      .demo-logs li {
+        padding: 5px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 13px;
+        color: #666;
+      }
+      .demo-logs li:last-child {
+        border-bottom: none;
+      }
+
     </style>
   </head>
   <body>
@@ -265,22 +361,36 @@
         </div>
 
         <div id="demo" class="hidden">
-          <div id="provider-buttons" class="flex-center" style="flex-direction: column; gap: 10px; align-items: center;">
-            <!-- Buttons will be dynamically added here -->
+          <div class="demo-header">
+            <h1>Internet Identity Demo</h1>
+            <p>This demo showcases authentication with Internet Identity and various OAuth providers. Sign in to see your user information and explore the capabilities.</p>
           </div>
-          <button id="demo-logout" class="hidden btn">Log out</button>
-          <div id="demo-build-info" style="padding-top: 6em;">
-            <div>Network: <span id="demo-network">-</span></div>
-            <div>API endpoint: <span id="demo-api">-</span></div>
-            <div>Build time: <span id="demo-build-time">-</span></div>
+
+           <div id="login-status" class="status-message">Status: Checking authentication...</div>
+
+           <div id="user-card-container"></div>
+
+          <div class="demo-actions">
+            <button id="demo-logout" class="hidden btn btn-primary">Log Out</button>
+            <div id="provider-buttons" class="flex-center" style="flex-direction: column; gap: 10px; align-items: center;">
+              <!-- Buttons will be dynamically added here -->
+            </div>
           </div>
-          <div id="user-card-container"></div>
+
+          <div class="demo-info">
+            <h3>Application Information</h3>
+            <div id="demo-build-info">
+              <div><strong>Network:</strong> <span id="demo-network">-</span></div>
+              <div><strong>API Endpoint:</strong> <span id="demo-api">-</span></div>
+              <div><strong>Build Time:</strong> <span id="demo-build-time">-</span></div>
+            </div>
+          </div>
+
+          <div class="demo-logs">
+            <h3>Usage Statistics</h3>
+            <ul id="log"></ul>
+          </div>
         </div>
-
-
-        <div id="login-status" style="text-align: left;padding: 1em;font-size: smaller;white-space: pre-wrap;overflow-wrap:break-word;width:fit-content;max-width:100%;margin:auto;"></div>
-
-        <ul id="log"></ul>
       </div>
 
       <div id="info-footer-container"></div>
