@@ -74,7 +74,6 @@ async function initAuth(identityProvider: string) {
 async function resetAuth() {
   const authClient = await AuthClient.create();
   authClient.logout().finally(checkAuth);
-  innerText("login-status", "Logged out");
 }
 
 // Check authentication status, get principal and load statistics
@@ -87,7 +86,6 @@ async function checkAuth() {
   const authClient = await AuthClient.create();
   if (await authClient.isAuthenticated()) {
     console.log("Already authenticated!", authClient.getIdentity());
-    innerText("login-status", "Authenticated...");
     const isDev = process.env.DFX_NETWORK !== "ic";
     const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
 
@@ -113,30 +111,26 @@ async function checkAuth() {
       showElement(userCardContainer, false);
     }
 
-    // Update status
-    innerText("login-status", "Authenticated successfully!");
-
     // Show user card and actions
     showElement("user-card-container", true);
     showElement("demo-actions", true);
     showElement("demo-logout", true);
     showElement("provider-buttons", false); // Hide provider buttons
+    showElement("sign-in-prompt", false); // Hide sign in prompt
 
     // Update logs
     updateStats("log", await backend.getStats().catch((e: any): any => {}));
 
-    // Show info and logs sections
+    // Show info section
     showElement("demo-info", true);
-    showElement("demo-logs", true);
   } else {
     // Not authenticated
     showElement("user-card-container", false);
     showElement("demo-actions", true);
     showElement("provider-buttons", true); // Show provider buttons
+    showElement("sign-in-prompt", true); // Show sign in prompt
     showElement("demo-logout", false);
-    innerText("login-status", "Status: Not authenticated. Please sign in.");
     showElement("demo-info", false);
-    showElement("demo-logs", false);
   }
   // Hide spinner
   showElement("spinner", false);
@@ -160,10 +154,11 @@ function updateStats(
   while (ul.firstChild) {
     ul.removeChild(ul.firstChild);
   }
-  // Add new list items
+  // Add new list items with data attributes
   Object.entries(stats).forEach(([key, value]) => {
     const li = document.createElement("li");
-    li.textContent = `${key}: ${value}`;
+    li.setAttribute("data-label", key);
+    li.setAttribute("data-value", String(value));
     ul.appendChild(li);
   });
 }
