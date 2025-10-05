@@ -74,7 +74,6 @@ async function initAuth(identityProvider: string) {
 async function resetAuth() {
   const authClient = await AuthClient.create();
   authClient.logout().finally(checkAuth);
-  updateListById("log", []);
   innerText("login-status", "Logged out");
 }
 
@@ -104,7 +103,9 @@ async function checkAuth() {
     const userCardContainer = document.getElementById("user-card-container");
     if (userCardContainer && userInfo) {
       userCardContainer.innerHTML = "";
-      const userCard = createUserCard({ user: { ...userInfo, principal: principal?.toString() } });
+      const userCard = createUserCard({
+        user: { ...userInfo, principal: principal?.toString() },
+      });
       userCardContainer.appendChild(userCard);
       showElement(userCard, true);
       showElement(userCardContainer, true);
@@ -122,10 +123,7 @@ async function checkAuth() {
     showElement("provider-buttons", false); // Hide provider buttons
 
     // Update logs
-    updateListById(
-      "log",
-      await backend.getStats().catch((e: any): string[] => ["Error: " + e]),
-    );
+    updateStats("log", await backend.getStats().catch((e: any): any => {}));
 
     // Show info and logs sections
     showElement("demo-info", true);
@@ -144,8 +142,15 @@ async function checkAuth() {
   showElement("spinner", false);
 }
 
-// Set list items
-function updateListById(ulId: string, items: string[]): void {
+// Update stats list
+function updateStats(
+  ulId: string,
+  stats: {
+    appCount: number;
+    keyCount: number;
+    loginCount: number;
+  },
+): void {
   const ul = document.getElementById(ulId);
   if (!ul) {
     console.error(`No <ul> element found with id: ${ulId}`);
@@ -156,9 +161,9 @@ function updateListById(ulId: string, items: string[]): void {
     ul.removeChild(ul.firstChild);
   }
   // Add new list items
-  items.forEach((item) => {
+  Object.entries(stats).forEach(([key, value]) => {
     const li = document.createElement("li");
-    li.textContent = item;
+    li.textContent = `${key}: ${value}`;
     ul.appendChild(li);
   });
 }

@@ -16,14 +16,15 @@ export function createInfoFooter(): HTMLElement {
   const helpContent = `
     <h2>Help</h2>
     <h3>Logging In</h3>
-    <p>To log in, click the Sign-In button. Select your account and you'll be redirected to the service you want to use. Each application will get a separate identity.</p>
+    <p>To log in, click the Sign-In button and choose your preferred authentication provider (Google, Auth0, Zitadel, GitHub, X, LinkedIn, etc.). Select your account and you'll be redirected to authenticate with the chosen service. Each application will get a separate identity.</p>
     <h3>Why Are Separate Identities Used?</h3>
-    <p>Each application uses a unique identity to ensure your activities in one app are independent from others. This keeps your data and actions isolated between applications, preventing malicious applications from steeling your assets from another app.</p>
+    <p>Each application uses a unique identity to ensure your activities in one app are independent from others. This keeps your data and actions isolated between applications, preventing malicious applications from stealing your assets from another app.</p>
     <h3>Common Issues</h3>
     <ul>
-      <li><strong>I can’t log in:</strong> Ensure that you’ve selected the correct Google account and that you have internet access.</li>
+      <li><strong>I can’t log in:</strong> Ensure that you’ve selected the correct account for your chosen provider and that you have internet access.</li>
       <li><strong>Login expired:</strong> If you're logged out automatically, it may be due to an expired session. Please log in again.</li>
       <li><strong>Permissions issue:</strong> Make sure you’ve granted the necessary permissions when prompted during login.</li>
+      <li><strong>Provider-specific issues:</strong> Some providers (like GitHub or X) may have rate limits or require additional setup. Check the provider's documentation if needed.</li>
     </ul>
     <h3>Browser Compatibility</h3>
     <p>This application should work with all modern browsers. Please ensure your browser is up to date for the best performance.</p>
@@ -34,18 +35,25 @@ export function createInfoFooter(): HTMLElement {
   const securityContent = `
     <h2>Security</h2>
     <h3>Data Protection</h3>
-    <p>Your login credentials are securely handled using Google Sign-In. The application does not store any of your passwords or sensitive information. All interactions with the application are conducted over secure, encrypted connections.</p>
+    <p>Your login credentials are securely handled using supported OAuth providers (Google, Auth0, Zitadel, GitHub, X, LinkedIn, etc.). The application does not store any of your passwords or sensitive information. All interactions with the application are conducted over secure, encrypted connections.</p>
     <h3>Separate Identities</h3>
     <p>Each application you access through this platform uses a separate identity, ensuring that no data is shared between apps. This helps keep your information compartmentalized and private.</p>
-    <h3>Minimal Data Collection</h3>
-    <p>The application only requests the basic information necessary to authenticate your login through Google.
-    The canister stores the following data:
+    <h3>Data Collection</h3>
+    <p>The canister stores the following data:
       <ul>
-        <li>Google account ID</li>
-        <li>Email address</li>
-        <li>URL of the application requestin authentication (protocol and host name)</li>
+        <li>Provider type and account ID</li>
+        <li>Email address and verification status</li>
+        <li>Username and full name</li>
+        <li>Profile picture URL</li>
+        <li>Bio/description</li>
+        <li>Website and user-defined profile location</li>
+        <li>Account creation date</li>
+        <li>Social metrics (followers, following, etc., if available)</li>
+        <li>URL of the application requesting authentication (protocol and host name)</li>
         <li>Time of each login</li>
       </ul>
+    Note: The authentication provider may return additional user data during the login process, but this data is discarded after login completion and not stored.
+    Most of this information is publicly available on your provider profile.
     </p>
     <h3>No Private keys in canister</h3>
     <p>
@@ -59,13 +67,14 @@ export function createInfoFooter(): HTMLElement {
     <p>The platform automatically manages your login sessions. You do not need to manually handle your credentials or identities, reducing the risk of mistakes or unauthorized access.</p>
     <h3>No off-chain components</h3>
     <p>
-      Token verification is done completely inside the backend canister.
-      Google obviously uses theire own infrastructure for token generation and signing, but there are no additional off-chain componentes required for verification and signing in.
+      For JWT-based providers (Google, Auth0, Zitadel, LinkedIn), token verification is done completely inside the backend canister.
+      The providers use their own infrastructure for token generation and signing, but there are no additional off-chain components required for verification and signing in.
+      For PKCE-based providers (GitHub, X), HTTP outcalls are used for token exchange, which introduces additional trust requirements.
     </p>
     <h3>Protection against token reuse</h3>
     <p>
-      The messages send to the Internet Computer could be observed by the gateway provider and node provider.
-      Therefore the sign in tokens generated by google are linked to the current session key.
+      The messages sent to the Internet Computer could be observed by the gateway provider and node provider.
+      Therefore the sign-in tokens generated by providers are linked to the current session key.
       This ensures that an attacker can't reuse the token to sign in with a stolen auth token.
     </p>
     <h2>Risks</h2>
@@ -75,7 +84,7 @@ export function createInfoFooter(): HTMLElement {
     </p>
     <h3>Account Takeover</h3>
     <p>
-      If your external identity provider account (e.g., Google, Auth0, GitHub, X) is compromised, an attacker could log in as you. If the provider locks your account, you may lose access here too.
+      If your external identity provider account (e.g., Google, Auth0, GitHub, X, LinkedIn) is compromised, an attacker could log in as you. If the provider locks your account, you may lose access here too.
     </p>
     <h3>DNS Attacks</h3>
     <p>
@@ -101,7 +110,7 @@ export function createInfoFooter(): HTMLElement {
 
   const aboutContent = `
     <h2>About</h2>
-    <p>This application allows users to log in using Google and interact with services on the Internet Computer. Each application receives with a separate identity for authentication, ensuring that user sessions are independent across different apps.</p>
+    <p>This application allows users to log in using various OAuth providers (Google, Auth0, Zitadel, GitHub, X, LinkedIn, etc.) and interact with services on the Internet Computer. Each application receives a separate identity for authentication, ensuring that user sessions are independent across different apps.</p>
     <h3>Version</h3>
     <p>Current version: <span id="version">${process.env.BUILD_TIME!}</span></p>
     <h3>Contact</h3>

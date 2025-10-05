@@ -209,12 +209,17 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   };
 
   /// Get information about the app
-  public shared query func getStats() : async [Text] {
+  public shared query func getStats() : async {
+    appCount : Nat;
+    keyCount : Nat;
+    loginCount : Nat;
+  } {
     Stats.logBalance(stats, "getStats");
-    let appCount = Nat.toText(Stats.getSubCount(stats, "signup")) # " apps connected";
-    let keyCount = Nat.toText(Map.size(identify.users)) # " identities created";
-    let loginCount = Nat.toText(Stats.getSubSum(stats, "signin")) # " sign ins";
-    return [appCount, keyCount, loginCount];
+    return {
+      appCount = Stats.getSubCount(stats, "signup");
+      keyCount = Map.size(identify.users);
+      loginCount = Stats.getSubSum(stats, "signin");
+    };
   };
 
   /// Show the latest key IDs
