@@ -7,6 +7,104 @@ export type OidcAuthData =
   | { token_type: "code"; code: string };
 
 /**
+ * Check if FedCM is available and should be used
+ */
+export const hasFedCM = (config: OIDCConfig): boolean => {
+  // Config without fedCMConfigUrl
+  if (!config.fedCM_config_url) return false;
+
+  // No FedCM support
+  if (!("IdentityCredential" in window)) return false;
+
+  // Unsupported implementations
+  if (/SamsungBrowser/i.test(navigator.userAgent)) return false;
+
+  if (localStorage.getItem("disable-fedcm") === "true") return false;
+
+  return true;
+};
+
+/**
+ * Get stored login hint for a provider
+ */
+const getLoginHint = (providerName: string): string | undefined => {
+  const key = `fedcm-login-hint-${providerName.toLowerCase()}`;
+  return localStorage.getItem(key) || undefined;
+};
+
+/**
+ * Store login hint for future use
+ */
+const storeLoginHint = (providerName: string, hint: string): void => {
+  const key = `fedcm-login-hint-${providerName.toLowerCase()}`;
+  localStorage.setItem(key, hint);
+};
+
+/**
+ * Extract login hint from ID token
+ */
+const extractLoginHintFromToken = (idToken: string): string | undefined => {
+  try {
+    const payload = JSON.parse(atob(idToken.split(".")[1]));
+    // Prefer email, fall back to sub (subject identifier)
+    return payload.email || payload.preferred_username || payload.sub;
+  } catch (e) {
+    console.warn("Failed to extract login hint from token:", e);
+    return undefined;
+  }
+};
+
+/**
+ * Request authentication using FedCM
+ */
+const requestFedCM = async (
+  config: OIDCConfig,
+  nonce: string,
+  mediation: CredentialMediationRequirement,
+): Promise<string> => {
+  if (!config.fedCM_config_url)
+    throw "Invalid configuration. FedCM config url not set.";
+
+  const loginHint = getLoginHint(config.name);
+
+  const identityCredential = await navigator.credentials.get({
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    identity: {
+      context: "use",
+      providers: [
+        {
+          configURL: config.fedCM_config_url,
+          clientId: config.client_id,
+          nonce: nonce,
+          loginHint: loginHint,
+        },
+      ],
+      mode: "active",
+    },
+    mediation: mediation,
+  });
+  console.log("FedCM returned credentials:", identityCredential);
+
+  if (
+    identityCredential?.type !== "identity" ||
+    !("token" in identityCredential) ||
+    typeof identityCredential.token !== "string"
+  ) {
+    // This should be unreachable in FedCM spec compliant browsers
+    throw new Error("Invalid credential received from FedCM API");
+  }
+
+  // Store login hint for next time
+  const hint = extractLoginHintFromToken(identityCredential.token);
+  if (hint) {
+    storeLoginHint(config.name, hint);
+  }
+
+  return identityCredential.token;
+};
+
+/**
  * Initialize OIDC implicit flow in a popup.
  * @param config Auth configuration
  * @param buttonId DOM id of the login button
@@ -38,7 +136,7 @@ export async function initOIDC(
 
   let popup: Window | null = null;
 
-  const signin = async (): Promise<OidcAuthData> => {
+  const signinWithPopup = async (): Promise<OidcAuthData> => {
     popup = window.open(authUrl.href, "_blank", "width=500,height=600");
     if (!popup) throw new Error("Could not open popup");
 
@@ -71,6 +169,22 @@ export async function initOIDC(
 
       window.addEventListener("message", messageListener);
     });
+  };
+
+  const signin = async (): Promise<OidcAuthData> => {
+    // Try FedCM first if available
+    if (hasFedCM(config)) {
+      try {
+        const token = await requestFedCM(config, nonce, "required");
+        return { token_type: "id_token", id_token: token };
+      } catch (e) {
+        console.log("FedCM failed, falling back to popup:", e);
+        // Fall through to popup flow
+      }
+    }
+
+    // Use popup flow
+    return await signinWithPopup();
   };
 
   const attachButton = (): Promise<OidcAuthData> => {

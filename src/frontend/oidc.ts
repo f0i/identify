@@ -69,6 +69,36 @@ export async function initOIDC(
   }
 }
 
+/**
+ * Get stored login hint for a provider
+ */
+const getLoginHint = (providerName: string): string | undefined => {
+  const key = `fedcm-login-hint-${providerName.toLowerCase()}`;
+  return localStorage.getItem(key) || undefined;
+};
+
+/**
+ * Store login hint for future use
+ */
+const storeLoginHint = (providerName: string, hint: string): void => {
+  const key = `fedcm-login-hint-${providerName.toLowerCase()}`;
+  localStorage.setItem(key, hint);
+};
+
+/**
+ * Extract login hint from ID token
+ */
+const extractLoginHintFromToken = (idToken: string): string | undefined => {
+  try {
+    const payload = JSON.parse(atob(idToken.split(".")[1]));
+    // Prefer email, fall back to sub (subject identifier)
+    return payload.email || payload.preferred_username || payload.sub;
+  } catch (e) {
+    console.warn("Failed to extract login hint from token:", e);
+    return undefined;
+  }
+};
+
 export const hasFedCM = (config: OIDCConfig): boolean => {
   // Config without fedCMConfigUrl
   if (!config.fedCM_config_url) return false;
@@ -90,7 +120,10 @@ const requestFedCM = async (
   mediation: CredentialMediationRequirement,
 ): Promise<string> => {
   if (!config.fedCM_config_url)
-    throw "Invalid configuration. FedCM configu url not set.";
+    throw "Invalid configuration. FedCM config url not set.";
+
+  const loginHint = getLoginHint(config.name);
+
   const identityCredential = await navigator.credentials.get({
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -101,7 +134,7 @@ const requestFedCM = async (
           configURL: config.fedCM_config_url,
           clientId: config.client_id,
           nonce: nonce,
-          //loginHint: loginHint, // TODO: store preferd_username or email or sub as loginHint for next sign in
+          loginHint: loginHint,
         },
       ],
       mode: "active",
@@ -117,6 +150,12 @@ const requestFedCM = async (
   ) {
     // This should be unreachable in FedCM spec compliant browsers
     throw new Error("Invalid credential received from FedCM API");
+  }
+
+  // Store login hint for next time
+  const hint = extractLoginHintFromToken(identityCredential.token);
+  if (hint) {
+    storeLoginHint(config.name, hint);
   }
 
   return identityCredential.token;
