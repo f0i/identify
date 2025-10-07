@@ -374,8 +374,8 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     // Permission check.
     // Permission is also checked inside the addProvider function.
     // Checking here again is optional, but I prefer to exit as soon as possible.
-    if (not Principal.isController(caller)) trap("Permission denied");
-    if (caller == owner) trap("Permission denied");
+    if (not Principal.isController(caller)) trap("Permission denied!");
+    if (caller != owner) trap("Permission denied.");
     // Create and add the configuration
     let config = {
       name = name;
