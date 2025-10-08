@@ -85,5 +85,3 @@ See [CONSIDERATIONS.md](../CONSIDERATIONS.md) for detailed security implications
 - [GitHub](configure-github.md)
 - [X (Twitter)](configure-x.md)
 - [LinkedIn](configure-linkedin.md)
-- [Microsoft](configure-microsoft.md) (coming soon)
-- [Apple](configure-apple.md) (coming soon)

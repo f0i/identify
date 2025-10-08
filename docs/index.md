@@ -19,5 +19,3 @@
 - [Configure GitHub](configure-github.md)
 - [Configure LinkedIn](configure-linkedin.md)
 - [Configure X (Twitter)](configure-x.md)
-- [Configure Microsoft](configure-microsoft.md) (coming soon)
-- [Configure Apple](configure-apple.md) (coming soon)
