@@ -128,3 +128,5 @@ main();
 
 - [@dfinity/auth-client documentation](https://agent-js.icp.xyz/auth-client/classes/AuthClient.html): For more detailed information on the `auth-client` API.
 - [Self-Deploy Identify](./self-deploy.md): If you need to deploy your own instance of Identify.
+- [Use with ic-use-internet-identity](./use-with-ic-use-internet-identity.md): React hook alternative.
+- [Use with IdentityKit](./use-with-identitykit.md): ICRC-25 compatible alternative.

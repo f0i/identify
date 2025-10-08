@@ -1,133 +1,87 @@
+# Use with ic-use-internet-identity
 
-# ic-use-internet-identity
+[ic-use-internet-identity](https://github.com/kristoferlund/ic-use-internet-identity) is a React hook for Internet Computer authentication that works with any identity provider, including Identify.
 
-For react applications, you can use the `ic-use-internet-identity` package, which provides a convenient hook and context provider for integrating IC authentication providers like Internet Identity and Identify.
-
-To use this package with Identify, you can follow the instructions from official repository with one addition: you need to pass the `identityProvider` option to the `loginOptions` prop of the `InternetIdentityProvider` component.
-
-```jsx
-<InternetIdentityProvider loginOptions={{ identityProvider: "https://login.f0i.de" }} >
-  <App />
-</InternetIdentityProvider>
-```
-
-## Quick start
-
-Here is a quick guide to get you started.
-See the [full documentation](https://github.com/kristoferlund/ic-use-internet-identity?tab=readme-ov-file#2-connect-the-login-function-to-a-button) for more details.
-
-### Install dependencies
+## Installation
 
 ```bash
-pnpm install ic-use-internet-identity
-pnpm install @dfinity/agent @dfinity/auth-client @dfinity/identity @dfinity/candid
+pnpm install ic-use-internet-identity @dfinity/agent @dfinity/auth-client @dfinity/identity @dfinity/candid
 ```
 
-### Usage
+## Setup
 
-To use `ic-use-internet-identity` in your React application, follow these steps:
+Wrap your app with `InternetIdentityProvider` and configure `identityProvider` to use Identify:
 
-### Setup the `InternetIdentityProvider` component
-
-Wrap your application's root component with `InternetIdentityProvider` to provide all child components access to the identity context.
-
-```jsx
-// main.tsx
-
+```tsx
 import { InternetIdentityProvider } from "ic-use-internet-identity";
-import React from "react";
 import ReactDOM from "react-dom/client";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <InternetIdentityProvider loginOptions={{ identityProvider: "https://login.f0i.de" }} >
-      <App />
-    </InternetIdentityProvider>
-  </React.StrictMode>
+  <InternetIdentityProvider
+    loginOptions={{ identityProvider: "https://login.f0i.de" }}
+  >
+    <App />
+  </InternetIdentityProvider>
 );
 ```
 
-### Create a login button
+## Login Button
 
-You can use the `useInternetIdentity` hook to access the login function and the current authentication status and conditionally render the login button and status messages.
+Use the `useInternetIdentity` hook to access authentication state and functions:
 
-```jsx
-// LoginButton.tsx
-
+```tsx
 import { useInternetIdentity } from "ic-use-internet-identity";
 
 export function LoginButton() {
-  const { login, status, error, isError, identity } = useInternetIdentity();
+  const { login, logout, status, identity } = useInternetIdentity();
 
-  const renderButton = () => {
-    switch (status) {
-      case "initializing":
-        return (<button disabled>⏳ Initializing...</button>);
-      case "idle":
-        return (<button onClick={login}>Login with Internet Identity </button>);
-      case "logging-in":
-        return (<button disabled>🔄 Logging in...</button>);
-      case "success":
-        return (<button disabled>✅ Logged in</button>);
-      case "error":
-        return (<button onClick={login}> 🔄 Retry Login </button>);
-      default:
-        return null;
-    }
-  };
+  if (status === "success") {
+    return <button onClick={logout}>Logout</button>;
+  }
 
   return (
-    <div>
-      {renderButton()}
-      {isError && (
-        <div style={{ color: "red", marginTop: "8px" }}>
-          ❌ Login failed: {error?.message}
-        </div>
-      )}
-    </div>
+    <button onClick={login} disabled={status === "logging-in"}>
+      {status === "logging-in" ? "Logging in..." : "Login"}
+    </button>
   );
 }
 ```
 
-### Use the identity to make authenticated calls
+## Making Authenticated Calls
 
-Now you can use the `identity` from the `useInternetIdentity` hook to create authenticated actors for making calls to your canisters.
+Use the `identity` to create authenticated actors:
 
-```jsx
-// Actors.tsx
-
-import { ReactNode } from "react";
-import {
-  ActorProvider,
-  createActorContext,
-  createUseActorHook,
-} from "ic-use-actor";
-import {
-  canisterId,
-  idlFactory,
-} from "path-to/your-service/index";
-import { _SERVICE } from "path-to/your-service.did";
+```tsx
 import { useInternetIdentity } from "ic-use-internet-identity";
+import { Actor, HttpAgent } from "@dfinity/agent";
 
-const actorContext = createActorContext<_SERVICE>();
-export const useActor = createUseActorHook<_SERVICE>(actorContext);
-
- export default function Actors({ children }: { children: ReactNode }) {
+function MyComponent() {
   const { identity } = useInternetIdentity();
 
-  return (
-    <ActorProvider<_SERVICE>
-      canisterId={canisterId}
-      context={actorContext}
-      identity={identity}
-      idlFactory={idlFactory}
-    >
-      {children}
-    </ActorProvider>
-  );
+  const agent = new HttpAgent({ identity });
+  const actor = Actor.createActor(idlFactory, {
+    agent,
+    canisterId: "your-canister-id",
+  });
+
+  // Make authenticated calls with actor
 }
 ```
 
-## Resources
+## Key Features
 
-- [GitHub repo](https://github.com/kristoferlund/ic-use-internet-identity)
+- Status tracking: `idle`, `initializing`, `logging-in`, `success`, `error`
+- Automatic session management
+- Works with any IC identity provider
+- TypeScript support
+
+## See Also
+
+- [Use with @dfinity/auth-client](./use-with-auth-client.md): Vanilla JavaScript alternative.
+- [Use with IdentityKit](./use-with-identitykit.md): ICRC-25 compatible alternative.
+- [Self-Deploy Identify](./self-deploy.md): Deploy your own instance.
+
+## References
+
+- [ic-use-internet-identity GitHub](https://github.com/kristoferlund/ic-use-internet-identity)
+- [Full Documentation](https://github.com/kristoferlund/ic-use-internet-identity#readme)

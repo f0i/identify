@@ -55,6 +55,8 @@ Follow this steps if you want full control over the login process.
 
 For more details see the [Self deploy guide](docs/self-deploy.md).
 
+See [Documentation Index](docs/index.md) for complete documentation including provider configuration guides.
+
 # Apps that use Identify
 
 ## Bitcoin Gift Cards

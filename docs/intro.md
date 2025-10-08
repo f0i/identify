@@ -66,11 +66,14 @@ Identify supports providers that use the OpenID Connect (OIDC) and PKCE authenti
 *   GitHub
 *   X
 *   LinkedIn
+*   Discord
 
 ## Getting Started
 
 Ready to integrate Identify into your dapp? Choose the path that's right for you:
 
 *   **[Use with @dfinity/auth-client](./use-with-auth-client.md):** The quickest way to get started using a managed public instance.
+*   **[Use with ic-use-internet-identity](./use-with-ic-use-internet-identity.md):** For React applications.
+*   **[Use with IdentityKit](./use-with-identitykit.md):** For ICRC-25 compatible integration.
 *   **[Self-Deploy Identify](./self-deploy.md):** For full control over your authentication flow.
 *   **[Configure Providers](./configure-provider.md):** Learn how to configure different OAuth2 providers.

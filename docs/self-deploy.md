@@ -54,6 +54,12 @@ dfx canister call --ic backend addProvider '(
 
 Replace the placeholder values with your actual provider details and your canister ID.
 
+See [Configure Custom Provider](./configure-provider.md) for detailed configuration options, or check provider-specific guides:
+- [Google](./configure-google.md)
+- [GitHub](./configure-github.md)
+- [LinkedIn](./configure-linkedin.md)
+- [X](./configure-x.md)
+
 ---
 
 ## Option 2: Build from Source
@@ -243,3 +249,9 @@ You can add providers programmatically and set up timers to periodically fetch t
 
 };
 ```
+
+## See Also
+
+- [Custom Domain Setup](./custom-domain.md): Configure a custom domain for your instance.
+- [Configure Providers](./configure-provider.md): Learn how to configure OAuth providers.
+- [Use with @dfinity/auth-client](./use-with-auth-client.md): Integrate Identify into your app.
