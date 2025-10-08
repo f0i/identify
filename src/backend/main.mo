@@ -235,28 +235,28 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
   ignore setTimer<system>(#seconds(1), fetchAllKeys);
   ignore recurringTimer<system>(KEY_UPDATE_INTERVAL, fetchAllKeys);
 
-  /// Sample configurations
-  type OAuth2Config = AuthProvider.OAuth2Config;
-  transient let googleConfig : OAuth2Config = {
-    name = "Google";
-    provider = "google";
-    auth = #jwt({
-      clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
-      keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
-      preFetch = true;
-      authority = "https://accounts.google.com/";
-      authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth";
-      fedCMConfigUrl = ?"https://accounts.google.com/gsi/fedcm.json";
-      responseType = "id_token";
-      scope = "openid email profile";
-      redirectUri = "https://login.f0i.de/oidc-callback.html";
-      clientSecret = null;
-      tokenUrl = null;
-    });
-    var keys : [RSA.PubKey] = [];
-    var fetchAttempts = Stats.newAttemptTracker();
-  };
-  Identify.addProvider(identify, googleConfig, owner);
+  /// Hardcoded provider configurations
+  //type OAuth2Config = AuthProvider.OAuth2Config;
+  //transient let googleConfig : OAuth2Config = {
+  //  name = "Google";
+  //  provider = "google";
+  //  auth = #jwt({
+  //    clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
+  //    keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
+  //    preFetch = true;
+  //    authority = "https://accounts.google.com/";
+  //    authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth";
+  //    fedCMConfigUrl = ?"https://accounts.google.com/gsi/fedcm.json";
+  //    responseType = "id_token";
+  //    scope = "openid email profile";
+  //    redirectUri = "https://login.f0i.de/oidc-callback.html";
+  //    clientSecret = null;
+  //    tokenUrl = null;
+  //  });
+  //  var keys : [RSA.PubKey] = [];
+  //  var fetchAttempts = Stats.newAttemptTracker();
+  //};
+  //Identify.addProvider(identify, googleConfig, owner);
 
   /// Add a provider to the list of configured providers.
   /// If a authority is provided, the configuration will be loaded from the configuration in GET <authority>.well-known/openid-configuration.

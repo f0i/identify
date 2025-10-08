@@ -13,6 +13,7 @@ const ALL_PROVIDERS = [
   { name: "GitHub", key: "github" },
   { name: "X", key: "x" },
   { name: "LinkedIn", key: "linkedin" },
+  { name: "Discord", key: "discord" },
 ];
 
 // Initialize the demo application
