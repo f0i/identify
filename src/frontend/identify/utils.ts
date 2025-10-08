@@ -69,7 +69,7 @@ export const unwrapProvider = (config: FrontendOAuth2Config): AuthConfig => {
       auth_type: "OIDC",
       client_id: jwt.clientId,
       name: config.name,
-      scope: unwrapOpt(jwt.scope) || "",
+      scope: jwt.scope,
       authority: jwt.authority,
       authorization_url: jwt.authorizationUrl,
       response_type: jwt.responseType as "id_token",
@@ -84,6 +84,7 @@ export const unwrapProvider = (config: FrontendOAuth2Config): AuthConfig => {
       name: config.name,
       authorization_url: pkce.authorizationUrl,
       token_url: pkce.tokenUrl,
+      scope: pkce.scope,
       user_info_endpoint: pkce.userInfoEndpoint,
     };
   }

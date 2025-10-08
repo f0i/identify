@@ -31,6 +31,7 @@ window.onload = () => {
     );
     window.close();
   } else {
+    alert("location: " + window.location.href);
     window.opener.postMessage(
       { type: "oidc_auth_error", error: "Authorization code not found" },
       window.origin,

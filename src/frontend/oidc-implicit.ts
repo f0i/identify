@@ -133,6 +133,7 @@ export async function initOIDC(
     state,
     nonce,
   }).toString();
+  console.log("authUrl:", authUrl.href, config);
 
   let popup: Window | null = null;
 

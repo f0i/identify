@@ -11,12 +11,13 @@ import Stats "Stats";
 import { setTimer; recurringTimer } = "mo:core/Timer";
 import AuthProvider "AuthProvider";
 import { trap } "mo:core/Runtime";
-import Array "mo:core/Array";
 import Text "mo:core/Text";
 import User "User";
 import Identify "Identify";
 import Whitelist "Whitelist";
+import Migration "migration";
 
+// (with migration = Migration.migrate)
 shared ({ caller = initializer }) persistent actor class Main() = this {
   let owner = initializer;
   let backend = Principal.fromActor(this);
@@ -222,14 +223,6 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     };
   };
 
-  /// Show the latest key IDs
-  public shared query func showKeyIds() : async Text {
-    let g = Array.map(googleConfig.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
-    let a = Array.map(auth0Config.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
-    let z = Array.map(zitadelConfig.keys, func(k : RSA.PubKey) : Text = k.kid) |> Text.join(", ", _.vals());
-    return debug_show [g, a, z];
-  };
-
   /// Prefetch the keys used for signing the JWTs.
   /// Running this periodically (e.g. every day) can increase the sign in speed for some providers.
   /// Required keys will still be loaded at the time of login, if the requested key ID is not present.
@@ -244,13 +237,10 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
 
   /// Sample configurations
   type OAuth2Config = AuthProvider.OAuth2Config;
-  type OIDCConfig = AuthProvider.OAuth2Config;
-
   transient let googleConfig : OAuth2Config = {
     name = "Google";
     provider = "google";
     auth = #jwt({
-      //clientId = "444686050919-59dudtkghl89eddmk0i3jnbggtc08hip.apps.googleusercontent.com";
       clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
       keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
       preFetch = true;
@@ -258,7 +248,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
       authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth";
       fedCMConfigUrl = ?"https://accounts.google.com/gsi/fedcm.json";
       responseType = "id_token";
-      scope = ?"openid email profile";
+      scope = "openid email profile";
       redirectUri = "https://login.f0i.de/oidc-callback.html";
       clientSecret = null;
       tokenUrl = null;
@@ -266,103 +256,7 @@ shared ({ caller = initializer }) persistent actor class Main() = this {
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
   };
-
-  transient let auth0Config : OAuth2Config = {
-    name = "Auth0";
-    provider = "auth0";
-    auth = #jwt({
-      clientId = "oUmJhfEd58KnHhaPhInnIAWFREw8MPoJ";
-      keysUrl = "https://identify.uk.auth0.com/.well-known/jwks.json";
-      preFetch = true;
-      authority = "https://identify.uk.auth0.com/";
-      authorizationUrl = "https://identify.uk.auth0.com/oauth/authorize";
-      fedCMConfigUrl = null;
-      responseType = "id_token";
-      scope = ?"openid email profile";
-      redirectUri = "https://login.f0i.de/oidc-callback.html";
-      clientSecret = null;
-      tokenUrl = null;
-    });
-    var keys : [RSA.PubKey] = [];
-    var fetchAttempts = Stats.newAttemptTracker();
-  };
-
-  transient let zitadelConfig : OAuth2Config = {
-    name = "Zitadel";
-    provider = "zitadel";
-    auth = #jwt({
-      clientId = "327788236128717664";
-      keysUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/keys";
-      preFetch = false;
-      authority = "https://identify-ci5vmz.us1.zitadel.cloud";
-      authorizationUrl = "https://identify-ci5vmz.us1.zitadel.cloud/oauth/v2/authorize";
-      fedCMConfigUrl = null;
-      responseType = "id_token";
-      scope = ?"openid email profile";
-      redirectUri = "https://login.f0i.de/oidc-callback.html";
-      clientSecret = null;
-      tokenUrl = null;
-    });
-    var keys : [RSA.PubKey] = [];
-    var fetchAttempts = Stats.newAttemptTracker();
-  };
-
-  transient let githubConfig : OAuth2Config = {
-    name = "GitHub";
-    provider = "github";
-    auth = #pkce({
-      authorizationUrl = "https://github.com/login/oauth/authorize";
-      tokenUrl = "https://github.com/login/oauth/access_token";
-      userInfoEndpoint = "https://api.github.com/user";
-      clientId = "Ov23liMbdP36K0AIWTgl";
-      redirectUri = "https://login.f0i.de/pkce-callback.html";
-      clientSecret = ?"b58638c2d453de538bc72e5b3b3d4ca7f23b2faa";
-    });
-    var keys : [RSA.PubKey] = [];
-    var fetchAttempts = Stats.newAttemptTracker();
-  };
-
-  transient let xConfig : OAuth2Config = {
-    name = "X";
-    provider = "x";
-    auth = #pkce({
-      authorizationUrl = "https://x.com/i/oauth2/authorize";
-      tokenUrl = "https://api.x.com/2/oauth2/token";
-      userInfoEndpoint = "https://api.x.com/2/users/me?user.fields=created_at,description,entities,id,location,name,pinned_tweet_id,profile_image_url,protected,public_metrics,url,username,verified,withheld";
-      clientId = "c1Y3cWhOekU1SFlwVkJCNlFmbWU6MTpjaQ";
-      redirectUri = "https://login.f0i.de/pkce-callback.html";
-      clientSecret = null;
-    });
-    var keys : [RSA.PubKey] = [];
-    var fetchAttempts = Stats.newAttemptTracker();
-  };
-
-  transient let linkedInConfig : OAuth2Config = {
-    name = "LinkedIn";
-    provider = "linkedin";
-    auth = #jwt({
-      authorizationUrl = "https://www.linkedin.com/oauth/v2/authorization";
-      clientId = "771z70izpz7nq7";
-      keysUrl = "https://www.linkedin.com/oauth/openid/jwks";
-      preFetch = true;
-      authority = "https://www.linkedin.com/oauth/";
-      fedCMConfigUrl = null;
-      responseType = "code";
-      scope = ?"openid email profile";
-      clientSecret = ?"WPL_AP1.eg0eUM3Mz6DhALcr.LrhsBQ==";
-      redirectUri = "https://login.f0i.de/oidc-callback.html";
-      tokenUrl = ?"https://www.linkedin.com/oauth/v2/accessToken";
-    });
-    var keys : [RSA.PubKey] = [];
-    var fetchAttempts = Stats.newAttemptTracker();
-  };
-
   Identify.addProvider(identify, googleConfig, owner);
-  Identify.addProvider(identify, auth0Config, owner);
-  Identify.addProvider(identify, zitadelConfig, owner);
-  Identify.addProvider(identify, xConfig, owner);
-  Identify.addProvider(identify, githubConfig, owner);
-  Identify.addProvider(identify, linkedInConfig, owner);
 
   /// Add a provider to the list of configured providers.
   /// If a authority is provided, the configuration will be loaded from the configuration in GET <authority>.well-known/openid-configuration.

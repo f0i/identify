@@ -11,9 +11,14 @@ import {
   delegationToJsonRPC,
   uint8ArrayToHex,
 } from "./utils";
-import { getDelegationJwt, getDelegationPkce } from "./delegation";
+import {
+  getDelegationJwt,
+  getDelegationPkce,
+  getDelegationPkceJwt,
+} from "./delegation";
 import { Context } from "./icrc";
 import { Scope } from "./icrc25_signer_integration";
+import { getProvider } from "../auth-config";
 
 export const DEFAULT_TTL = 30n * 60n * 1_000_000_000n; // 30 minutes in nanoseconds
 
@@ -48,9 +53,10 @@ export const delegation = async (
   if (!origin) {
     throw "App origin is not set in context."; // Handle case where origin is not set
   }
+  const config = await getProvider(context.providerKey);
 
   let msg;
-  if (context.providerKey === "github" || context.providerKey === "x") {
+  if (config.auth_type === "PKCE") {
     const pkceAuthData = await context.getPkceAuthData(publicKey);
     msg = await getDelegationPkce(
       context.providerKey,
@@ -63,16 +69,30 @@ export const delegation = async (
       context.statusCallback,
     );
   } else {
-    const idToken = await context.getJwtToken(nonce);
-    msg = await getDelegationJwt(
-      context.providerKey,
-      idToken,
-      origin,
-      publicKey,
-      maxTimeToLive,
-      targets,
-      context.statusCallback,
-    );
+    const token = await context.getJwtToken(nonce);
+    if (token.token_type === "id_token") {
+      msg = await getDelegationJwt(
+        context.providerKey,
+        token.id_token,
+        origin,
+        publicKey,
+        maxTimeToLive,
+        targets,
+        context.statusCallback,
+      );
+    } else if (token.token_type === "code") {
+      msg = await getDelegationPkceJwt(
+        context.providerKey,
+        token.code,
+        origin,
+        publicKey,
+        maxTimeToLive,
+        targets,
+        context.statusCallback,
+      );
+    } else {
+      throw "Invalid token";
+    }
   }
 
   return setResult(req, {

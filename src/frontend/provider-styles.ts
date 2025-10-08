@@ -34,6 +34,11 @@ export const getProviderStyles = (provider: ProviderKey) => {
         backgroundColor: "#0077B5",
         color: "white",
       };
+    case "discord":
+      return {
+        backgroundColor: "#7289DA",
+        color: "white",
+      };
     default:
       return {
         // Default styles

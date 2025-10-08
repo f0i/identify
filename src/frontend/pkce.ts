@@ -69,12 +69,12 @@ export async function initPkce(
   const authUrl =
     `${pkceConfig.authorization_url}?` +
     `client_id=${pkceConfig.client_id}&` +
-    `redirect_uri=${redirect}&` +
+    `redirect_uri=${encodeURIComponent(redirect)}&` +
     `response_type=code&` +
-    `scope=users.read%20tweet.read&` +
-    `code_challenge=${code_challenge}&` +
+    `scope=${encodeURIComponent(pkceConfig.scope)}&` +
+    `code_challenge=${encodeURIComponent(code_challenge)}&` +
     `code_challenge_method=S256&` +
-    `state=${state}`;
+    `state=${encodeURIComponent(state)}`;
 
   let popup: any;
   const signin = async (): Promise<PkceAuthData> => {

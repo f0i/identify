@@ -45,17 +45,18 @@ module {
       authorizationUrl : Text;
       fedCMConfigUrl : ?Text;
       responseType : Text; // "code id_token"
-      scope : ?Text;
+      scope : Text;
       redirectUri : Text;
       clientSecret : ?Text;
       tokenUrl : ?Text;
     };
     /// PKCE params
     #pkce : {
+      clientId : Text;
       authorizationUrl : Text;
       tokenUrl : Text;
       userInfoEndpoint : Text;
-      clientId : Text;
+      scope : Text;
       redirectUri : Text;
       clientSecret : ?Text;
     };

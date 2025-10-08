@@ -1,4 +1,3 @@
-import { getProviderStyles } from "./provider-styles";
 import { createProviderButton } from "./components/ProviderButton";
 import { setText, showElement } from "./identify/dom";
 import { uint8ArrayToHex } from "./identify/utils";
