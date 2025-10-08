@@ -37,6 +37,14 @@ const getProviderConfigs = async (): Promise<AuthConfig[]> => {
 };
 let providersPromise = getProviderConfigs(); // TODO: retry on error
 
+export const getProviderList = async (): Promise<Array<{ name: string; key: string }>> => {
+  const providers = await providersPromise;
+  return providers.map((p) => ({
+    name: p.name,
+    key: p.name.toLowerCase(),
+  }));
+};
+
 export const getProvider = async (name: string): Promise<AuthConfig> => {
   let providers: AuthConfig[] = await providersPromise;
   for (const provider of providers) {

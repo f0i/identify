@@ -1,28 +1,21 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 import { showElement } from "./identify/dom";
-import { IDENTITY_PROVIDER } from "./auth-config"; // Added
+import { IDENTITY_PROVIDER, getProviderList } from "./auth-config";
 import { unwrapOpt } from "./identify/utils";
 import { populateProviderButtons } from "./components/ProviderButtons";
 import { createUserCard } from "./components/UserCard";
 
-const ALL_PROVIDERS = [
-  { name: "Google", key: "google" },
-  { name: "Auth0", key: "auth0" },
-  { name: "Zitadel", key: "zitadel" },
-  { name: "GitHub", key: "github" },
-  { name: "X", key: "x" },
-  { name: "LinkedIn", key: "linkedin" },
-  { name: "Discord", key: "discord" },
-];
-
 // Initialize the demo application
-export function initDemo() {
+export async function initDemo() {
   showElement("demo", true);
   const providerButtonsContainer = document.getElementById("provider-buttons")!;
 
+  // Load providers from backend
+  const providers = await getProviderList();
+
   populateProviderButtons(providerButtonsContainer, {
-    providers: ALL_PROVIDERS,
+    providers: providers,
     onProviderClick: (providerKey) => {
       initAuth(IDENTITY_PROVIDER + "?provider=" + providerKey);
     },

@@ -9,7 +9,7 @@ import { showElement } from "./identify/dom";
 
 import { createInfoFooter } from "./components/InfoFooter";
 
-window.onload = () => {
+window.onload = async () => {
   const params = new URLSearchParams(document.location.search);
   let providerKey = params.get("provider") || "google";
 
@@ -17,7 +17,7 @@ window.onload = () => {
   if (window.opener) {
     initIdentify(providerKey);
   } else {
-    initDemo();
+    await initDemo();
   }
 
   const infoFooterContainer = document.getElementById("info-footer-container");
