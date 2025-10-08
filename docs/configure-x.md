@@ -38,7 +38,7 @@ Replace `YOUR_X_CLIENT_ID` and `your-domain.com` with your values.
 ## Key Configuration Details
 
 - `clientSecret = null` - X OAuth 2.0 PKCE does not require a client secret
-- **  Rate Limits**: X API has very restrictive rate limits (25 requests/day for `users/me`)
+- **Rate Limits**: X API has very restrictive rate limits (25 requests/day for `users/me`)
 - Non-replicable HTTP outcalls (see security considerations)
 
 ## Security Considerations

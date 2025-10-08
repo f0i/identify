@@ -18,7 +18,7 @@ Users can sign in with existing web2 accounts:
   - Sign in with GitHub
   - Sign in with X
 
-Developers can easily integrate Identify into their own apps by useing any of the IC's authentication client libraries.
+Developers can easily integrate Identify into their own apps by using any of the IC's authentication client libraries.
 
 Dapps can access user information provided by the authentication services, enabling richer user experiences on the Internet Computer.
 The available fields include:
@@ -95,7 +95,7 @@ Currently the following ICRCs are implemented or will be considered for implemen
 - [x] ICRC-25: Signer Interaction
 - [x] ICRC-27: Accounts
 - [ ] ICRC-28: Trusted Origins
-- [x] ICRC-29: ICRC-29: Browser Post Message Transport
+- [x] ICRC-29: Browser Post Message Transport
 - [ ] ICRC-32: Sign Challenge
 - [x] ICRC-34: Delegation
 - [ ] ICRC-35: Browser-Based Interoperability Framework
@@ -219,7 +219,7 @@ To summarize, you have to trust that there are no malicious node providers in th
 
 https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
 
-See [CONSIDERATION](CONSIDERATION.md) for security implications.
+See [CONSIDERATIONS](CONSIDERATIONS.md) for security implications.
 
 ## X
 
@@ -232,7 +232,7 @@ X uses incredibly restrictive limits on all their APIs.
 This limits the number of times we can request user info during the sign in process, limiting sign ins to 25 times per day.
 See https://docs.x.com/x-api/fundamentals/rate-limits and look for `users/me` to check the current rate limits.
 
-See [GitHub](#GitHub) and [CONSIDERATION](CONSIDERATION.md) for security implications.
+See [GitHub](#GitHub) and [CONSIDERATIONS](CONSIDERATIONS.md) for security implications.
 
 ## Apple
 
@@ -261,7 +261,7 @@ PKCE callbacks are limited to loopback interfaces (localhost), and therefore can
 
 https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow-native
 
-See [CONSIDERATION](CONSIDERATION.md) for security implications.
+See [CONSIDERATIONS](CONSIDERATIONS.md) for security implications.
 
 ## Discord
 
@@ -269,7 +269,7 @@ Discord authentication uses OAuth2 with JWT tokens, similar to LinkedIn.
 
 https://discord.com/developers/docs/topics/oauth2
 
-See [CONSIDERATION](CONSIDERATION.md) for security implications.
+See [CONSIDERATIONS](CONSIDERATIONS.md) for security implications.
 
 # Resources and Related projects
 

@@ -36,7 +36,7 @@ Replace `YOUR_GITHUB_CLIENT_ID`, `YOUR_GITHUB_CLIENT_SECRET`, and `your-domain.c
 
 ## Security Considerations
 
-**  Trust Assumptions:**
+**Trust Assumptions:**
 
 - **Non-replicable HTTP outcalls**: Token exchange and user info requests can only be performed by a single node, as GitHub rejects duplicate requests. A malicious node could manipulate results.
 - **Client secret storage**: The client secret is stored in the backend canister and could be extracted, allowing impersonation of your Identify instance.

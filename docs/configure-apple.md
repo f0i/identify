@@ -1,6 +1,6 @@
 # Configure Apple Sign-In
 
-**⚠️ Status: Not fully implemented yet**
+**Status: Not fully implemented yet**
 
 Apple Sign-In will support PKCE + JWT flow via Sign in with Apple.
 

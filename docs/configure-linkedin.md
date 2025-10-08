@@ -43,7 +43,7 @@ Replace `YOUR_LINKEDIN_CLIENT_ID`, `YOUR_LINKEDIN_CLIENT_SECRET`, and `your-doma
 - `responseType = "code"` - Uses authorization code flow (requires token exchange)
 - `tokenUrl` - Required for exchanging authorization code for JWT token
 - `clientSecret` - Required for token exchange
-- **  JWT does not reflect nonce** - Cannot fully prevent token replay attacks
+- **JWT does not reflect nonce** - Cannot fully prevent token replay attacks
 
 ## Security Considerations
 

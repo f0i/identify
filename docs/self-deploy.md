@@ -35,18 +35,19 @@ Here is an example of how to add a generic OAuth 2.0 provider using `dfx`.
 ```bash
 dfx canister call --ic backend addProvider '(
   "MyOIDCProvider",
-  record {
-    auth = variant {
-      jwt = record {
-        clientId = "your-client-id";
-        keysUrl = "https://oidc.example.com/.well-known/jwks.json";
-        preFetch = true;
-        authority = "https://oidc.example.com/";
-        redirectUri = "https://<your-identify-instance-url>/callback.html";
-        fedCMConfigUrl = null;
-        responseType = "code id_token";
-        scope = opt "openid email profile";
-      }
+  variant {
+    jwt = record {
+      clientId = "your-client-id";
+      authorizationUrl = "https://oidc.example.com/authorize";
+      tokenUrl = null;
+      redirectUri = "https://<your-identify-instance-url>/oidc-callback.html";
+      scope = "openid email profile";
+      preFetch = true;
+      authority = "https://oidc.example.com/";
+      fedCMConfigUrl = null;
+      keysUrl = "https://oidc.example.com/.well-known/jwks.json";
+      responseType = "id_token";
+      clientSecret = null;
     }
   }
 )'

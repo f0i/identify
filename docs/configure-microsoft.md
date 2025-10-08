@@ -1,6 +1,6 @@
 # Configure Microsoft Sign-In
 
-**  Status: Not fully implemented yet**
+**Status: Not fully implemented yet**
 
 Microsoft authentication will support PKCE + JWT flow via Microsoft Entra ID (formerly Azure AD).
 
