@@ -54,6 +54,8 @@ dfx canister call --ic backend addProvider '(
 
 Replace the placeholder values with your actual provider details and your canister ID.
 
+**Quick Reference:** See [configure-provider.sh](../configure-provider.sh) for example configurations of tested providers.
+
 See [Configure Custom Provider](./configure-provider.md) for detailed configuration options, or check provider-specific guides:
 - [Google](./configure-google.md)
 - [GitHub](./configure-github.md)

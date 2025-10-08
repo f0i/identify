@@ -2,6 +2,8 @@
 
 Identify supports adding custom OAuth 2.0 and OpenID Connect providers using either JWT or PKCE flows.
 
+**Quick Reference:** See [configure-provider.sh](../configure-provider.sh) for example configurations of tested providers.
+
 ## Provider Types
 
 ### 1. JWT Flow (OpenID Connect)
