@@ -11,6 +11,7 @@ Users can sign in with existing web2 accounts:
   - Sign in with Apple
   - Sign in with Microsoft
   - Sign in with LinkedIn
+  - Sign in with Discord
   - Sign in with Facebook
   - ...
 - Sign in with PKCE (generic OAuth2 provider)
@@ -181,6 +182,7 @@ The following web2 authentication providers are supported
 - [ ] Apple (PKCE + JWT)
 - [ ] Microsoft (PKCE + JWT)
 - [x] LinkedIn (JWT without nonce)
+- [x] Discord (JWT without nonce)
 
 ## Google
 
@@ -256,6 +258,14 @@ Alternatively, Linked in also supports the PKCE flow using a code_verifier, but 
 PKCE callbacks are limited to loopback interfaces (localhost), and therefore cannot be used for web apps.
 
 https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow-native
+
+See [CONSIDERATION](CONSIDERATION.md) for security implications.
+
+## Discord
+
+Discord authentication uses OAuth2 with JWT tokens, similar to LinkedIn.
+
+https://discord.com/developers/docs/topics/oauth2
 
 See [CONSIDERATION](CONSIDERATION.md) for security implications.
 

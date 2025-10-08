@@ -15,15 +15,15 @@ This method allows you to deploy the latest version of Identify without needing 
 
 ### 1. Download the Wasm
 
-Download the latest `backend.wasm.gz` file from the [Identify releases](https://github.com/f0i/ic-gsi/releases).
+Download the latest `backend.wasm.gz` file from the [Identify releases](https://github.com/f0i/identify/releases).
 
 ### 2. Deploy the Canister
 
 Deploy the wasm to the IC. The principal you use for this command will be the initial controller.
 
 ```bash
-dfx canister create backend
-dfx canister install backend --wasm backend.wasm.gz
+dfx canister create --ic backend
+dfx canister install --ic backend --wasm backend.wasm.gz
 ```
 
 ### 3. Configure Providers
@@ -33,7 +33,7 @@ After deployment, you need to add your desired OAuth providers. You can do this 
 Here is an example of how to add a generic OAuth 2.0 provider using `dfx`.
 
 ```bash
-dfx canister call backend addProvider '(
+dfx canister call --ic backend addProvider '(
   "MyOIDCProvider",
   record {
     auth = variant {
@@ -63,36 +63,40 @@ This approach is best if you want to manage the provider configuration directly 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/f0i/ic-gsi.git
-cd ic-gsi
+git clone https://github.com/f0i/identify
+cd identify
 ```
 
 ### 2. Configure Providers
 
-Open `src/backend/main.mo` and modify the provider configurations. You can add, remove, or edit the `OAuth2Config` blocks.
+Open `src/backend/main.mo` and add your provider configurations at the end of the actor class (before the closing `};`).
 
 ```motoko
 // src/backend/main.mo
 
-// ...
+// ... (at the end of the actor class)
 
-  transient let myCustomProvider : OAuth2Config = {
-    name = "MyProvider";
-    provider = #generic("MyProvider");
-    auth = #pkce({
-      authorizationUrl = "https://example.com/oauth/authorize";
-      tokenUrl = "https://example.com/oauth/token";
-      userInfoEndpoint = "https://api.example.com/user";
-      clientId = "your-client-id";
-      redirectUri = "https://<your-identify-instance-url>/pkce-callback.html";
-      clientSecret = opt "your-client-secret";
+  type OAuth2Config = AuthProvider.OAuth2Config;
+  transient let googleConfig : OAuth2Config = {
+    name = "Google";
+    provider = "google";
+    auth = #jwt({
+      clientId = "376650571127-vpotkr4kt7d76o8mki09f7a2vopatdp6.apps.googleusercontent.com";
+      keysUrl = "https://www.googleapis.com/oauth2/v3/certs";
+      preFetch = true;
+      authority = "https://accounts.google.com/";
+      authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth";
+      fedCMConfigUrl = ?"https://accounts.google.com/gsi/fedcm.json";
+      responseType = "id_token";
+      scope = "openid email profile";
+      redirectUri = "https://login.f0i.de/oidc-callback.html";
+      clientSecret = null;
+      tokenUrl = null;
     });
     var keys : [RSA.PubKey] = [];
     var fetchAttempts = Stats.newAttemptTracker();
   };
-
-  // Add your provider to the list
-  Identify.addProvider(identify, myCustomProvider, owner);
+  Identify.addProvider(identify, googleConfig, owner);
 
 // ...
 ```
@@ -102,7 +106,7 @@ Open `src/backend/main.mo` and modify the provider configurations. You can add, 
 Deploy the canister to the IC.
 
 ```bash
-dfx deploy backend
+dfx deploy --ic backend
 ```
 
 ---
@@ -132,13 +136,20 @@ import Identify "mo:identify/Identify";
 import Delegation "mo:identify/Delegation";
 import AuthProvider "mo:identify/AuthProvider";
 import Http "mo:identify/Http";
+import RSA "mo:identify/RSA";
+import Stats "mo:identify/Stats";
 import Principal "mo:core/Principal";
 import Time "mo:core/Time";
+import Result "mo:core/Result";
+import { setTimer; recurringTimer } = "mo:core/Timer";
 
 shared ({ caller = initializer }) persistent actor class MyActor() = this {
   let owner = initializer;
   let backend = Principal.fromActor(this);
   let identify = Identify.init(backend, owner);
+
+  type Time = Time.Time;
+  type ProviderKey = AuthProvider.ProviderKey;
 
   // ...
 ```
@@ -151,7 +162,7 @@ You need to expose the core Identify functions for delegation preparation and re
   // ...
 
   public shared func prepareDelegation(
-    provider : AuthProvider.Provider,
+    provider : ProviderKey,
     token : Text,
     origin : Text,
     sessionKey : [Nat8],
@@ -162,7 +173,7 @@ You need to expose the core Identify functions for delegation preparation and re
   };
 
   public shared func prepareDelegationPKCE(
-    provider : AuthProvider.Provider,
+    provider : ProviderKey,
     code : Text,
     verifier : Text,
     origin : Text,
@@ -174,7 +185,7 @@ You need to expose the core Identify functions for delegation preparation and re
   };
 
   public shared query func getDelegation(
-    provider : AuthProvider.Provider,
+    provider : ProviderKey,
     origin : Text,
     sessionKey : [Nat8],
     expireAt : Time,
