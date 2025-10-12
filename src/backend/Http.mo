@@ -1,5 +1,4 @@
 import Blob "mo:base/Blob";
-import Cycles "mo:base/ExperimentalCycles";
 import Nat64 "mo:base/Nat64";
 import Text "mo:base/Text";
 import Debug "mo:base/Debug";
@@ -49,7 +48,6 @@ module {
 
   public func getRequest(url : Text, headers : [Header], maxBytes : Nat64, transform : TransformFn, replicated : Bool) : async* {
     data : Text;
-    cost : Nat;
     expectedCost : Nat;
   } {
 
@@ -70,11 +68,8 @@ module {
 
     let maxCost = 400_000 /* base cost */ + Nat64.toNat(maxBytes) * 100_000 /* cost per byte */ * 3 /* factor to ensure enough cycles */;
 
-    let balance1 = Cycles.balance();
-
     try {
       let http_response = await (with cycles = maxCost) IC.http_request(http_request);
-      let balance2 = Cycles.balance();
 
       let response_body : Blob = http_response.body;
       let decoded_text : Text = switch (Text.decodeUtf8(response_body)) {
@@ -85,7 +80,6 @@ module {
       //6. RETURN RESPONSE OF THE BODY
       return {
         data = decoded_text;
-        cost = balance1 - balance2;
         expectedCost = maxCost;
       };
 
