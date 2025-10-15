@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.1.0 2025-10-15
+
+### Authentication & Identity
+*   **FedCM Support:** Added FedCM (Federated Credential Management) for implicit flow authentication.
+*   **Discord Provider:** Added support for Discord as an authentication provider.
+*   **Provider Configuration:** Removed hardcoded provider configuration, allowing for more flexible setup. All providers now require explicit scope configuration.
+*   **Security:** Fixed owner check for provider management.
+
+### User Interface & Experience
+*   **Demo App:** Show all configured providers in the demo app.
+*   **Login Progress:** Display login progress indicator.
+*   **Frontend Refactoring:** Refactored user info card and frontend structure.
+*   **UI Improvements:** Improved spacing around sign-in button and allow external images.
+*   **Modal Navigation:** Moved help, security, and about sections into a modal.
+*   **Stats Display:** Updated stats and security notice in the frontend.
+
+### Build & Deployment
+*   **Release Script:** Added release script to automate the build and packaging process.
+*   **Configuration Script:** Added script to configure providers (`configure-provider.sh`).
+
+### Core System & Performance
+*   **Stats API:** Updated `getStats()` to return structured data instead of text.
+*   **Code Cleanup:** Removed unused balance check and unused links.
+
+### Documentation
+*   **General Updates:** Updated documentation for provider configuration and deployment processes.
+*   **Supported Providers:** Updated list of supported and tested providers.
+*   **Typo Fixes:** Fixed typos across multiple documentation files.
+
 ## 0.0.2 2025-10-04
 
 ### Authentication & Identity
