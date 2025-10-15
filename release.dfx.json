@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "canisters": {
+    "backend": {
+      "type": "custom",
+      "wasm": "backend.wasm.gz",
+      "candid": "backend.did"
+    },
+    "frontend": {
+      "type": "assets",
+      "source": ["./frontend"]
+    }
+  }
+}

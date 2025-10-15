@@ -9,24 +9,53 @@ There are three main ways to deploy and use the Identify canister.
 
 ---
 
-## Option 1: Deploy the Pre-built Wasm
+## Option 1: Deploy the Pre-built Release
 
-This method allows you to deploy the latest version of Identify without needing to build it yourself. You can then add your own OAuth providers by calling a canister function.
+This method allows you to deploy the latest version of Identify without needing to build it yourself. The release contains pre-built files that are ready to deploy.
 
-### 1. Download the Wasm
+### 1. Download and Extract the Release
 
-Download the latest `backend.wasm.gz` file from the [Identify releases](https://github.com/f0i/identify/releases).
+Download the latest release zip file from the [Identify releases](https://github.com/f0i/identify/releases). Extract the contents to get:
+- `backend.wasm.gz` - The backend canister
+- `backend.did` - The backend interface definition
+- `frontend/` - The frontend assets
+- `dfx.json` - Configuration file for deployment
 
-### 2. Deploy the Canister
+### 2. Deploy the Backend Canister
 
-Deploy the wasm to the IC. The principal you use for this command will be the initial controller.
+Deploy the backend wasm to the IC. The principal you use for this command will be the initial controller.
 
 ```bash
 dfx canister create --ic backend
 dfx canister install --ic backend --wasm backend.wasm.gz
 ```
 
-### 3. Configure Providers
+Note the backend canister ID from the output (e.g., `xxxxx-xxxxx-xxxxx-xxxxx-cai`).
+
+### 3. Update the Backend Canister ID
+
+The frontend contains a hardcoded reference to the default backend canister ID (`fhzgg-waaaa-aaaah-aqzvq-cai`). Replace this with your newly deployed backend canister ID in the frontend's `app.js` file:
+
+```bash
+# Replace YOUR_BACKEND_CANISTER_ID with your actual backend canister ID
+sed -i 's/fhzgg-waaaa-aaaah-aqzvq-cai/YOUR_BACKEND_CANISTER_ID/g' frontend/app.js
+```
+
+For example, if your backend canister ID is `abc12-34567-89xyz-pqrst-cai`:
+
+```bash
+sed -i 's/fhzgg-waaaa-aaaah-aqzvq-cai/abc12-34567-89xyz-pqrst-cai/g' frontend/app.js
+```
+
+### 4. Deploy with dfx
+
+Deploy using dfx:
+
+```bash
+dfx deploy --ic
+```
+
+### 5. Configure Providers
 
 After deployment, you need to add your desired OAuth providers. You can do this by calling the `addProvider` function on the canister. This must be done with the same principal that deployed the canister.
 
@@ -76,7 +105,9 @@ git clone https://github.com/f0i/identify
 cd identify
 ```
 
-### 2. Configure Providers
+Delete `canister_ids.json`. When you deploy, dfx will create a new one for you with your canister IDs.
+
+### 2. Configure Providers (optional)
 
 Open `src/backend/main.mo` and add your provider configurations at the end of the actor class (before the closing `};`).
 
@@ -115,7 +146,7 @@ Open `src/backend/main.mo` and add your provider configurations at the end of th
 Deploy the canister to the IC.
 
 ```bash
-dfx deploy --ic backend
+dfx deploy --ic
 ```
 
 ---
@@ -136,7 +167,7 @@ mops add identify
 
 Now you can import and use the `identify` library within your own actor. The following snippets are based on the implementation in `src/backend/main.mo`.
 
-#### a. Initialization
+#### 2.1. Initialization
 
 First, initialize the Identify library within your actor class.
 
@@ -163,7 +194,7 @@ shared ({ caller = initializer }) persistent actor class MyActor() = this {
   // ...
 ```
 
-#### b. Expose Public Methods
+#### 2.2 Expose Public Methods
 
 You need to expose the core Identify functions for delegation preparation and retrieval. You also need to expose the `transform` functions required for making HTTP outcalls.
 
@@ -214,7 +245,7 @@ You need to expose the core Identify functions for delegation preparation and re
   // ...
 ```
 
-#### c. Add Providers and Fetch Keys
+#### 2.3 Add Providers and Fetch Keys
 
 You can add providers programmatically and set up timers to periodically fetch the latest OAuth keys.
 

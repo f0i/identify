@@ -29,4 +29,9 @@ tsconfig.tsbuildinfo
 # mops and raw test data
 .mops
 
+# temporary test files
 /test/keys/20*
+
+# release folder
+release/
+
