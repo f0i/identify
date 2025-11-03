@@ -1,9 +1,11 @@
 {
   "backend": {
-    "ic": "fhzgg-waaaa-aaaah-aqzvq-cai"
+    "ic": "fhzgg-waaaa-aaaah-aqzvq-cai",
+    "ic-odoc": "u64er-ryaaa-aaaah-arlna-cai"
   },
   "frontend": {
-    "ic": "fs6xl-xiaaa-aaaah-aqzwa-cai"
+    "ic": "fs6xl-xiaaa-aaaah-aqzwa-cai",
+    "ic-odoc": "uz5cf-4aaaa-aaaah-arlnq-cai"
   }
 }
 

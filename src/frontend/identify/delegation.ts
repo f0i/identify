@@ -9,6 +9,7 @@ import {
 } from "./utils";
 import { ProviderKey } from "../../declarations/backend/backend.did";
 import { StatusUpdate } from "./icrc";
+import { isDev } from "../auth-config";
 
 export type DelegationParams = {
   publicKey: string;
@@ -41,7 +42,6 @@ export const getDelegationJwt = async (
   const payload = JSON.parse(data);
   console.log("payload:", payload, payload.sub);
 
-  const isDev = process.env.DFX_NETWORK !== "ic";
   const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
 
   const backend = createActor(canisterId, { agentOptions: { host } });
@@ -114,7 +114,6 @@ export const getDelegationPkce = async (
   targets: undefined | Principal[],
   statusCallback: (update: StatusUpdate) => void,
 ): Promise<AuthResponseUnwrapped> => {
-  const isDev = process.env.DFX_NETWORK !== "ic";
   const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
 
   const backend = createActor(canisterId, { agentOptions: { host } });
@@ -186,7 +185,6 @@ export const getDelegationPkceJwt = async (
   targets: undefined | Principal[],
   statusCallback: (update: StatusUpdate) => void,
 ): Promise<AuthResponseUnwrapped> => {
-  const isDev = process.env.DFX_NETWORK !== "ic";
   const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
 
   const backend = createActor(canisterId, { agentOptions: { host } });

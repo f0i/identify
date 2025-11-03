@@ -1,7 +1,7 @@
 import { canisterId, createActor } from "../declarations/backend";
 import { unwrapProvider } from "./identify/utils";
 
-export const IDENTITY_PROVIDER = "https://login.f0i.de";
+export const IDENTITY_PROVIDER = "https://odoc.login.f0i.de";
 
 export type AuthConfig = OIDCConfig | PKCEConfig;
 
@@ -26,8 +26,9 @@ export type PKCEConfig = {
   scope: string;
 };
 
+export const isDev = !process.env.DFX_NETWORK?.startsWith("ic");
+
 const getProviderConfigs = async (): Promise<AuthConfig[]> => {
-  const isDev = process.env.DFX_NETWORK !== "ic";
   const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
   const backend = createActor(canisterId, { agentOptions: { host } });
   const providers = await backend.getProviders();
@@ -37,7 +38,9 @@ const getProviderConfigs = async (): Promise<AuthConfig[]> => {
 };
 let providersPromise = getProviderConfigs(); // TODO: retry on error
 
-export const getProviderList = async (): Promise<Array<{ name: string; key: string }>> => {
+export const getProviderList = async (): Promise<
+  Array<{ name: string; key: string }>
+> => {
   const providers = await providersPromise;
   return providers.map((p) => ({
     name: p.name,

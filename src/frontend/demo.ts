@@ -1,7 +1,7 @@
 import { AuthClient } from "@dfinity/auth-client";
 import { canisterId, createActor } from "../declarations/backend";
 import { showElement } from "./identify/dom";
-import { IDENTITY_PROVIDER, getProviderList } from "./auth-config";
+import { IDENTITY_PROVIDER, getProviderList, isDev } from "./auth-config";
 import { unwrapOpt } from "./identify/utils";
 import { populateProviderButtons } from "./components/ProviderButtons";
 import { createUserCard } from "./components/UserCard";
@@ -26,7 +26,6 @@ export async function initDemo() {
 
   innerText("demo-build-time", process.env.BUILD_TIME!);
   innerText("demo-network", process.env.DFX_NETWORK!);
-  const isDev = process.env.DFX_NETWORK !== "ic";
   const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
   innerText("demo-api", host);
 
@@ -77,7 +76,6 @@ async function checkAuth() {
   showElement("user-card-container", false);
   showElement("demo-actions", false);
 
-  const isDev = process.env.DFX_NETWORK !== "ic";
   const host = isDev ? "http://localhost:4943" : "https://icp-api.io";
 
   const authClient = await AuthClient.create();

@@ -1,4 +1,10 @@
 {
+  "networks": {
+    "ic-odoc": {
+      "providers": ["https://icp0.io"],
+      "type": "persistent"
+    }
+  },
   "canisters": {
     "backend": {
       "main": "src/backend/main.mo",
