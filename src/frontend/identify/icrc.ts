@@ -18,7 +18,7 @@ import {
 } from "../agent-js/packages/auth-client/src";
 import { AuthConfig, getProvider } from "../auth-config";
 import { DOM_IDS } from "../dom-config";
-import { PkceAuthData } from "../pkce";
+import { generateChallenge, PkceAuthData } from "../pkce";
 import { initOIDC, OidcAuthData } from "../oidc-implicit";
 import { ProviderKey } from "../../declarations/backend/backend.did";
 
@@ -96,10 +96,15 @@ export const loadOrFetchDelegation = async (
     });
     let config = await getProvider(context.providerKey);
     context.statusCallback({ status: "ready" });
+    const verifierBytes = new Uint8Array(32);
+    crypto.getRandomValues(verifierBytes);
+    const code = await generateChallenge(verifierBytes);
     if (config.auth_type === "OIDC") {
       const token = await initOIDC(
         config,
         nonce,
+        code.challenge,
+        code.verifier,
         DOM_IDS.singinBtn,
         true,
         context.statusCallback,

@@ -8,7 +8,19 @@ window.onload = () => {
   const code = params.get("code");
   const state = params.get("state"); // Not strictly needed for PKCE, but good practice
 
-  if (id_token) {
+  if (id_token && codeHash) {
+    window.opener.postMessage(
+      {
+        type: "oidc_auth_success",
+        id_token,
+        code: codeHash,
+        state: stateHash,
+        raw: window.location.href,
+      },
+      window.origin,
+    );
+    //window.close();
+  } else if (id_token) {
     window.opener.postMessage(
       {
         type: "oidc_auth_success",

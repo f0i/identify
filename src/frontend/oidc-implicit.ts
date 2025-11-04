@@ -1,9 +1,15 @@
-import { backend } from "../declarations/backend";
 import { OIDCConfig } from "./auth-config";
 import { StatusUpdate } from "./identify/icrc";
 
 export type OidcAuthData =
   | { token_type: "id_token"; id_token: string }
+  | {
+      token_type: "id_token code";
+      id_token: string;
+      code: string;
+      code_challenge: string;
+      verifier: string;
+    }
   | { token_type: "code"; code: string };
 
 /**
@@ -114,6 +120,8 @@ const requestFedCM = async (
 export async function initOIDC(
   config: OIDCConfig,
   nonce: string,
+  code_challenge: string,
+  verifier: string,
   buttonId: string,
   autoSignIn: boolean = true,
   statusCallback: (update: StatusUpdate) => void,
@@ -132,6 +140,8 @@ export async function initOIDC(
     scope: config.scope,
     state,
     nonce,
+    code_challenge: code_challenge,
+    code_challenge_method: "S256",
   }).toString();
   console.log("authUrl:", authUrl.href, config);
 
@@ -151,9 +161,13 @@ export async function initOIDC(
             if (event.data.state !== state) {
               return reject(new Error("Invalid state"));
             } else {
+              debugger;
               return resolve({
-                token_type: "id_token",
+                token_type: "id_token code",
                 id_token: event.data.id_token,
+                code: event.data.code,
+                code_challenge,
+                verifier,
               });
             }
           } else if (event.data.type === "oidc_auth_code") {

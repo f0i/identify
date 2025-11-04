@@ -25,12 +25,19 @@ export const showElement = (idOrEl: string | HTMLElement, show: boolean) => {
     } else {
       el.classList.add("hidden");
     }
-  } else if (typeof idOrEl === "string" && idOrEl !== "" && idOrEl !== "authorize" && idOrEl !== "user-card") {
+  } else if (
+    typeof idOrEl === "string" &&
+    idOrEl !== "" &&
+    idOrEl !== "authorize" &&
+    idOrEl !== "user-card"
+  ) {
+    /*
     console.error(
       "showElement() did not find DOM element",
       idOrEl,
       "to",
       show ? "show" : "hide",
     );
+    */
   }
 };

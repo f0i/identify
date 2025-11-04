@@ -116,6 +116,9 @@ export async function initIdentify(providerKey: ProviderKey) {
   let init = true;
 
   context.getJwtToken = async (nonce: string) => {
+    const verifierBytes = new Uint8Array(32);
+    crypto.getRandomValues(verifierBytes);
+    const code = await generateChallenge(verifierBytes);
     const config: AuthConfig = await getProvider(providerKey);
     if (config.auth_type != "OIDC") {
       throw (
@@ -127,6 +130,8 @@ export async function initIdentify(providerKey: ProviderKey) {
     return await initOIDC(
       config,
       nonce,
+      code.challenge,
+      code.verifier,
       DOM_IDS.singinBtn,
       false,
       context.statusCallback,
@@ -251,6 +256,24 @@ const handleAuthorizeClient = async (
           authRequest.targets,
           context.statusCallback,
         );
+      } else if (token.token_type === "id_token code") {
+        msg = await getDelegationJwt(
+          context.providerKey,
+          token.id_token,
+          origin,
+          authRequest.sessionPublicKey,
+          authRequest.maxTimeToLive,
+          authRequest.targets,
+          context.statusCallback,
+        );
+        responder({
+          kind: "auth-code",
+          data: {
+            code: token.code,
+            code_challenge: token.code_challenge,
+            verifier: token.verifier,
+          },
+        });
       } else if (token.token_type === "code") {
         msg = await getDelegationPkceJwt(
           context.providerKey,

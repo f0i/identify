@@ -9,16 +9,12 @@ export async function generateChallenge(
   // add random string to the session key.
   // The total length of the verifier must not be more than 128 chars
   const verifier = await sha256Hex(sessionKey);
+  const challenge = await generateCodeChallenge(verifier);
 
-  console.log(
-    "Using verifier:",
-    verifier,
-    "and code:",
-    await generateCodeChallenge(verifier),
-  );
+  console.log("Using verifier:", verifier, "and code_challenge:", challenge);
   return {
     verifier,
-    challenge: await generateCodeChallenge(verifier),
+    challenge,
   };
 }
 
@@ -89,7 +85,6 @@ export async function initPkce(
         if (event.source === popup) {
           window.removeEventListener("message", messageListener);
           if (event.data.type === "pkce_auth_success") {
-            // TODO: verify state matches
             resolve({
               code: event.data.code,
               state: event.data.state,

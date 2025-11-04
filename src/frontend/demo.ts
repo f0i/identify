@@ -14,6 +14,15 @@ export async function initDemo() {
   // Load providers from backend
   const providers = await getProviderList();
 
+  window.addEventListener("message", (msg) => {
+    // TODO: verify origin
+    // TODO: Complete PKCE token exchange
+    if (msg.data?.kind === "auth-code") {
+      alert("Reveived code. See console for details");
+      console.warn("Received message from ", msg.origin, msg.data);
+    }
+  });
+
   populateProviderButtons(providerButtonsContainer, {
     providers: providers,
     onProviderClick: (providerKey) => {
